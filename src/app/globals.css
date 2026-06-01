@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --cm-yellow: #FFCC00;
+    --cm-yellow-soft: #FFF8D6;
+    --cm-black: #141414;
+    --cm-carbon: #1C1D1A;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans;
+  }
+
+  /* Scrollbar personalizado */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-gray-300 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-gray-400; }
+}
+
+@layer components {
+  /* ── Botones ─────────────────────────── */
+  .btn {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
+           transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-1
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-cm-yellow text-cm-black hover:bg-cm-yellow-dark focus:ring-cm-yellow;
+  }
+
+  .btn-secondary {
+    @apply btn bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 focus:ring-gray-300;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-gray-600 hover:bg-gray-100 focus:ring-gray-300;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  /* ── Inputs ──────────────────────────── */
+  .input {
+    @apply w-full px-3 py-2 text-sm border border-gray-200 rounded-lg
+           focus:outline-none focus:ring-2 focus:ring-cm-yellow focus:border-transparent
+           placeholder-gray-400 transition-all duration-150;
+  }
+
+  .input-error {
+    @apply border-red-400 focus:ring-red-400;
+  }
+
+  /* ── Cards ───────────────────────────── */
+  .card {
+    @apply bg-white rounded-xl border border-gray-100 shadow-sm;
+  }
+
+  .card-header {
+    @apply flex items-center justify-between p-5 border-b border-gray-100;
+  }
+
+  .card-body {
+    @apply p-5;
+  }
+
+  /* ── Badges ──────────────────────────── */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-green  { @apply badge bg-green-100 text-green-800; }
+  .badge-yellow { @apply badge bg-yellow-100 text-yellow-800; }
+  .badge-red    { @apply badge bg-red-100 text-red-700; }
+  .badge-gray   { @apply badge bg-gray-100 text-gray-600; }
+  .badge-blue   { @apply badge bg-blue-100 text-blue-800; }
+  .badge-orange { @apply badge bg-orange-100 text-orange-800; }
+
+  /* ── Tabla ───────────────────────────── */
+  .table-wrapper {
+    @apply overflow-x-auto rounded-xl border border-gray-100;
+  }
+
+  .table {
+    @apply w-full text-sm;
+  }
+
+  .table thead tr {
+    @apply bg-gray-50 border-b border-gray-100;
+  }
+
+  .table th {
+    @apply px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide;
+  }
+
+  .table td {
+    @apply px-4 py-3 text-gray-700;
+  }
+
+  .table tbody tr {
+    @apply border-b border-gray-50 hover:bg-gray-50 transition-colors;
+  }
+
+  .table tbody tr:last-child {
+    @apply border-b-0;
+  }
+
+  /* ── SKU tag ─────────────────────────── */
+  .sku-tag {
+    @apply inline-block px-2 py-0.5 bg-cm-yellow text-cm-black text-xs font-semibold rounded;
+  }
+}

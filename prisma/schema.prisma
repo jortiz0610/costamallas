@@ -1,0 +1,411 @@
+// ============================================================
+// COSTAMALLAS ERP — Prisma Schema
+// Base de datos: PostgreSQL
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────
+// USUARIOS Y AUTENTICACIÓN
+// ─────────────────────────────────────────────
+
+model Usuario {
+  id           String   @id @default(cuid())
+  nombre       String
+  email        String   @unique
+  password     String   // bcrypt hash — nunca texto plano
+  rol          Rol      @default(USUARIO)
+  activo       Boolean  @default(true)
+  ultimoAcceso DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  logs         Log[]
+
+  @@map("usuarios")
+  @@index([email])
+}
+
+enum Rol {
+  ADMIN
+  USUARIO
+  SOLO_LECTURA
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  usuarioId String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  revoked   Boolean  @default(false)
+
+  @@map("refresh_tokens")
+  @@index([token])
+  @@index([usuarioId])
+}
+
+// ─────────────────────────────────────────────
+// PRODUCTOS
+// ─────────────────────────────────────────────
+
+model Producto {
+  id          String         @id @default(cuid())
+  wcId        Int?           @unique
+  tipo        TipoProducto   @default(SIMPLE)
+  sku         String         @unique
+  nombre      String
+  slug        String         @unique
+  publicado   Boolean        @default(false)
+  visibilidad String         @default("visible")
+  destacado   Boolean        @default(false)
+
+  descCorta   String?        @db.Text
+  descripcion String?        @db.Text
+
+  precioNormal  Decimal?     @db.Decimal(14, 2)
+  precioOferta  Decimal?     @db.Decimal(14, 2)
+
+  estadoImpuesto  String?
+  claseImpuesto   String?
+
+  enStock           Boolean  @default(true)
+  stock             Int      @default(0)
+  stockMinimo       Int      @default(15)
+  permiteBackorders String   @default("no")
+
+  pesoKg  Decimal?           @db.Decimal(8, 3)
+  largoCm Decimal?           @db.Decimal(8, 2)
+  anchoCm Decimal?           @db.Decimal(8, 2)
+  altoCm  Decimal?           @db.Decimal(8, 2)
+
+  categorias  String[]
+  etiquetas   String[]
+  claseEnvio  String?
+  notaCompra  String?        @db.Text
+  permiteResenas Boolean     @default(true)
+
+  // Campos ACF Generales
+  acfSkuInterno        String?
+  acfMarcaFabricante   String?
+  acfUnidadVenta       String?
+  acfFabricacionMedida Boolean  @default(false)
+  acfInstalacion       Boolean  @default(false)
+  acfGarantiaAnos      Int?
+  acfAplicaciones      String[]
+  acfColores           String[]
+  acfNormas            String[]
+  acfFichaTecnicaPdf   String?
+  acfCertificaciones   String[]
+
+  // Control interno
+  intEstado          EstadoProducto @default(BORRADOR)
+  intResponsable     String?
+  intObservaciones   String?        @db.Text
+  intListoExportar   Boolean        @default(false)
+  intExportadoEn     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  imagenes AcfImagen[]
+  errores  ErrorValidacion[]
+
+  acfMM AcfMallasMetalicas?
+  acfBH AcfBalcones?
+  acfNY AcfNylon?
+  acfPL AcfPlasticas?
+  acfSP AcfSeguridadPerimetral?
+
+  @@map("productos")
+  @@index([sku])
+  @@index([intEstado])
+  @@index([publicado])
+  @@index([categorias])
+}
+
+enum TipoProducto {
+  SIMPLE
+  VARIABLE
+  AGRUPADO
+  EXTERNO
+}
+
+enum EstadoProducto {
+  BORRADOR
+  REVISION
+  LISTO
+  PUBLICADO
+  ARCHIVADO
+}
+
+// ─────────────────────────────────────────────
+// IMÁGENES
+// ─────────────────────────────────────────────
+
+model AcfImagen {
+  id          String   @id @default(cuid())
+  productoId  String
+  producto    Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  posicion    Int      @default(0)
+  urlImagen   String
+  altText     String?
+  titulo      String?
+  esPrincipal Boolean  @default(false)
+  urlValida   Boolean?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("imagenes")
+  @@index([productoId])
+}
+
+// ─────────────────────────────────────────────
+// ACF POR CATEGORÍA
+// ─────────────────────────────────────────────
+
+model AcfMallasMetalicas {
+  id         String   @id @default(cuid())
+  productoId String   @unique
+  producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  calibre          String?
+  aperturaLuz      String?
+  tipoAcero        String?
+  tipoBano         String?
+  rolloAncho       Decimal? @db.Decimal(8, 2)
+  rolloLargo       Decimal? @db.Decimal(8, 2)
+  acabado          String?
+  normaFabricacion String?
+
+  @@map("acf_mallas_metalicas")
+}
+
+model AcfBalcones {
+  id         String   @id @default(cuid())
+  productoId String   @unique
+  producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  materialMarco      String?
+  acabadoMarco       String?
+  tipoApertura       String?
+  resistenciaViento  String?
+  claseTermica       String?
+
+  @@map("acf_balcones")
+}
+
+model AcfNylon {
+  id         String   @id @default(cuid())
+  productoId String   @unique
+  producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  denier        String?
+  trama         String?
+  resistenciaUV String?
+  cargaRuptura  String?
+
+  @@map("acf_nylon")
+}
+
+model AcfPlasticas {
+  id         String   @id @default(cuid())
+  productoId String   @unique
+  producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  material           String?
+  densidad           String?
+  porcentajeSombra   String?
+  temperaturaMax     String?
+
+  @@map("acf_plasticas")
+}
+
+model AcfSeguridadPerimetral {
+  id         String   @id @default(cuid())
+  productoId String   @unique
+  producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  claseSeguridadEn     String?
+  alturaMinimaRecom    String?
+  sistemaAnclaje       String?
+  resistenciaTraccion  String?
+  certificacionIEC     String?
+
+  @@map("acf_seguridad_perimetral")
+}
+
+// ─────────────────────────────────────────────
+// ERRORES DE VALIDACIÓN
+// ─────────────────────────────────────────────
+
+model ErrorValidacion {
+  id         String   @id @default(cuid())
+  productoId String?
+  producto   Producto? @relation(fields: [productoId], references: [id], onDelete: SetNull)
+
+  skuRef            String?
+  hoja              String?
+  columna           String?
+  valorActual       String?
+  tipoError         String
+  severidad         SeveridadError
+  mensaje           String           @db.Text
+  accionRecomendada String?          @db.Text
+  estadoCorreccion  EstadoCorreccion @default(PENDIENTE)
+
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@map("errores_validacion")
+  @@index([productoId])
+  @@index([severidad])
+  @@index([estadoCorreccion])
+}
+
+enum SeveridadError {
+  CRITICO
+  ALTO
+  MEDIO
+  BAJO
+  INFO
+}
+
+enum EstadoCorreccion {
+  PENDIENTE
+  EN_PROCESO
+  RESUELTO
+  IGNORADO
+}
+
+// ─────────────────────────────────────────────
+// LOGS DE AUDITORÍA
+// ─────────────────────────────────────────────
+
+model Log {
+  id         String   @id @default(cuid())
+  usuarioId  String?
+  usuario    Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  accion          String
+  detalle         String?  @db.Text
+  resultado       String?
+  archivoGenerado String?
+  totalFilas      Int?
+  ipAddress       String?
+  userAgent       String?
+  metadata        Json?
+
+  createdAt DateTime @default(now())
+
+  @@map("logs")
+  @@index([usuarioId])
+  @@index([accion])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────
+// CATÁLOGOS
+// ─────────────────────────────────────────────
+
+model Catalogo {
+  id     String       @id @default(cuid())
+  tipo   TipoCatalogo
+  valor  String
+  label  String
+  orden  Int          @default(0)
+  activo Boolean      @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tipo, valor])
+  @@map("catalogos")
+  @@index([tipo])
+}
+
+enum TipoCatalogo {
+  CATEGORIA
+  MARCA
+  CLASE_ENVIO
+  CLASE_IMPUESTO
+  UNIDAD_VENTA
+  COLOR
+  NORMA
+  APLICACION
+}
+
+// ─────────────────────────────────────────────
+// CONFIGURACIÓN (valores cifrados en DB)
+// ─────────────────────────────────────────────
+
+model Configuracion {
+  id        String  @id @default(cuid())
+  clave     String  @unique
+  valor     String  @db.Text   // cifrado con AES-256-GCM si encrypted=true
+  encrypted Boolean @default(false)
+  descripcion String?
+
+  updatedAt DateTime @updatedAt
+
+  @@map("configuracion")
+}
+
+// ─────────────────────────────────────────────
+// WOOCOMMERCE SYNC
+// ─────────────────────────────────────────────
+
+model WooCommerceSync {
+  id             String   @id @default(cuid())
+  tipo           String   // 'export' | 'import' | 'sync'
+  estado         String   // 'pendiente' | 'procesando' | 'completado' | 'error'
+  totalProductos Int      @default(0)
+  procesados     Int      @default(0)
+  errores        Int      @default(0)
+  detalle        Json?
+  archivoCSV     String?
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  @@map("woocommerce_sync")
+  @@index([estado])
+  @@index([startedAt])
+}
+
+// ─────────────────────────────────────────────
+// NOTIFICACIONES
+// ─────────────────────────────────────────────
+
+model Notificacion {
+  id      String           @id @default(cuid())
+  tipo    TipoNotificacion
+  titulo  String
+  mensaje String           @db.Text
+  leida   Boolean          @default(false)
+  data    Json?
+
+  createdAt DateTime  @default(now())
+  leidaAt   DateTime?
+
+  @@map("notificaciones")
+  @@index([leida])
+  @@index([createdAt])
+}
+
+enum TipoNotificacion {
+  STOCK_CRITICO
+  STOCK_BAJO
+  ERROR_VALIDACION
+  EXPORTACION_COMPLETA
+  SYNC_WOOCOMMERCE
+  SISTEMA
+}
