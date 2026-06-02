@@ -463,6 +463,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
   const router = useRouter();
   const [tab, setTab] = useState<TabId>("producto");
   const [saving, setSaving] = useState(false);
+  const [activeFichaKey, setActiveFichaKey] = useState<string | null>(null);
   const init = initialData ?? {};
 
   const [form, setForm] = useState<FD>({
@@ -485,12 +486,10 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
   const setX = useCallback((k: string, v: unknown) => setForm(p => ({ ...p, acfExtra: { ...(p.acfExtra as FD), [k]: v } })), []);
 
   const cats = Array.isArray(form.categorias) ? form.categorias as string[] : [];
-  // Todas las categorías con ficha técnica seleccionadas
   const fichasActivas = Object.entries(ACF_KEY)
     .filter(([cat]) => cats.includes(cat))
     .map(([cat, key]) => ({ key, info: CATS.find(c => c.v === cat)! }))
     .filter(f => f.info);
-  const [activeFichaKey, setActiveFichaKey] = useState<string | null>(null);
   const fichaKey = activeFichaKey && fichasActivas.find(f => f.key === activeFichaKey)
     ? activeFichaKey
     : fichasActivas[0]?.key ?? null;
