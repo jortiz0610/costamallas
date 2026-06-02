@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Package, Image, Tag, Archive,
-  FileOutput, AlertTriangle, ScrollText, Settings,
+  FileOutput, FileInput, AlertTriangle, ScrollText, Settings,
   LogOut, ChevronDown,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
@@ -18,6 +18,7 @@ const navItems = [
   { href: "/categorias", label: "Categorías", icon: Tag },
   { section: "Operaciones" },
   { href: "/stock", label: "Stock", icon: Archive, alertKey: "stock" },
+  { href: "/importar", label: "Importar desde WC", icon: FileInput },
   { href: "/exportar", label: "Exportar a WC", icon: FileOutput },
   { href: "/errores", label: "Errores", icon: AlertTriangle, alertKey: "errores" },
   { section: "Sistema" },
