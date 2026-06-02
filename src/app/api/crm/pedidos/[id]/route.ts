@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest, { params }: P) {
     include: {
       cliente: true,
       vendedor: { select: { nombre: true } },
-      items: { orderBy: { orden: "asc" }, include: { producto: { select: { nombre: true, sku: true, stock: true } } } },
+      items: { orderBy: { orden: "asc" } },
       instalacion: { include: { tecnico: { select: { nombre: true } } } },
       cotizacion: { select: { numero: true } },
     },
