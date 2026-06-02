@@ -26,8 +26,10 @@ function ProductoDetallePage() {
   const { data: producto, isLoading, error } = useQuery({
     queryKey: ["producto", id],
     queryFn: () => fetchProducto(id),
-    onSuccess: (data: Record<string, unknown>) => { if (!form) setForm(data); },
   });
+
+  // Inicializar form cuando llegan los datos
+  if (producto && !form) setForm(producto);
 
   if (isLoading) return <div className="flex-1 flex items-center justify-center text-gray-400 text-[13px]"><Loader2 size={18} className="animate-spin mr-2" />Cargando producto…</div>;
   if (error || !producto) return <div className="flex-1 flex items-center justify-center text-red-400 text-[13px]">Producto no encontrado</div>;
