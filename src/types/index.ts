@@ -2,7 +2,7 @@
 // COSTAMALLAS ERP — Tipos globales TypeScript
 // ============================================================
 
-export type Rol = "ADMIN" | "USUARIO" | "SOLO_LECTURA";
+export type Rol = "SUPERADMIN" | "ADMIN" | "USUARIO" | "VENDEDOR" | "PRODUCCION" | "BODEGA" | "SOLO_LECTURA";
 
 export type TipoProducto = "SIMPLE" | "VARIABLE" | "AGRUPADO" | "EXTERNO";
 
@@ -246,7 +246,4 @@ export interface ApiResponse<T = unknown> {
 export interface WCTestResult {
   ok: boolean;
   storeUrl: string;
-  storeName: string;
-  version: string;
-  message?: string;
-}
+  storeN
