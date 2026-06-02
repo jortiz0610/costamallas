@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, Suspense, useCallback, useRef } from "react";
+import { useState, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { Plus, Search, X, Loader2, Trash2, ChevronRight } from "lucide-react";
+import { Plus, Search, X, Loader2, Trash2, FileText } from "lucide-react";
 import toast from "react-hot-toast";
-import Link from "next/link";
 import { formatCOP } from "@/lib/utils";
 
 interface Cotizacion {
@@ -19,16 +18,16 @@ interface Producto { id: string; sku: string; nombre: string; precioNormal: numb
 interface Cliente { id: string; nombre: string; empresa?: string; }
 
 const ESTADOS = [
-  { v: "BORRADOR", l: "Borrador", c: "bg-gray-100 text-gray-600" },
-  { v: "ENVIADA",  l: "Enviada",  c: "bg-blue-100 text-blue-700" },
-  { v: "APROBADA", l: "Aprobada", c: "bg-green-100 text-green-700" },
-  { v: "RECHAZADA",l: "Rechazada",c: "bg-red-100 text-red-600" },
-  { v: "VENCIDA",  l: "Vencida",  c: "bg-orange-100 text-orange-600" },
+  { v: "BORRADOR",  l: "Borrador",  gradient: "from-slate-400 to-slate-500",   pill: "bg-slate-100 text-slate-600",    ring: "ring-slate-300" },
+  { v: "ENVIADA",   l: "Enviada",   gradient: "from-sky-400 to-blue-500",      pill: "bg-sky-100 text-sky-700",        ring: "ring-sky-300" },
+  { v: "APROBADA",  l: "Aprobada",  gradient: "from-emerald-400 to-green-500", pill: "bg-emerald-100 text-emerald-700",ring: "ring-emerald-300" },
+  { v: "RECHAZADA", l: "Rechazada", gradient: "from-rose-400 to-red-500",      pill: "bg-rose-100 text-rose-700",      ring: "ring-rose-300" },
+  { v: "VENCIDA",   l: "Vencida",   gradient: "from-amber-400 to-orange-500",  pill: "bg-amber-100 text-amber-700",    ring: "ring-amber-300" },
 ];
 
 function EstadoBadge({ estado }: { estado: string }) {
   const e = ESTADOS.find(x => x.v === estado);
-  return <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${e?.c ?? "bg-gray-100 text-gray-600"}`}>{e?.l ?? estado}</span>;
+  return <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${e?.pill ?? "bg-slate-100 text-slate-600"}`}>{e?.l ?? estado}</span>;
 }
 
 interface Item { productoId?: string; descripcion: string; cantidad: number; precioUnitario: number; descuento: number; unidad: string; stock?: number; }
@@ -63,13 +62,9 @@ function NuevaCotizacion({ onClose, onSaved }: { onClose: () => void; onSaved: (
 
   const addProducto = (p: Producto) => {
     setItems(prev => [...prev, {
-      productoId: p.id,
-      descripcion: p.nombre,
-      cantidad: 1,
-      precioUnitario: p.precioNormal ?? 0,
-      descuento: 0,
-      unidad: p.acfUnidadVenta ?? "und",
-      stock: p.stock,
+      productoId: p.id, descripcion: p.nombre, cantidad: 1,
+      precioUnitario: p.precioNormal ?? 0, descuento: 0,
+      unidad: p.acfUnidadVenta ?? "und", stock: p.stock,
     }]);
     setProdBusq("");
   };
@@ -105,40 +100,51 @@ function NuevaCotizacion({ onClose, onSaved }: { onClose: () => void; onSaved: (
   const clienteSeleccionado = clientes.find(c => c.id === clienteId);
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl my-4">
+    <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-3xl shadow-2xl shadow-slate-200/80 w-full max-w-3xl my-4 border border-slate-100">
         {/* Header */}
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-          <div>
-            <h2 className="text-[15px] font-bold text-gray-900">Nueva Cotización</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Selecciona cliente y agrega productos</p>
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-200">
+              <FileText size={16} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-800">Nueva Cotización</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Selecciona cliente y agrega productos</p>
+            </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all">
+            <X size={15} />
+          </button>
         </div>
 
-        <div className="p-5 space-y-5">
+        <div className="p-6 space-y-5">
           {/* Cliente */}
           <div>
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">Cliente *</label>
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">Cliente *</label>
             {clienteSeleccionado ? (
-              <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
+              <div className="flex items-center justify-between bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200 rounded-2xl px-4 py-3">
                 <div>
-                  <p className="text-sm font-semibold text-gray-800">{clienteSeleccionado.nombre}</p>
-                  {clienteSeleccionado.empresa && <p className="text-xs text-gray-400">{clienteSeleccionado.empresa}</p>}
+                  <p className="text-sm font-semibold text-slate-800">{clienteSeleccionado.nombre}</p>
+                  {clienteSeleccionado.empresa && <p className="text-xs text-slate-400">{clienteSeleccionado.empresa}</p>}
                 </div>
-                <button onClick={() => { setClienteId(""); setClienteBusq(""); }} className="text-gray-400 hover:text-red-500 transition-colors"><X size={14} /></button>
+                <button onClick={() => { setClienteId(""); setClienteBusq(""); }}
+                  className="w-6 h-6 rounded-lg bg-white flex items-center justify-center text-slate-400 hover:text-rose-500 transition-colors shadow-sm">
+                  <X size={12} />
+                </button>
               </div>
             ) : (
               <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input className="input pl-9" value={clienteBusq} onChange={e => setClienteBusq(e.target.value)} placeholder="Buscar cliente…" />
+                <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm text-slate-700 placeholder-slate-400 outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-100 transition-all"
+                  value={clienteBusq} onChange={e => setClienteBusq(e.target.value)} placeholder="Buscar cliente…" />
                 {clientes.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-10 overflow-hidden">
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl shadow-slate-200/60 z-10 overflow-hidden">
                     {clientes.map(c => (
                       <button key={c.id} type="button" onClick={() => { setClienteId(c.id); setClienteBusq(""); }}
-                        className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition-colors">
-                        <p className="text-sm font-medium text-gray-800">{c.nombre}</p>
-                        {c.empresa && <p className="text-xs text-gray-400">{c.empresa}</p>}
+                        className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors first:rounded-t-2xl last:rounded-b-2xl">
+                        <p className="text-sm font-semibold text-slate-800">{c.nombre}</p>
+                        {c.empresa && <p className="text-xs text-slate-400">{c.empresa}</p>}
                       </button>
                     ))}
                   </div>
@@ -149,22 +155,23 @@ function NuevaCotizacion({ onClose, onSaved }: { onClose: () => void; onSaved: (
 
           {/* Buscador de productos */}
           <div>
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">Agregar producto</label>
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">Agregar producto</label>
             <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input className="input pl-9" value={prodBusq} onChange={e => setProdBusq(e.target.value)} placeholder="Buscar por nombre o SKU…" />
+              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm text-slate-700 placeholder-slate-400 outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-100 transition-all"
+                value={prodBusq} onChange={e => setProdBusq(e.target.value)} placeholder="Buscar por nombre o SKU…" />
               {productos.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-10 overflow-hidden max-h-52 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl shadow-slate-200/60 z-10 overflow-hidden max-h-52 overflow-y-auto">
                   {productos.map(p => (
                     <button key={p.id} type="button" onClick={() => addProducto(p)}
-                      className="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center justify-between gap-3">
+                      className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center justify-between gap-3 transition-colors">
                       <div>
                         <span className="sku-tag mr-2">{p.sku}</span>
-                        <span className="text-sm text-gray-700">{p.nombre}</span>
+                        <span className="text-sm text-slate-700">{p.nombre}</span>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-bold text-gray-900">{p.precioNormal ? formatCOP(p.precioNormal) : "—"}</p>
-                        <p className={`text-[10px] ${p.stock > 0 ? "text-green-600" : "text-red-500"}`}>{p.stock} en stock</p>
+                        <p className="text-sm font-bold text-slate-900">{p.precioNormal ? formatCOP(p.precioNormal) : "—"}</p>
+                        <p className={`text-[10px] font-semibold ${p.stock > 0 ? "text-emerald-600" : "text-rose-500"}`}>{p.stock} en stock</p>
                       </div>
                     </button>
                   ))}
@@ -176,32 +183,36 @@ function NuevaCotizacion({ onClose, onSaved }: { onClose: () => void; onSaved: (
           {/* Items */}
           {items.length > 0 && (
             <div>
-              <div className="rounded-xl border border-gray-100 overflow-hidden">
+              <div className="rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
                 <table className="w-full text-[12px]">
-                  <thead className="bg-gray-50 border-b border-gray-100">
+                  <thead className="bg-slate-50 border-b border-slate-100">
                     <tr>
-                      <th className="text-left px-4 py-2 font-semibold text-gray-500">Descripción</th>
-                      <th className="text-center px-3 py-2 font-semibold text-gray-500 w-20">Cant.</th>
-                      <th className="text-right px-3 py-2 font-semibold text-gray-500 w-32">Precio unit.</th>
-                      <th className="text-center px-3 py-2 font-semibold text-gray-500 w-20">Desc %</th>
-                      <th className="text-right px-3 py-2 font-semibold text-gray-500 w-32">Subtotal</th>
+                      <th className="text-left px-4 py-2.5 font-semibold text-slate-500">Descripción</th>
+                      <th className="text-center px-3 py-2.5 font-semibold text-slate-500 w-20">Cant.</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-slate-500 w-32">Precio unit.</th>
+                      <th className="text-center px-3 py-2.5 font-semibold text-slate-500 w-20">Desc %</th>
+                      <th className="text-right px-3 py-2.5 font-semibold text-slate-500 w-32">Subtotal</th>
                       <th className="w-8" />
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-slate-50">
                     {items.map((item, i) => {
                       const sub = item.cantidad * item.precioUnitario * (1 - item.descuento / 100);
                       return (
-                        <tr key={i}>
-                          <td className="px-4 py-2">
-                            <p className="font-medium text-gray-800">{item.descripcion}</p>
-                            {item.stock !== undefined && <p className={`text-[10px] ${item.stock > 0 ? "text-green-600" : "text-red-500"}`}>{item.stock > 0 ? `✓ ${item.stock} disponibles` : "⚠ Sin stock"}</p>}
+                        <tr key={i} className="hover:bg-slate-50/50">
+                          <td className="px-4 py-2.5">
+                            <p className="font-semibold text-slate-800">{item.descripcion}</p>
+                            {item.stock !== undefined && (
+                              <p className={`text-[10px] font-medium ${item.stock > 0 ? "text-emerald-600" : "text-rose-500"}`}>
+                                {item.stock > 0 ? `✓ ${item.stock} disponibles` : "⚠ Sin stock"}
+                              </p>
+                            )}
                           </td>
-                          <td className="px-3 py-2"><input type="number" min="0.01" step="0.01" value={item.cantidad} onChange={e => updateItem(i, "cantidad", parseFloat(e.target.value) || 0)} className="w-full text-center border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-cm-yellow" /></td>
-                          <td className="px-3 py-2"><input type="number" min="0" value={item.precioUnitario} onChange={e => updateItem(i, "precioUnitario", parseFloat(e.target.value) || 0)} className="w-full text-right border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-cm-yellow" /></td>
-                          <td className="px-3 py-2"><input type="number" min="0" max="100" value={item.descuento} onChange={e => updateItem(i, "descuento", parseFloat(e.target.value) || 0)} className="w-full text-center border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-cm-yellow" /></td>
-                          <td className="px-3 py-2 text-right font-bold text-gray-900">{formatCOP(sub)}</td>
-                          <td className="px-2"><button onClick={() => setItems(prev => prev.filter((_, j) => j !== i))} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={13} /></button></td>
+                          <td className="px-3 py-2.5"><input type="number" min="0.01" step="0.01" value={item.cantidad} onChange={e => updateItem(i, "cantidad", parseFloat(e.target.value) || 0)} className="w-full text-center border border-slate-200 rounded-xl px-2 py-1 outline-none focus:border-violet-300 bg-white" /></td>
+                          <td className="px-3 py-2.5"><input type="number" min="0" value={item.precioUnitario} onChange={e => updateItem(i, "precioUnitario", parseFloat(e.target.value) || 0)} className="w-full text-right border border-slate-200 rounded-xl px-2 py-1 outline-none focus:border-violet-300 bg-white" /></td>
+                          <td className="px-3 py-2.5"><input type="number" min="0" max="100" value={item.descuento} onChange={e => updateItem(i, "descuento", parseFloat(e.target.value) || 0)} className="w-full text-center border border-slate-200 rounded-xl px-2 py-1 outline-none focus:border-violet-300 bg-white" /></td>
+                          <td className="px-3 py-2.5 text-right font-bold text-slate-900">{formatCOP(sub)}</td>
+                          <td className="px-2"><button onClick={() => setItems(prev => prev.filter((_, j) => j !== i))} className="w-6 h-6 rounded-lg hover:bg-rose-50 flex items-center justify-center text-slate-300 hover:text-rose-500 transition-colors"><Trash2 size={12} /></button></td>
                         </tr>
                       );
                     })}
@@ -211,17 +222,17 @@ function NuevaCotizacion({ onClose, onSaved }: { onClose: () => void; onSaved: (
 
               {/* Totales */}
               <div className="mt-4 flex justify-end">
-                <div className="w-64 space-y-2">
-                  <div className="flex justify-between text-sm text-gray-500">
-                    <span>Subtotal</span><span className="font-medium text-gray-900">{formatCOP(subtotal)}</span>
+                <div className="w-64 space-y-2 bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                  <div className="flex justify-between text-sm text-slate-500">
+                    <span>Subtotal</span><span className="font-semibold text-slate-800">{formatCOP(subtotal)}</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm text-gray-500">
+                  <div className="flex items-center justify-between text-sm text-slate-500">
                     <span>Descuento global %</span>
-                    <input type="number" min="0" max="100" value={descuentoGlobal} onChange={e => setDescuentoGlobal(parseFloat(e.target.value) || 0)} className="w-16 text-right border border-gray-200 rounded px-2 py-0.5 text-sm outline-none focus:border-cm-yellow" />
+                    <input type="number" min="0" max="100" value={descuentoGlobal} onChange={e => setDescuentoGlobal(parseFloat(e.target.value) || 0)} className="w-16 text-right border border-slate-200 rounded-xl px-2 py-1 text-sm outline-none focus:border-violet-300 bg-white" />
                   </div>
-                  {descuentoVal > 0 && <div className="flex justify-between text-sm text-red-500"><span>- Descuento</span><span>-{formatCOP(descuentoVal)}</span></div>}
-                  <div className="flex justify-between text-sm text-gray-500"><span>IVA 19%</span><span>{formatCOP(ivaVal)}</span></div>
-                  <div className="flex justify-between text-base font-bold text-gray-900 border-t border-gray-200 pt-2"><span>Total</span><span>{formatCOP(total)}</span></div>
+                  {descuentoVal > 0 && <div className="flex justify-between text-sm text-rose-500 font-medium"><span>- Descuento</span><span>-{formatCOP(descuentoVal)}</span></div>}
+                  <div className="flex justify-between text-sm text-slate-500"><span>IVA 19%</span><span>{formatCOP(ivaVal)}</span></div>
+                  <div className="flex justify-between text-base font-bold text-slate-900 border-t border-slate-200 pt-2"><span>Total</span><span className="text-violet-600">{formatCOP(total)}</span></div>
                 </div>
               </div>
             </div>
@@ -230,23 +241,23 @@ function NuevaCotizacion({ onClose, onSaved }: { onClose: () => void; onSaved: (
           {/* Opciones adicionales */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">Notas</label>
-              <textarea className="input resize-none" rows={2} value={notas} onChange={e => setNotas(e.target.value)} placeholder="Condiciones, observaciones…" />
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">Notas</label>
+              <textarea className="input resize-none" rows={3} value={notas} onChange={e => setNotas(e.target.value)} placeholder="Condiciones, observaciones…" />
             </div>
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+            <div className="flex items-center justify-between p-4 bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 rounded-2xl">
               <div>
-                <p className="text-sm font-semibold text-gray-700">Incluye instalación</p>
-                <p className="text-xs text-gray-400">El pedido requerirá instalación</p>
+                <p className="text-sm font-semibold text-slate-700">Incluye instalación</p>
+                <p className="text-xs text-slate-400 mt-0.5">El pedido requerirá instalación</p>
               </div>
               <button type="button" onClick={() => setTieneInstalacion(v => !v)}
-                className={`w-11 h-6 rounded-full relative transition-colors ${tieneInstalacion ? "bg-cm-yellow" : "bg-gray-200"}`}>
+                className={`w-11 h-6 rounded-full relative transition-all ${tieneInstalacion ? "bg-amber-400 shadow-md shadow-amber-200" : "bg-slate-200"}`}>
                 <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${tieneInstalacion ? "translate-x-5" : "translate-x-0.5"}`} />
               </button>
             </div>
           </div>
         </div>
 
-        <div className="p-5 pt-0 flex gap-3 border-t border-gray-100">
+        <div className="p-6 pt-0 flex gap-3 border-t border-slate-100">
           <button onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
           <button onClick={save} disabled={saving} className="btn-primary flex-1">
             {saving && <Loader2 size={13} className="animate-spin" />}
@@ -271,59 +282,81 @@ function CotizacionesContent() {
     },
   });
 
-  const cambiarEstado = async (id: string, estado: string) => {
-    const res = await fetch(`/api/crm/cotizaciones/${id}`, {
-      method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ estado }),
-    });
-    const json = await res.json();
-    if (json.success) {
-      toast.success(estado === "APROBADA" ? "✅ Cotización aprobada — Pedido creado automáticamente" : `Estado actualizado a ${estado}`);
-      qc.invalidateQueries({ queryKey: ["crm-cotizaciones"] });
-    }
-  };
-
   return (
     <>
       <Topbar title="Cotizaciones" actions={
         <button onClick={() => setModal(true)} className="btn-primary btn-sm"><Plus size={14} /> Nueva cotización</button>
       } />
-      <div className="flex-1 overflow-y-auto p-6">
-        {/* Stats */}
+      <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+        {/* Stats con gradiente — clickeables como filtros */}
         <div className="grid grid-cols-5 gap-3 mb-6">
-          {ESTADOS.map(e => (
-            <button key={e.v} onClick={() => setFiltroEstado(filtroEstado === e.v ? "" : e.v)}
-              className={`card p-3 text-left transition-all ${filtroEstado === e.v ? "ring-2 ring-gray-900" : "hover:shadow-md"}`}>
-              <p className="text-xs text-gray-400">{e.l}</p>
-              <p className="text-xl font-bold text-gray-900 mt-0.5">{cotizaciones.filter(c => c.estado === e.v).length}</p>
-            </button>
-          ))}
+          {ESTADOS.map(e => {
+            const count = cotizaciones.filter(c => c.estado === e.v).length;
+            const activo = filtroEstado === e.v;
+            return (
+              <button key={e.v} onClick={() => setFiltroEstado(activo ? "" : e.v)}
+                className={`rounded-2xl p-4 text-left transition-all ${activo
+                  ? `bg-gradient-to-br ${e.gradient} text-white shadow-lg`
+                  : "bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-slate-200"
+                }`}>
+                <p className={`text-xs font-semibold ${activo ? "text-white/80" : "text-slate-400"}`}>{e.l}</p>
+                <p className={`text-2xl font-bold mt-1 ${activo ? "text-white" : "text-slate-800"}`}>{count}</p>
+              </button>
+            );
+          })}
         </div>
 
-        <div className="card">
-          <div className="divide-y divide-gray-50">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="divide-y divide-slate-50">
             {isLoading ? (
-              <div className="p-8 text-center text-sm text-gray-400">Cargando…</div>
+              <div className="p-10 text-center">
+                <Loader2 size={20} className="animate-spin text-violet-400 mx-auto mb-2" />
+                <p className="text-sm text-slate-400">Cargando cotizaciones…</p>
+              </div>
             ) : cotizaciones.length === 0 ? (
-              <div className="p-12 text-center text-sm text-gray-400">Sin cotizaciones</div>
+              <div className="p-14 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                  <FileText size={24} className="text-slate-300" />
+                </div>
+                <p className="text-sm font-semibold text-slate-500">Sin cotizaciones</p>
+              </div>
             ) : cotizaciones.map(c => (
-              <div key={c.id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 group">
+              <div key={c.id} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50/80 group transition-colors">
                 <div className="flex-shrink-0">
-                  <p className="text-xs font-mono font-bold text-gray-500">{c.numero}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">{new Date(c.createdAt).toLocaleDateString("es-CO")}</p>
+                  <p className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg">{c.numero}</p>
+                  <p className="text-[10px] text-slate-400 mt-1">{new Date(c.createdAt).toLocaleDateString("es-CO")}</p>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900">{c.cliente.nombre}</p>
-                  {c.cliente.empresa && <p className="text-xs text-gray-400">{c.cliente.empresa}</p>}
+                  <p className="text-sm font-semibold text-slate-800">{c.cliente.nombre}</p>
+                  {c.cliente.empresa && <p className="text-xs text-slate-400">{c.cliente.empresa}</p>}
                 </div>
                 <EstadoBadge estado={c.estado} />
-                <p className="text-sm font-bold text-gray-900 w-28 text-right">{formatCOP(c.total)}</p>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {c.estado === "BORRADOR" && <button onClick={() => cambiarEstado(c.id, "ENVIADA")} className="btn-secondary btn-sm text-xs">Enviar</button>}
-                  {c.estado === "ENVIADA" && <>
-                    <button onClick={() => cambiarEstado(c.id, "APROBADA")} className="bg-green-500 text-white text-xs px-3 py-1.5 rounded-lg font-medium hover:bg-green-600 transition-colors">Aprobar</button>
-                    <button onClick={() => cambiarEstado(c.id, "RECHAZADA")} className="bg-red-100 text-red-600 text-xs px-3 py-1.5 rounded-lg font-medium hover:bg-red-200 transition-colors">Rechazar</button>
-                  </>}
+                <p className="text-sm font-bold text-slate-900 w-32 text-right">{formatCOP(c.total)}</p>
+                <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {c.estado === "BORRADOR" && (
+                    <button onClick={() => {
+                      fetch(`/api/crm/cotizaciones/${c.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estado: "ENVIADA" }) })
+                        .then(r => r.json()).then(j => { if (j.success) { toast.success("Cotización enviada"); qc.invalidateQueries({ queryKey: ["crm-cotizaciones"] }); } });
+                    }} className="px-3 py-1.5 rounded-xl bg-sky-100 hover:bg-sky-200 text-xs font-semibold text-sky-700 transition-colors">
+                      Enviar
+                    </button>
+                  )}
+                  {c.estado === "ENVIADA" && (
+                    <>
+                      <button onClick={() => {
+                        fetch(`/api/crm/cotizaciones/${c.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estado: "APROBADA" }) })
+                          .then(r => r.json()).then(j => { if (j.success) { toast.success("✅ Cotización aprobada — Pedido creado"); qc.invalidateQueries({ queryKey: ["crm-cotizaciones"] }); } });
+                      }} className="px-3 py-1.5 rounded-xl bg-emerald-100 hover:bg-emerald-200 text-xs font-semibold text-emerald-700 transition-colors">
+                        Aprobar
+                      </button>
+                      <button onClick={() => {
+                        fetch(`/api/crm/cotizaciones/${c.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estado: "RECHAZADA" }) })
+                          .then(r => r.json()).then(j => { if (j.success) { toast.success("Rechazada"); qc.invalidateQueries({ queryKey: ["crm-cotizaciones"] }); } });
+                      }} className="px-3 py-1.5 rounded-xl bg-rose-100 hover:bg-rose-200 text-xs font-semibold text-rose-700 transition-colors">
+                        Rechazar
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}

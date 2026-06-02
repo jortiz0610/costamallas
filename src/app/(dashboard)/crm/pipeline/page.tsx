@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { Loader2, Wrench, RefreshCw } from "lucide-react";
+import { Loader2, Wrench, RefreshCw, TrendingUp, Package } from "lucide-react";
 import Link from "next/link";
 import { formatCOP } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -17,19 +17,30 @@ interface Pedido {
 }
 
 const COLUMNAS = [
-  { id: "NUEVO",          label: "Nuevos",        color: "bg-gray-100",   dot: "bg-gray-400",   text: "text-gray-700" },
-  { id: "CONFIRMADO",     label: "Confirmados",   color: "bg-blue-50",    dot: "bg-blue-500",   text: "text-blue-700" },
-  { id: "EN_PRODUCCION",  label: "Producción",    color: "bg-amber-50",   dot: "bg-amber-500",  text: "text-amber-700" },
-  { id: "LISTO",          label: "Listos",        color: "bg-purple-50",  dot: "bg-purple-500", text: "text-purple-700" },
-  { id: "DESPACHADO",     label: "Despachados",   color: "bg-indigo-50",  dot: "bg-indigo-500", text: "text-indigo-700" },
-  { id: "ENTREGADO",      label: "Entregados",    color: "bg-green-50",   dot: "bg-green-500",  text: "text-green-700" },
-  { id: "INSTALADO",      label: "Instalados",    color: "bg-emerald-50", dot: "bg-emerald-500",text: "text-emerald-700" },
+  { id: "NUEVO",         label: "Nuevos",      gradient: "from-slate-400 to-slate-500",   bg: "bg-slate-50",    ring: "ring-slate-200",  pill: "bg-slate-100 text-slate-600",   btn: "bg-slate-500 hover:bg-slate-600" },
+  { id: "CONFIRMADO",    label: "Confirmados", gradient: "from-sky-400 to-blue-500",      bg: "bg-sky-50/60",   ring: "ring-sky-200",    pill: "bg-sky-100 text-sky-700",       btn: "bg-sky-500 hover:bg-sky-600" },
+  { id: "EN_PRODUCCION", label: "Producción",  gradient: "from-amber-400 to-orange-500",  bg: "bg-amber-50/60", ring: "ring-amber-200",  pill: "bg-amber-100 text-amber-700",   btn: "bg-amber-500 hover:bg-amber-600" },
+  { id: "LISTO",         label: "Listos",      gradient: "from-violet-400 to-purple-500", bg: "bg-violet-50/60",ring: "ring-violet-200", pill: "bg-violet-100 text-violet-700", btn: "bg-violet-500 hover:bg-violet-600" },
+  { id: "DESPACHADO",    label: "Despachados", gradient: "from-indigo-400 to-indigo-600", bg: "bg-indigo-50/60",ring: "ring-indigo-200", pill: "bg-indigo-100 text-indigo-700", btn: "bg-indigo-500 hover:bg-indigo-600" },
+  { id: "ENTREGADO",     label: "Entregados",  gradient: "from-teal-400 to-emerald-500",  bg: "bg-teal-50/60",  ring: "ring-teal-200",   pill: "bg-teal-100 text-teal-700",     btn: "bg-teal-500 hover:bg-teal-600" },
+  { id: "INSTALADO",     label: "Instalados",  gradient: "from-emerald-400 to-green-500", bg: "bg-emerald-50/60",ring:"ring-emerald-200",pill: "bg-emerald-100 text-emerald-700",btn: "bg-emerald-500 hover:bg-emerald-600" },
 ];
 
 const SIGUIENTE: Record<string, string> = {
   NUEVO: "CONFIRMADO", CONFIRMADO: "EN_PRODUCCION", EN_PRODUCCION: "LISTO",
   LISTO: "DESPACHADO", DESPACHADO: "ENTREGADO", ENTREGADO: "INSTALADO",
 };
+
+const GRADIENTS_AVATAR = [
+  "from-violet-400 to-indigo-500",
+  "from-sky-400 to-blue-500",
+  "from-emerald-400 to-teal-500",
+  "from-amber-400 to-orange-500",
+  "from-pink-400 to-rose-500",
+];
+function getAvatarGradient(name: string) {
+  return GRADIENTS_AVATAR[name.charCodeAt(0) % GRADIENTS_AVATAR.length];
+}
 
 function PipelineContent() {
   const qc = useQueryClient();
@@ -67,59 +78,97 @@ function PipelineContent() {
           </button>
         }
       />
-      <div className="flex-1 overflow-hidden flex flex-col">
+      <div className="flex-1 overflow-hidden flex flex-col bg-slate-50/50">
         {/* KPIs */}
-        <div className="px-6 py-3 border-b border-gray-100 bg-white flex items-center gap-6">
-          <div><span className="text-xs text-gray-400">Pedidos activos</span><span className="ml-2 font-bold text-gray-900">{activos.length}</span></div>
-          <div><span className="text-xs text-gray-400">Valor total</span><span className="ml-2 font-bold text-gray-900">{formatCOP(totalValor)}</span></div>
+        <div className="px-6 py-3 border-b border-slate-100 bg-white flex items-center gap-5 overflow-x-auto">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
+              <Package size={12} className="text-white" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-medium">Activos</p>
+              <p className="text-sm font-bold text-slate-800">{activos.length}</p>
+            </div>
+          </div>
+          <div className="w-px h-8 bg-slate-100" />
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+              <TrendingUp size={12} className="text-white" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-medium">Valor total</p>
+              <p className="text-sm font-bold text-slate-800">{formatCOP(totalValor)}</p>
+            </div>
+          </div>
+          <div className="w-px h-8 bg-slate-100" />
           {COLUMNAS.map(c => {
             const cnt = pedidos.filter(p => p.estado === c.id).length;
             if (!cnt) return null;
-            return <div key={c.id}><span className="text-xs text-gray-400">{c.label}</span><span className={`ml-1.5 text-xs font-bold ${c.text}`}>{cnt}</span></div>;
+            return (
+              <div key={c.id} className="flex items-center gap-1.5 flex-shrink-0">
+                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${c.pill}`}>{c.label} {cnt}</span>
+              </div>
+            );
           })}
         </div>
 
         {/* Kanban */}
         <div className="flex-1 overflow-x-auto p-4">
           {isLoading ? (
-            <div className="flex items-center justify-center h-full text-gray-400"><Loader2 size={20} className="animate-spin mr-2" />Cargando pipeline…</div>
+            <div className="flex items-center justify-center h-full text-slate-400">
+              <Loader2 size={20} className="animate-spin mr-2 text-violet-400" />
+              <span className="text-sm">Cargando pipeline…</span>
+            </div>
           ) : (
             <div className="flex gap-3 h-full min-w-max">
               {COLUMNAS.map(col => {
                 const tarjetas = pedidos.filter(p => p.estado === col.id);
                 return (
-                  <div key={col.id} className={`w-64 flex flex-col rounded-2xl ${col.color} overflow-hidden flex-shrink-0`}>
+                  <div key={col.id} className={`w-64 flex flex-col rounded-2xl ${col.bg} ring-1 ${col.ring} overflow-hidden flex-shrink-0`}>
                     {/* Header columna */}
-                    <div className="px-4 py-3 flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${col.dot}`} />
-                      <span className={`text-[12px] font-bold ${col.text}`}>{col.label}</span>
-                      <span className="ml-auto text-[11px] font-semibold text-gray-400 bg-white px-1.5 py-0.5 rounded-full">{tarjetas.length}</span>
+                    <div className={`px-4 py-3 bg-gradient-to-r ${col.gradient}`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[12px] font-bold text-white">{col.label}</span>
+                        <span className="text-[11px] font-bold bg-white/25 text-white px-2 py-0.5 rounded-full">{tarjetas.length}</span>
+                      </div>
                     </div>
 
                     {/* Tarjetas */}
-                    <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-2">
+                    <div className="flex-1 overflow-y-auto px-2 py-2 space-y-2">
                       {tarjetas.length === 0 && (
-                        <div className="text-center py-6 text-[11px] text-gray-300">Sin pedidos</div>
+                        <div className="text-center py-8 text-[11px] text-slate-300 font-medium">Sin pedidos</div>
                       )}
                       {tarjetas.map(p => (
-                        <div key={p.id} className="bg-white rounded-xl p-3 shadow-sm border border-white hover:border-gray-200 transition-all group">
-                          <div className="flex items-start justify-between mb-2">
-                            <span className="text-[10px] font-mono font-bold text-gray-400">{p.numero}</span>
-                            {p.tieneInstalacion && <Wrench size={11} className="text-orange-400" />}
+                        <div key={p.id} className="bg-white rounded-xl p-3 shadow-sm shadow-slate-100 border border-slate-100 hover:shadow-md hover:border-slate-200 transition-all group cursor-default">
+                          <div className="flex items-start justify-between mb-2.5">
+                            <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-lg">{p.numero}</span>
+                            {p.tieneInstalacion && (
+                              <span className="flex items-center gap-1 text-[10px] font-semibold text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded-lg">
+                                <Wrench size={9} /> Inst.
+                              </span>
+                            )}
                           </div>
-                          <p className="text-[13px] font-semibold text-gray-800 leading-tight">{p.cliente.nombre}</p>
-                          {p.cliente.empresa && <p className="text-[11px] text-gray-400">{p.cliente.empresa}</p>}
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="text-[12px] font-bold text-gray-700">{formatCOP(Number(p.total))}</span>
-                            <span className="text-[10px] text-gray-300">{p._count.items} ítem{p._count.items !== 1 ? "s" : ""}</span>
+                          {/* Avatar + nombre */}
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className={`w-6 h-6 rounded-lg bg-gradient-to-br ${getAvatarGradient(p.cliente.nombre)} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0`}>
+                              {p.cliente.nombre.charAt(0)}
+                            </div>
+                            <p className="text-[13px] font-semibold text-slate-800 leading-tight truncate">{p.cliente.nombre}</p>
+                          </div>
+                          {p.cliente.empresa && <p className="text-[11px] text-slate-400 ml-8 mb-1">{p.cliente.empresa}</p>}
+                          <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-50">
+                            <span className="text-[12px] font-bold text-slate-700">{formatCOP(Number(p.total))}</span>
+                            <span className="text-[10px] text-slate-300">{p._count.items} ítem{p._count.items !== 1 ? "s" : ""}</span>
                           </div>
                           {/* Acciones */}
-                          <div className="mt-2 pt-2 border-t border-gray-50 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Link href={`/crm/pedidos`} className="flex-1 text-center text-[10px] text-gray-400 hover:text-gray-600 py-1">Ver</Link>
+                          <div className="mt-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Link href={`/crm/pedidos`} className="flex-1 text-center text-[10px] text-slate-400 hover:text-slate-600 py-1.5 rounded-lg hover:bg-slate-50 transition-colors font-medium">
+                              Ver
+                            </Link>
                             {SIGUIENTE[col.id] && (
                               <button onClick={() => avanzar(p.id, SIGUIENTE[col.id])}
-                                className={`flex-1 text-[10px] font-semibold py-1 rounded-lg ${col.dot.replace("bg-","text-")} hover:bg-gray-50 transition-colors`}>
-                                → {SIGUIENTE[col.id].replace("_"," ")}
+                                className={`flex-1 text-[10px] font-bold py-1.5 rounded-lg text-white ${col.btn} transition-colors`}>
+                                → {SIGUIENTE[col.id].replace("_", " ")}
                               </button>
                             )}
                           </div>
