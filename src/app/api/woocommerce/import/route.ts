@@ -175,7 +175,9 @@ export async function POST(req: NextRequest) {
         }
       } catch (err) {
         errores++;
-        detallesError.push({ sku: p.sku, error: err instanceof Error ? err.message : String(err) });
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error(`[import] SKU ${p.sku} (wcId ${p.id}):`, errMsg);
+        detallesError.push({ sku: p.sku || `wc-${p.id}`, error: errMsg });
       }
     }
 

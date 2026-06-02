@@ -68,7 +68,10 @@ function ImportarContent() {
       if (!res.ok || !json.success) return toast.error(json.error ?? "Error en la importación");
       const { creados, actualizados, errores } = json.data;
       toast.success(`${creados} creados, ${actualizados} actualizados`);
-      if (errores > 0) toast.error(`${errores} productos fallaron`);
+      if (errores > 0) {
+        const primerError = json.data.detallesError?.[0];
+        toast.error(primerError ? `Error: ${primerError.error}` : `${errores} productos fallaron`);
+      }
       setSelected(new Set());
       refetch();
     } catch {
