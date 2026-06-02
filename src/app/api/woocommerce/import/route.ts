@@ -111,12 +111,13 @@ export async function POST(req: NextRequest) {
 
     for (const p of seleccionados) {
       try {
-        const slug = p.slug || p.sku.toLowerCase().replace(/\s+/g, "-");
+        const sku = p.sku || `wc-${p.id}`;
+        const slug = p.slug || sku.toLowerCase().replace(/[^a-z0-9]+/g, "-");
         const data = {
           wcId: p.id,
-          tipo: (p.type?.toUpperCase() ?? "SIMPLE") as "SIMPLE" | "VARIABLE" | "AGRUPADO" | "EXTERNO",
-          sku: p.sku || `wc-${p.id}`,
-          nombre: p.name,
+          tipo: (["SIMPLE","VARIABLE","AGRUPADO","EXTERNO"].includes(p.type?.toUpperCase()) ? p.type.toUpperCase() : "SIMPLE") as "SIMPLE" | "VARIABLE" | "AGRUPADO" | "EXTERNO",
+          sku,
+          nombre: p.name || `Producto WC ${p.id}`,
           slug,
           publicado: p.status === "publish",
           visibilidad: p.catalog_visibility ?? "visible",
@@ -142,6 +143,12 @@ export async function POST(req: NextRequest) {
           permiteResenas: p.reviews_allowed,
           intEstado: "BORRADOR" as const,
         };
+
+        // Asegurar slug único
+        const slugExistente = await prisma.producto.findUnique({ where: { slug: data.slug } });
+        if (slugExistente && slugExistente.wcId !== p.id) {
+          data.slug = `${data.slug}-${p.id}`;
+        }
 
         const existente = await prisma.producto.findUnique({ where: { wcId: p.id } });
 
