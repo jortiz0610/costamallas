@@ -85,10 +85,10 @@ function InstalacionesContent() {
 
         {/* Filtros */}
         <div className="flex gap-2 mb-4 flex-wrap">
-          {[{ v: "todos", l: "Todas" }, ...ESTADOS].map(e => (
+          {([{ v: "todos", l: "Todas" }, ...ESTADOS] as { v: string; l: string }[]).map(e => (
             <button key={e.v} onClick={() => setFiltro(e.v)}
               className={`px-3 py-1.5 rounded-xl text-[12px] font-medium transition-colors ${filtro === e.v ? "bg-gray-900 text-white" : "bg-white border border-gray-200 text-gray-600 hover:border-gray-300"}`}>
-              {"l" in e ? e.l : e.l}
+              {e.l}
             </button>
           ))}
         </div>
