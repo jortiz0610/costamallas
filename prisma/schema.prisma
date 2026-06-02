@@ -105,6 +105,7 @@ model Producto {
   acfNormas            String[]
   acfFichaTecnicaPdf   String?
   acfCertificaciones   String[]
+  acfExtra             Json     @default("{}")
 
   // Control interno
   intEstado          EstadoProducto @default(BORRADOR)

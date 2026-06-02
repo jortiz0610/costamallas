@@ -38,6 +38,7 @@ export const productoSchema = z.object({
   acfNormas: z.array(z.string()).default([]),
   acfFichaTecnicaPdf: z.string().url("URL inválida").optional().nullable(),
   acfCertificaciones: z.array(z.string()).default([]),
+  acfExtra: z.record(z.unknown()).optional().default({}),
   intEstado: z.enum(["BORRADOR", "REVISION", "LISTO", "PUBLICADO", "ARCHIVADO"]).default("BORRADOR"),
   intResponsable: z.string().optional().nullable(),
   intObservaciones: z.string().optional().nullable(),
