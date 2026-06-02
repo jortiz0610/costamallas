@@ -583,9 +583,9 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
           </button>
         ))}
         {ACFComponent && (
-          <button onClick={() => setTab("Producto")}
-            className={`px-4 py-3 text-[12px] font-medium whitespace-nowrap border-b-2 transition-colors ${tab === ("fichaACF" as TabPrincipal) ? "border-cm-yellow text-cm-black" : "border-transparent text-gray-500 hover:text-gray-700"}`}
-            onClick={() => setTab("fichaACF" as TabPrincipal)}>
+          <button
+            onClick={() => setTab("fichaACF" as TabPrincipal)}
+            className={`px-4 py-3 text-[12px] font-medium whitespace-nowrap border-b-2 transition-colors ${tab === ("fichaACF" as TabPrincipal) ? "border-cm-yellow text-cm-black" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
             {acfLabel}
           </button>
         )}
