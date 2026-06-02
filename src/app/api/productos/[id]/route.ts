@@ -76,6 +76,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
         anchoCm: parsed.data.anchoCm ?? undefined,
         altoCm: parsed.data.altoCm ?? undefined,
         acfGarantiaAnos: parsed.data.acfGarantiaAnos ?? undefined,
+        acfExtra: parsed.data.acfExtra ? JSON.parse(JSON.stringify(parsed.data.acfExtra)) : undefined,
       },
     });
 

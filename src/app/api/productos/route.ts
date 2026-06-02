@@ -116,6 +116,7 @@ export async function POST(req: NextRequest) {
         anchoCm: data.anchoCm ?? undefined,
         altoCm: data.altoCm ?? undefined,
         acfGarantiaAnos: data.acfGarantiaAnos ?? undefined,
+        acfExtra: data.acfExtra ? JSON.parse(JSON.stringify(data.acfExtra)) : {},
       },
     });
 
