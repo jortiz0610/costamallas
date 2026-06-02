@@ -89,10 +89,9 @@ export async function POST(req: NextRequest) {
         rol: usuario.rol,
       },
     });
-  } catch (err) {
-    console.error("LOGIN ERROR:", err);
+  } catch {
     return NextResponse.json(
-      { success: false, error: String(err) },
+      { success: false, error: "Error interno del servidor" },
       { status: 500 }
     );
   }
