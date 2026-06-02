@@ -485,9 +485,17 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
   const setX = useCallback((k: string, v: unknown) => setForm(p => ({ ...p, acfExtra: { ...(p.acfExtra as FD), [k]: v } })), []);
 
   const cats = Array.isArray(form.categorias) ? form.categorias as string[] : [];
-  const fichaKey = Object.entries(ACF_KEY).find(([cat]) => cats.includes(cat))?.[1] ?? null;
+  // Todas las categorías con ficha técnica seleccionadas
+  const fichasActivas = Object.entries(ACF_KEY)
+    .filter(([cat]) => cats.includes(cat))
+    .map(([cat, key]) => ({ key, info: CATS.find(c => c.v === cat)! }))
+    .filter(f => f.info);
+  const [activeFichaKey, setActiveFichaKey] = useState<string | null>(null);
+  const fichaKey = activeFichaKey && fichasActivas.find(f => f.key === activeFichaKey)
+    ? activeFichaKey
+    : fichasActivas[0]?.key ?? null;
   const FichaComp = fichaKey ? FICHAS[fichaKey] : null;
-  const fichaInfo = CATS.find(c => ACF_KEY[c.v] === fichaKey);
+  const fichaInfo = fichasActivas.find(f => f.key === fichaKey)?.info;
 
   const g = (k: string) => String(form[k] ?? "");
   const gn = (k: string) => form[k] != null && String(form[k]) !== "" ? String(form[k]) : "";
@@ -531,10 +539,11 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
               {t.label}
             </button>
           ))}
-          {FichaComp && fichaInfo && (
+          {fichasActivas.length > 0 && (
             <button onClick={() => setTab("ficha")}
               className={`flex items-center gap-2 px-4 py-3.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-all -mb-px ${tab === "ficha" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full text-white ${fichaInfo.c}`}>{fichaInfo.l}</span>
+              Ficha Técnica
+              {fichasActivas.length > 1 && <span className="text-[10px] font-bold bg-gray-900 text-white px-1.5 py-0.5 rounded-full">{fichasActivas.length}</span>}
             </button>
           )}
         </div>
@@ -685,15 +694,30 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
         {/* PESTAÑA: FICHA TÉCNICA */}
         {tab === "ficha" && (
           <div className="max-w-4xl mx-auto">
-            {FichaComp && fichaInfo ? (
+            {fichasActivas.length > 0 ? (
               <>
-                <div className={`flex items-center gap-3 px-5 py-3.5 rounded-xl mb-5 ${fichaInfo.c}`}>
-                  <div>
-                    <p className="font-bold text-[14px]">Ficha Técnica — {fichaInfo.l}</p>
-                    <p className="text-white/70 text-xs">Completa los campos técnicos específicos de esta categoría de producto</p>
+                {/* Sub-tabs si hay más de una ficha */}
+                {fichasActivas.length > 1 && (
+                  <div className="flex gap-2 mb-5">
+                    {fichasActivas.map(f => (
+                      <button key={f.key} type="button" onClick={() => setActiveFichaKey(f.key)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${fichaKey === f.key ? `${f.info.c} shadow-sm` : "bg-white border border-gray-200 text-gray-500 hover:border-gray-300"}`}>
+                        {f.info.l}
+                      </button>
+                    ))}
                   </div>
-                </div>
-                <FichaComp d={(form.acfExtra as FD) ?? {}} s={setX} />
+                )}
+                {FichaComp && fichaInfo && (
+                  <>
+                    <div className={`flex items-center gap-3 px-5 py-3.5 rounded-xl mb-5 ${fichaInfo.c}`}>
+                      <div>
+                        <p className="font-bold text-[14px]">Ficha Técnica — {fichaInfo.l}</p>
+                        <p className="text-white/70 text-xs">Completa los campos técnicos específicos de esta categoría</p>
+                      </div>
+                    </div>
+                    <FichaComp d={(form.acfExtra as FD) ?? {}} s={setX} />
+                  </>
+                )}
               </>
             ) : (
               <div className="card p-12 text-center">
