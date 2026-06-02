@@ -246,4 +246,7 @@ export interface ApiResponse<T = unknown> {
 export interface WCTestResult {
   ok: boolean;
   storeUrl: string;
-  storeN
+  storeName: string;
+  version: string;
+  message?: string;
+}
