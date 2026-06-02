@@ -21,12 +21,6 @@ export async function GET(_req: NextRequest, { params }: Params) {
     where: { id },
     include: {
       imagenes: { orderBy: { posicion: "asc" } },
-      acfMM: true, acfBH: true, acfNY: true, acfPL: true, acfSP: true,
-      errores: {
-        where: { estadoCorreccion: { in: ["PENDIENTE", "EN_PROCESO"] } },
-        orderBy: { severidad: "asc" },
-        take: 10,
-      },
     },
   });
 
