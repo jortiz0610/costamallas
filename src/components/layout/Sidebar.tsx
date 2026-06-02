@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Package, Image, Tag, Archive,
   FileOutput, FileInput, AlertTriangle, ScrollText, Settings,
-  LogOut, ChevronDown,
+  LogOut, ChevronDown, Users, UserCircle, ClipboardList, ShoppingCart, Wrench, Kanban,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,7 +21,14 @@ const navItems = [
   { href: "/importar", label: "Importar desde WC", icon: FileInput },
   { href: "/exportar", label: "Exportar a WC", icon: FileOutput },
   { href: "/errores", label: "Errores", icon: AlertTriangle, alertKey: "errores" },
+  { section: "CRM" },
+  { href: "/crm/clientes", label: "Clientes", icon: UserCircle },
+  { href: "/crm/cotizaciones", label: "Cotizaciones", icon: ClipboardList },
+  { href: "/crm/pedidos", label: "Pedidos", icon: ShoppingCart },
+  { href: "/crm/pipeline", label: "Pipeline", icon: Kanban },
+  { href: "/crm/instalaciones", label: "Instalaciones", icon: Wrench },
   { section: "Sistema" },
+  { href: "/usuarios", label: "Usuarios y Roles", icon: Users },
   { href: "/logs", label: "Logs de auditoría", icon: ScrollText },
   { href: "/configuracion", label: "Configuración", icon: Settings },
 ];

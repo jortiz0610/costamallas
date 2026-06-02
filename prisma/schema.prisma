@@ -28,16 +28,160 @@ model Usuario {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  logs         Log[]
+  logs          Log[]
+  clientesAsignados Cliente[]
+  cotizaciones  Cotizacion[]
+  pedidos       Pedido[]
+  instalaciones Instalacion[]
 
   @@map("usuarios")
   @@index([email])
 }
 
 enum Rol {
+  SUPERADMIN
   ADMIN
   USUARIO
+  VENDEDOR
+  PRODUCCION
+  BODEGA
   SOLO_LECTURA
+}
+
+// ─────────────────────────────────────────────
+// CRM
+// ─────────────────────────────────────────────
+
+model Cliente {
+  id         String   @id @default(cuid())
+  nombre     String
+  empresa    String?
+  email      String?
+  telefono   String?
+  ciudad     String?
+  direccion  String?
+  nit        String?
+  tipo       String   @default("empresa")
+  notas      String?  @db.Text
+  vendedorId String?
+  vendedor   Usuario? @relation(fields: [vendedorId], references: [id], onDelete: SetNull)
+  activo     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cotizaciones Cotizacion[]
+  pedidos      Pedido[]
+
+  @@map("clientes")
+  @@index([vendedorId])
+  @@index([activo])
+}
+
+model Cotizacion {
+  id               String   @id @default(cuid())
+  numero           String   @unique
+  clienteId        String
+  cliente          Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  vendedorId       String?
+  vendedor         Usuario? @relation(fields: [vendedorId], references: [id], onDelete: SetNull)
+  estado           String   @default("BORRADOR")
+  subtotal         Decimal  @db.Decimal(14,2) @default(0)
+  descuento        Decimal  @db.Decimal(14,2) @default(0)
+  iva              Decimal  @db.Decimal(14,2) @default(0)
+  total            Decimal  @db.Decimal(14,2) @default(0)
+  validezDias      Int      @default(30)
+  notas            String?  @db.Text
+  tieneInstalacion Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  items   ItemCotizacion[]
+  pedidos Pedido[]
+
+  @@map("cotizaciones")
+  @@index([clienteId])
+  @@index([vendedorId])
+  @@index([estado])
+}
+
+model ItemCotizacion {
+  id             String     @id @default(cuid())
+  cotizacionId   String
+  cotizacion     Cotizacion @relation(fields: [cotizacionId], references: [id], onDelete: Cascade)
+  productoId     String?
+  descripcion    String
+  cantidad       Decimal    @db.Decimal(10,2)
+  precioUnitario Decimal    @db.Decimal(14,2)
+  descuento      Decimal    @db.Decimal(5,2) @default(0)
+  subtotal       Decimal    @db.Decimal(14,2)
+  unidad         String?
+  orden          Int        @default(0)
+
+  @@map("items_cotizacion")
+  @@index([cotizacionId])
+}
+
+model Pedido {
+  id               String     @id @default(cuid())
+  numero           String     @unique
+  cotizacionId     String?
+  cotizacion       Cotizacion? @relation(fields: [cotizacionId], references: [id], onDelete: SetNull)
+  clienteId        String
+  cliente          Cliente    @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  vendedorId       String?
+  vendedor         Usuario?   @relation(fields: [vendedorId], references: [id], onDelete: SetNull)
+  estado           String     @default("NUEVO")
+  tieneInstalacion Boolean    @default(false)
+  fechaEntrega     DateTime?
+  direccionEntrega String?
+  notas            String?    @db.Text
+  total            Decimal    @db.Decimal(14,2) @default(0)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  items        ItemPedido[]
+  instalacion  Instalacion?
+
+  @@map("pedidos")
+  @@index([clienteId])
+  @@index([vendedorId])
+  @@index([estado])
+}
+
+model ItemPedido {
+  id             String  @id @default(cuid())
+  pedidoId       String
+  pedido         Pedido  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  productoId     String?
+  descripcion    String
+  cantidad       Decimal @db.Decimal(10,2)
+  precioUnitario Decimal @db.Decimal(14,2)
+  subtotal       Decimal @db.Decimal(14,2)
+  unidad         String?
+  orden          Int     @default(0)
+
+  @@map("items_pedido")
+  @@index([pedidoId])
+}
+
+model Instalacion {
+  id             String    @id @default(cuid())
+  pedidoId       String    @unique
+  pedido         Pedido    @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  tecnicoId      String?
+  tecnico        Usuario?  @relation(fields: [tecnicoId], references: [id], onDelete: SetNull)
+  estado         String    @default("PENDIENTE")
+  fechaAgendada  DateTime?
+  fechaRealizada DateTime?
+  direccion      String?
+  ciudad         String?
+  notas          String?   @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("instalaciones")
+  @@index([estado])
+  @@index([tecnicoId])
 }
 
 model RefreshToken {
