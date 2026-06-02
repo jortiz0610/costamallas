@@ -524,9 +524,8 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
     acfAplicaciones: [], acfColores: [], acfNormas: [],
     acfFichaTecnicaPdf: "", acfCertificaciones: [],
     // Extra ACF (por categoría)
-    acfExtra: {},
-    ...init,
     acfExtra: (init.acfExtra as FormData) ?? {},
+    ...init,
   });
 
   const set = useCallback((k: string, v: unknown) => setForm((prev) => ({ ...prev, [k]: v })), []);
