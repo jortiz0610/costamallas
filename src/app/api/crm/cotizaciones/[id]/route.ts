@@ -51,7 +51,7 @@ export async function PUT(req: NextRequest, { params }: P) {
           tieneInstalacion: cotizacion.tieneInstalacion,
           total: cotizacion.total,
           items: {
-            create: cotizacion.items.map((item: Record<string, unknown>) => ({
+            create: cotizacion.items.map((item) => ({
               productoId: item.productoId,
               descripcion: item.descripcion,
               cantidad: item.cantidad,
