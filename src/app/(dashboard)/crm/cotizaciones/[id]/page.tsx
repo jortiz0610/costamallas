@@ -96,7 +96,7 @@ function DetalleContent() {
           </div>
 
           {/* PDF */}
-          <div className="lg:col-span-2 print:col-span-3">
+          <div className="lg:col-span-2 print-area">
             <CotizacionPDF data={pdfData} brand={brand} />
           </div>
         </div>

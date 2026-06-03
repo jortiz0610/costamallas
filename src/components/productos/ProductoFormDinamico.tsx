@@ -207,6 +207,67 @@ function TagInput({ label, value, onChange, hint, placeholder, suggestions }: {
   );
 }
 
+function FichaTecnicaUploader({ productoId, urlInicial, nombreInicial }: { productoId?: string; urlInicial?: string; nombreInicial?: string }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [url, setUrl] = useState(urlInicial ?? "");
+  const [nombre, setNombre] = useState(nombreInicial ?? "");
+  const [subiendo, setSubiendo] = useState(false);
+
+  if (!productoId) {
+    return (
+      <div className="card p-6 text-center border-2 border-dashed" style={{ borderColor: "var(--border)" }}>
+        <FileText size={24} className="mx-auto mb-2 text-gray-300" />
+        <p className="text-sm font-semibold text-gray-500">Guarda el producto primero</p>
+        <p className="text-xs text-gray-400 mt-1">Podrás subir la ficha técnica (PDF) una vez creado el producto.</p>
+      </div>
+    );
+  }
+
+  const subir = async (file: File | null) => {
+    if (!file) return;
+    if (file.type !== "application/pdf") return toast.error("Solo se permiten archivos PDF");
+    setSubiendo(true);
+    try {
+      const fd = new FormData(); fd.append("file", file);
+      const res = await fetch(`/api/productos/${productoId}/ficha`, { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok || !json.success) return toast.error(json.error ?? "Error al subir");
+      setUrl(json.data.url); setNombre(json.data.nombre);
+      toast.success("Ficha técnica subida ✓");
+    } catch { toast.error("Error al subir"); } finally { setSubiendo(false); }
+  };
+  const eliminar = async () => {
+    if (!confirm("¿Eliminar la ficha técnica?")) return;
+    const res = await fetch(`/api/productos/${productoId}/ficha`, { method: "DELETE" });
+    if ((await res.json()).success) { setUrl(""); setNombre(""); toast.success("Ficha eliminada"); }
+  };
+
+  return (
+    <div>
+      <Label>Ficha técnica (PDF)</Label>
+      <input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={e => subir(e.target.files?.[0] ?? null)} />
+      {url ? (
+        <div className="flex items-center gap-3 rounded-xl p-3 surface-2 border divider">
+          <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-500/15 flex items-center justify-center flex-shrink-0"><FileText size={18} className="text-red-500" /></div>
+          <div className="flex-1 min-w-0">
+            <a href={url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-soft hover:underline truncate block">{nombre || "ficha-tecnica.pdf"}</a>
+            <p className="text-[10px] text-muted truncate">{url}</p>
+          </div>
+          <button type="button" onClick={() => fileRef.current?.click()} disabled={subiendo} className="btn-secondary btn-sm">Reemplazar</button>
+          <button type="button" onClick={eliminar} className="text-muted hover:text-red-500"><Trash2 size={15} /></button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => fileRef.current?.click()} disabled={subiendo}
+          className="w-full rounded-xl p-5 border-2 border-dashed flex flex-col items-center gap-1.5 hover:surface-2 transition-colors" style={{ borderColor: "var(--border)" }}>
+          {subiendo ? <Loader2 size={20} className="animate-spin text-muted" /> : <Upload size={20} className="text-muted" />}
+          <span className="text-sm font-semibold text-soft">{subiendo ? "Subiendo…" : "Subir ficha técnica (PDF)"}</span>
+          <span className="text-[11px] text-muted">Se guarda en el servidor de Costamallas (carpeta fichas-tecnicas)</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 function CatSelector({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
   const toggle = (v: string) => value.includes(v) ? onChange(value.filter(c => c !== v)) : onChange([...value, v]);
   return (
@@ -819,7 +880,11 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
               <Divider label="" />
               <TagInput label="Certificaciones" value={Array.isArray(form.acfCertificaciones) ? form.acfCertificaciones as string[] : []} onChange={v => set("acfCertificaciones", v)} hint="Enter para agregar cada certificación" />
               <Divider label="" />
-              <SInput label="URL Ficha Técnica (PDF)" value={g("acfFichaTecnicaPdf")} onChange={v => set("acfFichaTecnicaPdf", v || (null as unknown as string))} placeholder="https://catalogo.costamallas.com/fichas/…" hint="Enlace directo al archivo PDF hospedado en el catálogo" />
+              <FichaTecnicaUploader
+                productoId={productoId}
+                urlInicial={(form.acfExtra as Record<string, unknown> | undefined)?.fichaTecnicaUrl as string | undefined}
+                nombreInicial={(form.acfExtra as Record<string, unknown> | undefined)?.fichaTecnicaNombre as string | undefined}
+              />
             </div>
           </div>
         )}

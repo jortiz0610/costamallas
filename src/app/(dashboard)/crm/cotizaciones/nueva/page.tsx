@@ -421,8 +421,8 @@ function NuevaCotizacionContent() {
 
           {/* Preview PDF */}
           {showPreview && (
-            <div className="sticky top-6">
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Vista previa de la cotización</p>
+            <div className="sticky top-6 print-area">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 no-print">Vista previa de la cotización</p>
               <PDFPreview
                 items={items}
                 cliente={clienteSeleccionado}

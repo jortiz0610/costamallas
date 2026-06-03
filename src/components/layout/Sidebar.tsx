@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Package, ImageIcon, Tag, Archive, FileOutput, FileInput,
   AlertTriangle, Settings, LogOut, Users, UserCircle, ClipboardList,
   ShoppingCart, Wrench, Kanban, ChevronDown, ShieldCheck, BarChart2,
-  MessageSquare, Truck, CheckSquare, MessageSquareText, Zap,
+  MessageSquare, Truck, CheckSquare, MessageSquareText, Zap, Ruler,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,6 +35,7 @@ const CRM_ITEMS = [
   { section: "Gestión" },
   { href: "/crm/clientes", label: "Clientes", icon: UserCircle },
   { href: "/crm/cotizaciones", label: "Cotizaciones", icon: ClipboardList },
+  { href: "/crm/cotizador", label: "Cotizador a medida", icon: Ruler },
   { href: "/crm/pedidos", label: "Pedidos", icon: ShoppingCart },
   { href: "/crm/tareas", label: "Tareas", icon: CheckSquare },
   { section: "Producción" },

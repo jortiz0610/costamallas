@@ -248,10 +248,20 @@ html.dark {
   /* ── Glow sutil para dark mode (detalle minimalista) ── */
   .dark .glow-brand { box-shadow: 0 0 0 1px var(--brand-color-20), 0 8px 30px -12px var(--brand-color); }
 
-  /* ── PDF / impresión ── */
+  /* ── PDF / impresión: imprime SOLO el área marcada ── */
   @media print {
     .no-print { display: none !important; }
     body { background: white !important; color: black !important; }
-    .card { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
+    /* Oculta todo… */
+    body * { visibility: hidden !important; }
+    /* …menos el área de impresión y su contenido */
+    .print-area, .print-area * { visibility: visible !important; }
+    .print-area {
+      position: absolute !important;
+      left: 0 !important; top: 0 !important;
+      width: 100% !important; margin: 0 !important; padding: 0 !important;
+    }
+    .print-area .card, .print-area .shadow-lg { box-shadow: none !important; }
+    @page { margin: 12mm; }
   }
 }

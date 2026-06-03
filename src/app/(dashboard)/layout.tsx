@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageCircle, X, Bell, AlertTriangle, CheckCircle, Info, Package } from "lucide-react";
 import type { NotificacionDTO } from "@/types";
+import { AsistenteIA } from "@/components/layout/AsistenteIA";
 
 async function fetchKPIs() {
   const res = await fetch("/api/dashboard/kpis");
@@ -86,10 +87,9 @@ function SupportButton() {
   return (
     <>
       <button onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110"
-        style={{ backgroundColor: "var(--brand-color)" }}
+        className="fixed bottom-7 right-24 z-40 w-11 h-11 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 surface border divider"
         title="Soporte">
-        <MessageCircle size={20} className="text-white" />
+        <MessageCircle size={18} style={{ color: "var(--brand-color)" }} />
       </button>
       {open && (
         <div className="fixed bottom-20 right-6 z-50 w-72 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
@@ -142,6 +142,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </main>
       <NotifToastManager />
       <SupportButton />
+      <AsistenteIA />
     </div>
   );
 }
