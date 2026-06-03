@@ -1,8 +1,11 @@
 "use client";
-import { useState, useRef, Suspense } from "react";
+import { useState, useRef, Suspense, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { Upload, Trash2, Star, Loader2, ImageIcon, Search, RefreshCw, AlertTriangle, CheckCircle, Plus } from "lucide-react";
+import {
+  Upload, Trash2, Star, Loader2, ImageIcon, Search, RefreshCw,
+  AlertTriangle, CheckCircle, Plus, ChevronRight, Layers,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import Image from "next/image";
 import { useBrand } from "@/contexts/BrandContext";
@@ -14,27 +17,24 @@ interface ProductoConImagenes {
 }
 type FiltroImg = "todos" | "con_imagenes" | "sin_imagenes";
 
-async function fetchProductos(filtro: FiltroImg, busqueda: string) {
-  const params = new URLSearchParams({ limit: "200", orderBy: "nombre" });
+async function fetchProductos(busqueda: string): Promise<ProductoConImagenes[]> {
+  const params = new URLSearchParams({ limit: "300", orderBy: "nombre" });
   if (busqueda) params.set("busqueda", busqueda);
   const res = await fetch(`/api/productos?${params}`);
-  const json = await res.json();
-  const productos: ProductoConImagenes[] = json.data ?? [];
-  if (filtro === "con_imagenes") return productos.filter(p => (p._count?.imagenes ?? 0) > 0);
-  if (filtro === "sin_imagenes") return productos.filter(p => (p._count?.imagenes ?? 0) === 0);
-  return productos;
+  return (await res.json()).data ?? [];
 }
-
 async function fetchImagenes(productoId: string): Promise<AcfImagen[]> {
   const res = await fetch(`/api/imagenes?productoId=${productoId}`);
   return (await res.json()).data ?? [];
 }
 
-function ProductoImageCard({ producto }: { producto: ProductoConImagenes }) {
+// ── Panel derecho: gestión de imágenes de un producto ──
+function PanelProducto({ producto }: { producto: ProductoConImagenes }) {
   const qc = useQueryClient();
   const { brand } = useBrand();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
   const { data: imagenes = [], isLoading } = useQuery({
     queryKey: ["imagenes", producto.id],
@@ -46,11 +46,12 @@ function ProductoImageCard({ producto }: { producto: ProductoConImagenes }) {
     qc.invalidateQueries({ queryKey: ["productos-imagenes"] });
   };
 
-  const handleUpload = async (files: FileList | null) => {
+  const upload = async (files: FileList | File[] | null) => {
     if (!files) return;
     setUploading(true);
     let ok = 0;
     for (const file of Array.from(files)) {
+      if (!file.type.startsWith("image/")) continue;
       const fd = new FormData();
       fd.append("file", file); fd.append("productoId", producto.id); fd.append("esPrincipal", String(ok === 0 && imagenes.length === 0));
       try {
@@ -64,173 +65,215 @@ function ProductoImageCard({ producto }: { producto: ProductoConImagenes }) {
     setUploading(false);
   };
 
-  const handleDelete = async (id: string) => {
+  const eliminar = async (id: string) => {
     if (!confirm("¿Eliminar imagen?")) return;
-    const res = await fetch(`/api/imagenes?id=${id}`, { method: "DELETE" });
-    if ((await res.json()).success) { toast.success("Eliminada"); refresh(); }
-    else toast.error("Error");
+    if ((await (await fetch(`/api/imagenes?id=${id}`, { method: "DELETE" })).json()).success) { toast.success("Eliminada"); refresh(); }
   };
-
-  const handlePrincipal = async (id: string) => {
-    const res = await fetch("/api/imagenes", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, esPrincipal: true }) });
-    if ((await res.json()).success) { toast.success("Principal actualizada"); refresh(); }
+  const principal = async (id: string) => {
+    if ((await (await fetch("/api/imagenes", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, esPrincipal: true }) })).json()).success) { toast.success("Principal actualizada"); refresh(); }
   };
 
   return (
-    <div className="card p-4">
+    <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header producto */}
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-11 h-11 rounded-xl overflow-hidden surface-2 relative flex-shrink-0">
-          {producto.imagenPrincipal ? (
-            <Image src={producto.imagenPrincipal} alt={producto.nombre} fill className="object-cover" unoptimized />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center"><ImageIcon size={16} className="text-muted" /></div>
-          )}
+      <div className="flex items-center gap-3 px-6 py-4 border-b divider flex-shrink-0">
+        <div className="w-12 h-12 rounded-xl overflow-hidden surface-2 relative flex-shrink-0">
+          {producto.imagenPrincipal
+            ? <Image src={producto.imagenPrincipal} alt={producto.nombre} fill className="object-cover" unoptimized />
+            : <div className="w-full h-full flex items-center justify-center"><ImageIcon size={18} className="text-muted" /></div>}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{producto.nombre}</p>
+          <p className="text-base font-bold text-gray-800 dark:text-gray-100 truncate">{producto.nombre}</p>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="sku-tag">{producto.sku}</span>
-            {producto.categorias?.length > 0 && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ backgroundColor: brand.brandColor + "15", color: brand.brandColor }}>
-                {producto.categorias[0]}
-              </span>
+            {producto.categorias?.[0] && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ backgroundColor: brand.brandColor + "15", color: brand.brandColor }}>{producto.categorias[0]}</span>
             )}
+            <span className="text-xs text-muted">· {imagenes.length} foto{imagenes.length !== 1 ? "s" : ""}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {imagenes.length === 0
-            ? <span className="flex items-center gap-1 text-[11px] font-semibold text-red-500 bg-red-50 dark:bg-red-500/10 px-2 py-1 rounded-lg"><AlertTriangle size={10} />Sin fotos</span>
-            : <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded-lg"><CheckCircle size={10} />{imagenes.length}</span>
-          }
-          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={e => handleUpload(e.target.files)} />
-          <button onClick={() => fileRef.current?.click()} disabled={uploading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-50"
-            style={{ backgroundColor: brand.brandColor }}>
-            {uploading ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />} Agregar
-          </button>
-        </div>
+        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={e => upload(e.target.files)} />
+        <button onClick={() => fileRef.current?.click()} disabled={uploading}
+          className="px-4 py-2 rounded-xl text-sm font-semibold text-white flex items-center gap-2 disabled:opacity-50 flex-shrink-0" style={{ backgroundColor: brand.brandColor }}>
+          {uploading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Subir imágenes
+        </button>
       </div>
 
-      {/* Tira de fotos */}
-      {isLoading ? (
-        <div className="h-20 flex items-center justify-center"><Loader2 size={14} className="animate-spin" style={{ color: brand.brandColor }} /></div>
-      ) : imagenes.length === 0 ? (
-        <div onClick={() => fileRef.current?.click()}
-          className="h-20 flex items-center justify-center rounded-xl border-2 border-dashed divider cursor-pointer hover:surface-2 transition-colors">
-          <p className="text-xs text-muted flex items-center gap-2"><Upload size={13} /> Haz clic o usa "Agregar" para subir fotos</p>
-        </div>
-      ) : (
-        <div className="flex gap-2 flex-wrap">
-          {imagenes.map(img => (
-            <div key={img.id} className="relative group w-20 h-20 rounded-xl overflow-hidden border-2 flex-shrink-0"
-              style={{ borderColor: img.esPrincipal ? "#FFCC00" : "var(--border)" }}>
-              <Image src={img.urlImagen} alt={img.altText ?? ""} fill className="object-cover" unoptimized />
-              {img.esPrincipal && (
-                <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center">
-                  <Star size={9} className="text-white fill-white" />
-                </div>
-              )}
-              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
-                {!img.esPrincipal && (
-                  <button onClick={() => handlePrincipal(img.id)} className="w-7 h-7 rounded-lg bg-yellow-400 text-white flex items-center justify-center" title="Principal">
-                    <Star size={12} />
-                  </button>
-                )}
-                <button onClick={() => handleDelete(img.id)} className="w-7 h-7 rounded-lg bg-red-500 text-white flex items-center justify-center" title="Eliminar">
-                  <Trash2 size={12} />
-                </button>
-              </div>
+      {/* Zona de drop + galería */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={e => { e.preventDefault(); setDragOver(false); upload(e.dataTransfer.files); }}
+          className="rounded-2xl border-2 border-dashed transition-all p-1"
+          style={{ borderColor: dragOver ? brand.brandColor : "var(--border)", backgroundColor: dragOver ? brand.brandColor + "0c" : "transparent" }}
+        >
+          {isLoading ? (
+            <div className="h-40 flex items-center justify-center"><Loader2 size={20} className="animate-spin" style={{ color: brand.brandColor }} /></div>
+          ) : imagenes.length === 0 ? (
+            <div onClick={() => fileRef.current?.click()} className="h-48 flex flex-col items-center justify-center gap-2 cursor-pointer">
+              <div className="w-14 h-14 rounded-2xl surface-2 flex items-center justify-center"><Upload size={24} className="text-muted" /></div>
+              <p className="text-sm font-semibold text-soft">Arrastra imágenes aquí o haz clic para subir</p>
+              <p className="text-xs text-muted">JPG, PNG, WEBP · varias a la vez</p>
             </div>
-          ))}
-          {/* Botón agregar inline */}
-          <button onClick={() => fileRef.current?.click()} disabled={uploading}
-            className="w-20 h-20 rounded-xl border-2 border-dashed divider flex flex-col items-center justify-center gap-1 hover:surface-2 transition-colors flex-shrink-0">
-            {uploading ? <Loader2 size={16} className="animate-spin text-muted" /> : <Plus size={16} className="text-muted" />}
-            <span className="text-[9px] text-muted">Agregar</span>
-          </button>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 p-3">
+              {imagenes.map(img => (
+                <div key={img.id} className="relative group aspect-square rounded-xl overflow-hidden border-2"
+                  style={{ borderColor: img.esPrincipal ? "#FFCC00" : "var(--border)" }}>
+                  <Image src={img.urlImagen} alt={img.altText ?? ""} fill className="object-cover" unoptimized />
+                  {img.esPrincipal && (
+                    <div className="absolute top-2 left-2 flex items-center gap-1 bg-yellow-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                      <Star size={9} className="fill-white" /> Principal
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    {!img.esPrincipal && (
+                      <button onClick={() => principal(img.id)} className="w-9 h-9 rounded-xl bg-yellow-400 text-white flex items-center justify-center" title="Marcar principal"><Star size={15} /></button>
+                    )}
+                    <button onClick={() => eliminar(img.id)} className="w-9 h-9 rounded-xl bg-red-500 text-white flex items-center justify-center" title="Eliminar"><Trash2 size={15} /></button>
+                  </div>
+                </div>
+              ))}
+              {/* Tile agregar */}
+              <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                className="aspect-square rounded-xl border-2 border-dashed divider flex flex-col items-center justify-center gap-1.5 hover:surface-2 transition-colors">
+                {uploading ? <Loader2 size={20} className="animate-spin text-muted" /> : <Plus size={20} className="text-muted" />}
+                <span className="text-[11px] text-muted font-medium">Agregar</span>
+              </button>
+            </div>
+          )}
         </div>
-      )}
+        <p className="text-[11px] text-muted mt-3 text-center">La imagen marcada como <span className="font-semibold text-yellow-500">Principal ⭐</span> es la que se muestra en la tienda y los listados.</p>
+      </div>
     </div>
   );
 }
 
 const FILTROS: { key: FiltroImg; label: string; color: string }[] = [
   { key: "todos",        label: "Todos",        color: "#64748b" },
-  { key: "con_imagenes", label: "Con imágenes", color: "#16a34a" },
-  { key: "sin_imagenes", label: "Sin imágenes", color: "#dc2626" },
+  { key: "con_imagenes", label: "Con fotos",    color: "#16a34a" },
+  { key: "sin_imagenes", label: "Sin fotos",    color: "#dc2626" },
 ];
 
 function ImagenesContent() {
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState<FiltroImg>("todos");
+  const [selId, setSelId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const { brand } = useBrand();
 
   const { data: productos = [], isLoading, refetch } = useQuery<ProductoConImagenes[]>({
-    queryKey: ["productos-imagenes", filtro, busqueda],
-    queryFn: () => fetchProductos(filtro, busqueda),
+    queryKey: ["productos-imagenes", busqueda],
+    queryFn: () => fetchProductos(busqueda),
   });
-
-  const handleRefresh = async () => { setRefreshing(true); await refetch(); setTimeout(() => setRefreshing(false), 2200); };
 
   const conImg = productos.filter(p => (p._count?.imagenes ?? 0) > 0).length;
   const sinImg = productos.filter(p => (p._count?.imagenes ?? 0) === 0).length;
   const totalImg = productos.reduce((s, p) => s + (p._count?.imagenes ?? 0), 0);
+  const cobertura = productos.length > 0 ? Math.round((conImg / productos.length) * 100) : 0;
+
+  const lista = productos.filter(p => {
+    const n = p._count?.imagenes ?? 0;
+    if (filtro === "con_imagenes") return n > 0;
+    if (filtro === "sin_imagenes") return n === 0;
+    return true;
+  });
+
+  // Selección automática del primero
+  useEffect(() => {
+    if (!selId && lista.length > 0) setSelId(lista[0].id);
+    if (selId && !lista.some(p => p.id === selId) && lista.length > 0) setSelId(lista[0].id);
+  }, [lista, selId]);
+
+  const seleccionado = productos.find(p => p.id === selId) ?? null;
+
+  const handleRefresh = async () => { setRefreshing(true); await refetch(); setTimeout(() => setRefreshing(false), 2200); };
 
   return (
     <>
-      <Topbar title="Gestión de imágenes" actions={
+      <Topbar title="Biblioteca de imágenes" actions={
         <button onClick={handleRefresh} className={`btn-secondary btn-sm transition-all ${refreshing ? "animate-refresh-success" : ""}`}>
           <RefreshCw size={12} className={refreshing ? "animate-spin-once" : ""} /> Actualizar
         </button>
       } />
-      <div className="flex-1 overflow-y-auto page-bg p-6 space-y-5">
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: "Productos", val: productos.length, color: brand.brandColor },
-            { label: "Con imágenes", val: conImg, color: "#16a34a" },
-            { label: "Sin imágenes", val: sinImg, color: "#dc2626" },
-            { label: "Total fotos", val: totalImg, color: "#7c3aed" },
-          ].map(s => (
-            <div key={s.label} className="card p-4">
-              <p className="text-xs text-muted mb-1">{s.label}</p>
-              <p className="text-2xl font-bold" style={{ color: s.color }}>{s.val}</p>
+
+      {/* Barra de cobertura */}
+      <div className="px-6 py-3 flex items-center gap-4 flex-wrap border-b divider surface flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <Layers size={15} style={{ color: brand.brandColor }} />
+          <span className="text-xs text-muted">Cobertura del catálogo</span>
+        </div>
+        <div className="flex items-center gap-2 flex-1 max-w-xs">
+          <div className="flex-1 h-2 rounded-full surface-3 overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${cobertura}%`, backgroundColor: cobertura >= 80 ? "#16a34a" : cobertura >= 50 ? "#d97706" : "#dc2626" }} />
+          </div>
+          <span className="text-xs font-bold" style={{ color: cobertura >= 80 ? "#16a34a" : cobertura >= 50 ? "#d97706" : "#dc2626" }}>{cobertura}%</span>
+        </div>
+        <div className="flex items-center gap-3 text-xs">
+          <span className="text-muted"><b className="text-soft">{productos.length}</b> productos</span>
+          <span className="text-emerald-600"><b>{conImg}</b> con fotos</span>
+          <span className="text-red-500"><b>{sinImg}</b> sin fotos</span>
+          <span className="text-muted"><b className="text-soft">{totalImg}</b> imágenes</span>
+        </div>
+      </div>
+
+      {/* Maestro-detalle */}
+      <div className="flex-1 overflow-hidden flex">
+        {/* Lista de productos (maestro) */}
+        <div className="w-80 flex-shrink-0 flex flex-col border-r divider surface">
+          <div className="p-3 space-y-2 border-b divider flex-shrink-0">
+            <div className="relative">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <input value={busqueda} onChange={e => setBusqueda(e.target.value)} className="input pl-9 py-1.5 text-xs" placeholder="Buscar producto..." />
             </div>
-          ))}
+            <div className="flex gap-1.5">
+              {FILTROS.map(f => (
+                <button key={f.key} onClick={() => setFiltro(f.key)} className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
+                  style={filtro === f.key ? { backgroundColor: f.color, color: "white" } : { backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {isLoading ? (
+              <div className="p-8 text-center"><Loader2 size={18} className="animate-spin mx-auto" style={{ color: brand.brandColor }} /></div>
+            ) : lista.length === 0 ? (
+              <div className="p-8 text-center"><ImageIcon size={24} className="mx-auto mb-2 text-muted" /><p className="text-sm text-muted">Sin productos</p></div>
+            ) : lista.map(p => {
+              const n = p._count?.imagenes ?? 0;
+              const activo = p.id === selId;
+              return (
+                <button key={p.id} onClick={() => setSelId(p.id)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors border-l-2"
+                  style={activo ? { backgroundColor: brand.brandColor + "12", borderLeftColor: brand.brandColor } : { borderLeftColor: "transparent" }}>
+                  <div className="w-10 h-10 rounded-lg overflow-hidden surface-2 relative flex-shrink-0">
+                    {p.imagenPrincipal
+                      ? <Image src={p.imagenPrincipal} alt="" fill className="object-cover" unoptimized />
+                      : <div className="w-full h-full flex items-center justify-center"><ImageIcon size={14} className="text-muted" /></div>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-800 dark:text-gray-100 truncate">{p.nombre}</p>
+                    <p className="text-[10px] text-muted font-mono">{p.sku}</p>
+                  </div>
+                  {n > 0
+                    ? <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-500/15 px-1.5 py-0.5 rounded-full flex-shrink-0"><CheckCircle size={9} />{n}</span>
+                    : <span className="flex items-center gap-1 text-[10px] font-bold text-red-500 bg-red-50 dark:bg-red-500/15 px-1.5 py-0.5 rounded-full flex-shrink-0"><AlertTriangle size={9} /></span>}
+                  <ChevronRight size={13} className={activo ? "" : "text-muted"} style={activo ? { color: brand.brandColor } : {}} />
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex gap-1.5">
-            {FILTROS.map(f => (
-              <button key={f.key} onClick={() => setFiltro(f.key)}
-                className="pill" style={filtro === f.key ? { backgroundColor: f.color, color: "white" } : {}}>
-                {f.label}
-              </button>
-            ))}
-          </div>
-          <div className="relative flex-1 max-w-xs">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-            <input value={busqueda} onChange={e => setBusqueda(e.target.value)} className="input pl-9 py-1.5 text-xs" placeholder="Buscar producto por nombre o SKU..." />
-          </div>
-        </div>
-
-        {/* Lista de productos */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 size={22} className="animate-spin mr-2" style={{ color: brand.brandColor }} />
-            <span className="text-sm text-muted">Cargando productos...</span>
-          </div>
-        ) : productos.length === 0 ? (
-          <div className="card p-12 text-center">
-            <ImageIcon size={28} className="mx-auto mb-3 text-muted" />
-            <p className="text-sm text-muted">No se encontraron productos</p>
-          </div>
+        {/* Detalle */}
+        {seleccionado ? (
+          <PanelProducto producto={seleccionado} key={seleccionado.id} />
         ) : (
-          <div className="space-y-3">
-            {productos.map(p => <ProductoImageCard key={p.id} producto={p} />)}
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 page-bg">
+            <ImageIcon size={32} className="text-muted" />
+            <p className="text-sm text-muted">Selecciona un producto para gestionar sus imágenes</p>
           </div>
         )}
       </div>
