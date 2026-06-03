@@ -3,14 +3,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
-import { KPICard } from "@/components/dashboard/KPICard";
 import {
   Package, ShoppingCart, AlertTriangle,
   CheckCircle, RefreshCw, FileOutput, TrendingUp,
+  ImageIcon, DollarSign, FileText, CheckCheck,
 } from "lucide-react";
 import { formatCOP, formatDate, cn } from "@/lib/utils";
 import Link from "next/link";
 import type { DashboardKPIs, NivelStock } from "@/types";
+import { useBrand } from "@/contexts/BrandContext";
 
 async function fetchKPIs(): Promise<DashboardKPIs> {
   const res = await fetch("/api/dashboard/kpis");
@@ -27,6 +28,7 @@ const stockBadge: Record<NivelStock, string> = {
 
 export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
+  const { brand } = useBrand();
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["dashboard", "kpis"],
     queryFn: fetchKPIs,
@@ -52,37 +54,33 @@ export default function DashboardPage() {
         }
       />
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* KPIs principales */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard
-            label="Total productos"
-            value={data?.productos.total ?? "—"}
-            accent="yellow"
-            icon={Package}
-            delta={`${data?.productos.publicados ?? 0} publicados`}
-            deltaType="neutral"
-          />
-          <KPICard
-            label="En WooCommerce"
-            value={data?.productos.publicados ?? "—"}
-            icon={ShoppingCart}
-            delta={`${data?.productos.total ? Math.round(((data.productos.publicados) / data.productos.total) * 100) : 0}% del total`}
-          />
-          <KPICard
-            label="Precio promedio"
-            value={data ? formatCOP(data.productos.precioPromedio) : "—"}
-            icon={TrendingUp}
-            delta="Todos los tipos"
-          />
-          <KPICard
-            label="Stock crítico"
-            value={data?.stock.criticos ?? "—"}
-            accent={data?.stock.criticos ? "red" : undefined}
-            icon={AlertTriangle}
-            delta={data?.stock.criticos ? "Requiere atención" : "Sin alertas"}
-            deltaType={data?.stock.criticos ? "down" : "up"}
-          />
+      <div className="flex-1 overflow-y-auto page-bg p-6 space-y-6">
+        {/* KPIs — tarjetas consistentes con el resto del sistema */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { l: "Total productos",   v: data?.productos.total ?? "—",                          sub: `${data?.productos.publicados ?? 0} publicados`, c: brand.brandColor, Icon: Package },
+            { l: "En WooCommerce",    v: data?.productos.publicados ?? "—",                      sub: `${data?.productos.total ? Math.round((data.productos.publicados / data.productos.total) * 100) : 0}% del total`, c: "#7c3aed", Icon: ShoppingCart },
+            { l: "Precio promedio",   v: data ? formatCOP(data.productos.precioPromedio) : "—",  sub: "Todos los tipos", c: "#16a34a", Icon: TrendingUp },
+            { l: "Stock crítico",     v: data?.stock.criticos ?? "—",                            sub: data?.stock.criticos ? "Requiere atención" : "Sin alertas", c: "#dc2626", Icon: AlertTriangle },
+            { l: "Sin imagen",        v: data?.productos.sinImagen ?? "—",                       sub: "Productos sin foto", c: "#0891b2", Icon: ImageIcon },
+            { l: "Sin precio",        v: data?.productos.sinPrecio ?? "—",                       sub: "Falta precio", c: "#d97706", Icon: DollarSign },
+            { l: "Borradores",        v: data?.productos.borradores ?? "—",                      sub: "En edición", c: "#64748b", Icon: FileText },
+            { l: "Listos p/ exportar",v: data?.woocommerce.pendientesExportar ?? "—",            sub: "Pendientes WC", c: "#0f766e", Icon: CheckCheck },
+          ].map(k => {
+            const Icon = k.Icon;
+            return (
+              <div key={k.l} className="card card-hover p-5">
+                <div className="flex items-center justify-between">
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ backgroundColor: k.c + "18" }}>
+                    <Icon size={20} style={{ color: k.c }} />
+                  </div>
+                </div>
+                <p className="text-2xl font-bold mt-3" style={{ color: k.c }}>{k.v}</p>
+                <p className="text-sm font-medium text-soft mt-0.5">{k.l}</p>
+                <p className="text-xs text-muted mt-0.5">{k.sub}</p>
+              </div>
+            );
+          })}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

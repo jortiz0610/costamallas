@@ -2,9 +2,99 @@
 import { useState, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { Wrench, Calendar, MapPin, User, CheckCircle2, Clock, AlertCircle, RefreshCw, ListTodo } from "lucide-react";
+import { Wrench, Calendar, MapPin, User, CheckCircle2, Clock, AlertCircle, RefreshCw, ListTodo, Plus, X, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { formatCOP } from "@/lib/utils";
+import { CIUDADES } from "@/lib/colombia";
+
+interface PedidoOpt { id: string; numero: string; total: number; cliente: { nombre: string; empresa?: string }; }
+interface TecnicoOpt { id: string; nombre: string; }
+
+function NuevaInstalacion({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [pedidoId, setPedidoId] = useState("");
+  const [fechaAgendada, setFechaAgendada] = useState("");
+  const [direccion, setDireccion] = useState("");
+  const [ciudad, setCiudad] = useState("");
+  const [tecnicoId, setTecnicoId] = useState("");
+  const [notas, setNotas] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const { data: pedidos = [] } = useQuery<PedidoOpt[]>({
+    queryKey: ["pedidos-inst-opt"],
+    queryFn: async () => (await (await fetch("/api/crm/pedidos")).json()).data ?? [],
+  });
+  const { data: tecnicos = [] } = useQuery<TecnicoOpt[]>({
+    queryKey: ["tecnicos-opt"],
+    queryFn: async () => (await (await fetch("/api/usuarios")).json()).data ?? [],
+  });
+
+  const save = async () => {
+    if (!pedidoId) return toast.error("Selecciona un pedido");
+    setSaving(true);
+    try {
+      const res = await fetch("/api/crm/instalaciones", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pedidoId, fechaAgendada: fechaAgendada || null, direccion, ciudad, tecnicoId: tecnicoId || null, notas }) });
+      const json = await res.json();
+      if (!res.ok || !json.success) return toast.error(json.error ?? "Error");
+      toast.success("Instalación agendada");
+      onSaved();
+    } catch { toast.error("Error"); } finally { setSaving(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto">
+      <div className="card w-full max-w-lg my-4 animate-fade-up">
+        <div className="card-header">
+          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2"><Wrench size={16} style={{ color: CRM_COLOR }} /> Agendar instalación</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg surface-2 flex items-center justify-center text-muted"><X size={15} /></button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Pedido *</label>
+            <select className="input" value={pedidoId} onChange={e => setPedidoId(e.target.value)}>
+              <option value="">Selecciona un pedido…</option>
+              {pedidos.map(p => <option key={p.id} value={p.id}>{p.numero} · {p.cliente.nombre} · {formatCOP(Number(p.total))}</option>)}
+            </select>
+            {pedidos.length === 0 && <p className="text-[11px] text-muted mt-1">No hay pedidos. Crea un pedido primero para agendar su instalación.</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Fecha agendada</label>
+              <input type="date" className="input" value={fechaAgendada} onChange={e => setFechaAgendada(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Técnico</label>
+              <select className="input" value={tecnicoId} onChange={e => setTecnicoId(e.target.value)}>
+                <option value="">Sin asignar</option>
+                {tecnicos.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Ciudad</label>
+              <select className="input" value={ciudad} onChange={e => setCiudad(e.target.value)}>
+                <option value="">Selecciona…</option>
+                {CIUDADES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Dirección</label>
+              <input className="input" value={direccion} onChange={e => setDireccion(e.target.value)} placeholder="Cra 15 #98-23" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Notas</label>
+            <textarea className="input resize-none" rows={2} value={notas} onChange={e => setNotas(e.target.value)} placeholder="Indicaciones para la instalación…" />
+          </div>
+        </div>
+        <div className="p-5 pt-0 flex gap-3">
+          <button onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
+          <button onClick={save} disabled={saving} className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50" style={{ backgroundColor: CRM_COLOR }}>
+            {saving && <Loader2 size={13} className="animate-spin" />} Agendar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface Instalacion {
   id: string; estado: string; fechaAgendada?: string; direccion?: string; ciudad?: string; notas?: string;
@@ -35,6 +125,7 @@ const STATS = [
 
 function InstalacionesContent() {
   const [filtro, setFiltro] = useState("todos");
+  const [modal, setModal] = useState(false);
   const qc = useQueryClient();
   const { data: instalaciones = [], isLoading, refetch } = useQuery<Instalacion[]>({
     queryKey: ["instalaciones"],
@@ -50,7 +141,14 @@ function InstalacionesContent() {
   };
   return (
     <>
-      <Topbar title="Instalaciones" actions={<button onClick={() => refetch()} className="btn-secondary btn-sm"><RefreshCw size={12} className={isLoading ? "animate-spin" : ""} /></button>} />
+      <Topbar title="Instalaciones" actions={
+        <div className="flex items-center gap-2">
+          <button onClick={() => setModal(true)} className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: CRM_COLOR }}>
+            <Plus size={13} /> Agendar instalación
+          </button>
+          <button onClick={() => refetch()} className="btn-secondary btn-sm"><RefreshCw size={12} className={isLoading ? "animate-spin" : ""} /></button>
+        </div>
+      } />
       <div className="flex-1 overflow-y-auto page-bg p-5 space-y-4">
         <div className="grid grid-cols-4 gap-4">
           {STATS.map(s => {
@@ -111,6 +209,7 @@ function InstalacionesContent() {
           ))}
         </div>
       </div>
+      {modal && <NuevaInstalacion onClose={() => setModal(false)} onSaved={() => { setModal(false); qc.invalidateQueries({ queryKey: ["instalaciones"] }); }} />}
     </>
   );
 }

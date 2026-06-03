@@ -10,6 +10,7 @@ import {
 import toast from "react-hot-toast";
 import Link from "next/link";
 import { useBrand } from "@/contexts/BrandContext";
+import { CIUDADES, DEPARTAMENTOS, departamentoDeCiudad } from "@/lib/colombia";
 
 const CRM_COLOR = "#BA7517";
 
@@ -268,11 +269,22 @@ export default function NuevoClientePage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Ciudad</label>
-                  <input className="input" value={form.ciudad} onChange={e => upd("ciudad", e.target.value)} placeholder="Ej: Bogotá" />
+                  <select className="input" value={form.ciudad}
+                    onChange={e => {
+                      const ciudad = e.target.value;
+                      const depto = departamentoDeCiudad(ciudad);
+                      setForm(p => ({ ...p, ciudad, departamento: depto ?? p.departamento }));
+                    }}>
+                    <option value="">Selecciona una ciudad…</option>
+                    {CIUDADES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Departamento</label>
-                  <input className="input" value={form.departamento} onChange={e => upd("departamento", e.target.value)} placeholder="Ej: Cundinamarca" />
+                  <select className="input" value={form.departamento} onChange={e => upd("departamento", e.target.value)}>
+                    <option value="">Selecciona un departamento…</option>
+                    {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Dirección</label>

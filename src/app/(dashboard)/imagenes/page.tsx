@@ -18,7 +18,7 @@ interface ProductoConImagenes {
 type FiltroImg = "todos" | "con_imagenes" | "sin_imagenes";
 
 async function fetchProductos(busqueda: string): Promise<ProductoConImagenes[]> {
-  const params = new URLSearchParams({ limit: "300", orderBy: "nombre" });
+  const params = new URLSearchParams({ limit: "100", orderBy: "nombre", order: "asc" });
   if (busqueda) params.set("busqueda", busqueda);
   const res = await fetch(`/api/productos?${params}`);
   return (await res.json()).data ?? [];

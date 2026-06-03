@@ -2,7 +2,7 @@
 import { useState, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { Plus, Search, X, Loader2, Trash2, FileText, ExternalLink } from "lucide-react";
+import { Plus, Search, X, Loader2, Trash2, FileText, ExternalLink, Eye } from "lucide-react";
 import toast from "react-hot-toast";
 import { formatCOP } from "@/lib/utils";
 import Link from "next/link";
@@ -214,12 +214,15 @@ function CotizacionesContent() {
               <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{c.cliente.nombre}</p>{c.cliente.empresa && <p className="text-xs text-gray-400">{c.cliente.empresa}</p>}</div>
               <Badge estado={c.estado} />
               <p className="text-sm font-bold text-gray-900 dark:text-gray-100 w-32 text-right">{formatCOP(c.total)}</p>
-              <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                {c.estado === "BORRADOR" && <button onClick={() => cambiarEstado(c.id,"ENVIADA")} className="px-2.5 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold">Enviar</button>}
+              <div className="flex items-center gap-1.5">
+                {c.estado === "BORRADOR" && <button onClick={() => cambiarEstado(c.id,"ENVIADA")} className="px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Enviar</button>}
                 {c.estado === "ENVIADA" && <>
-                  <button onClick={() => cambiarEstado(c.id,"APROBADA")} className="px-2.5 py-1 rounded-lg bg-green-100 text-green-700 text-xs font-semibold">Aprobar</button>
-                  <button onClick={() => cambiarEstado(c.id,"RECHAZADA")} className="px-2.5 py-1 rounded-lg bg-red-100 text-red-600 text-xs font-semibold">Rechazar</button>
+                  <button onClick={() => cambiarEstado(c.id,"APROBADA")} className="px-2.5 py-1 rounded-lg bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Aprobar</button>
+                  <button onClick={() => cambiarEstado(c.id,"RECHAZADA")} className="px-2.5 py-1 rounded-lg bg-red-100 dark:bg-red-500/15 text-red-600 dark:text-red-300 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Rechazar</button>
                 </>}
+                <Link href={`/crm/cotizaciones/${c.id}`} className="px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1" style={{ backgroundColor: CRM_COLOR + "18", color: CRM_COLOR }}>
+                  <Eye size={12} /> Ver
+                </Link>
               </div>
             </div>
           ))}

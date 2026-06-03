@@ -25,6 +25,24 @@ const ACF_KEY: Record<string, string> = {
   "mallas-nylon": "ny", "mallas-plasticas": "pl", "seguridad-perimetral": "sp",
 };
 
+// ─── Sugerencias SEO ──────────────────────────────────────────
+const CAT_KEYWORDS: Record<string, string[]> = {
+  "mallas-metalicas": ["malla metálica", "cerramiento", "acero galvanizado", "industrial"],
+  "mallas-nylon": ["malla nylon", "redes de protección", "deportiva", "resistente"],
+  "mallas-para-balcones": ["malla para balcón", "protección niños", "protección mascotas", "seguridad hogar"],
+  "mallas-construccion": ["malla construcción", "obra", "andamios", "seguridad"],
+  "mallas-plasticas": ["malla plástica", "cerco", "jardín", "económica"],
+  "seguridad-perimetral": ["seguridad perimetral", "cerramiento", "concertina", "anti-intrusión"],
+};
+export function etiquetasSugeridas(nombre: string, categorias: string[]): string[] {
+  const out = new Set<string>();
+  for (const c of categorias) (CAT_KEYWORDS[c] ?? []).forEach(k => out.add(k));
+  // Palabras significativas del nombre
+  nombre.toLowerCase().split(/[\s,/-]+/).filter(w => w.length > 3).slice(0, 4).forEach(w => out.add(w));
+  out.add("costamallas");
+  return Array.from(out).slice(0, 10);
+}
+
 // ─── Componentes base ─────────────────────────────────────────
 
 function Label({ children }: { children: React.ReactNode }) {
@@ -151,27 +169,40 @@ function Repeater({ label, value, onChange, cols }: {
   );
 }
 
-function TagInput({ label, value, onChange, hint, placeholder }: {
-  label: string; value: string[]; onChange: (v: string[]) => void; hint?: string; placeholder?: string;
+function TagInput({ label, value, onChange, hint, placeholder, suggestions }: {
+  label: string; value: string[]; onChange: (v: string[]) => void; hint?: string; placeholder?: string; suggestions?: string[];
 }) {
   const [inp, setInp] = useState("");
-  const add = () => { const t = inp.trim(); if (t && !value.includes(t)) onChange([...value, t]); setInp(""); };
+  const add = (raw?: string) => { const t = (raw ?? inp).trim(); if (t && !value.includes(t)) onChange([...value, t]); setInp(""); };
+  const sugerencias = (suggestions ?? []).filter(s => !value.includes(s)).slice(0, 8);
   return (
     <FieldWrap label={label} hint={hint}>
-      <div className="border border-gray-200 rounded-lg p-2 focus-within:border-[#FFCC00] focus-within:ring-2 focus-within:ring-[#FFCC00]/20 transition-all">
-        <div className="flex flex-wrap gap-1.5 mb-2">
+      <div className="rounded-lg p-2 transition-all border" style={{ backgroundColor: "var(--surface)", borderColor: "var(--border)" }}>
+        <div className="flex flex-wrap gap-1.5 items-center">
           {value.map(t => (
-            <span key={t} className="inline-flex items-center gap-1 bg-gray-900 text-white text-[11px] font-medium px-2 py-0.5 rounded-full">
+            <span key={t} className="inline-flex items-center gap-1 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full" style={{ backgroundColor: "var(--brand-color)" }}>
               {t}
-              <button type="button" onClick={() => onChange(value.filter(v => v !== t))} className="hover:text-red-300 transition-colors"><X size={9} /></button>
+              <button type="button" onClick={() => onChange(value.filter(v => v !== t))} className="hover:text-red-200 transition-colors"><X size={10} /></button>
             </span>
           ))}
+          <input className="flex-1 min-w-[120px] text-sm outline-none bg-transparent py-1"
+            style={{ color: "var(--text)" }}
+            value={inp} onChange={e => setInp(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } if (e.key === ",") { e.preventDefault(); add(); } if (e.key === "Backspace" && !inp && value.length) onChange(value.slice(0, -1)); }}
+            placeholder={value.length === 0 ? (placeholder ?? "Escribe y presiona Enter…") : "Agregar…"} />
         </div>
-        <input className="w-full text-sm outline-none placeholder:text-gray-300"
-          value={inp} onChange={e => setInp(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } if (e.key === "," ) { e.preventDefault(); add(); } }}
-          placeholder={value.length === 0 ? (placeholder ?? "Escribe y presiona Enter…") : "+"} />
       </div>
+      {sugerencias.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          <span className="text-[10px] text-muted self-center">Sugeridas:</span>
+          {sugerencias.map(s => (
+            <button key={s} type="button" onClick={() => add(s)}
+              className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full transition-all surface-3 text-soft hover:brand-bg-10">
+              <Plus size={9} /> {s}
+            </button>
+          ))}
+        </div>
+      )}
     </FieldWrap>
   );
 }
@@ -443,6 +474,7 @@ const TABS = [
   { id: "descripcion", label: "Descripción" },
   { id: "calidad",     label: "Calidad" },
   { id: "imagenes",    label: "Imágenes" },
+  { id: "seo",         label: "SEO" },
   { id: "ia",          label: "Asistente IA" },
 ] as const;
 type TabId = typeof TABS[number]["id"] | "ficha";
@@ -744,7 +776,8 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
 
               {/* Etiquetas */}
               <div className="card p-4">
-                <TagInput label="Etiquetas" value={Array.isArray(form.etiquetas) ? form.etiquetas as string[] : []} onChange={v => set("etiquetas", v)} hint="Enter o coma para agregar" />
+                <TagInput label="Etiquetas" value={Array.isArray(form.etiquetas) ? form.etiquetas as string[] : []} onChange={v => set("etiquetas", v)} hint="Enter o coma para agregar"
+                  suggestions={etiquetasSugeridas(String(form.nombre ?? ""), Array.isArray(form.categorias) ? form.categorias as string[] : [])} />
               </div>
 
               {/* Garantía */}
@@ -848,6 +881,88 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
             )}
           </div>
         )}
+
+        {/* PESTAÑA: SEO */}
+        {tab === "seo" && (() => {
+          const nombre = String(form.nombre ?? "");
+          const cats = Array.isArray(form.categorias) ? form.categorias as string[] : [];
+          const keywords = Array.isArray(form.etiquetas) ? form.etiquetas as string[] : [];
+          const metaTitulo = nombre ? `${nombre} | Costamallas` : "Título del producto | Costamallas";
+          const metaDesc = String(form.descCorta ?? "");
+          const slug = String(form.slug ?? "") || "producto";
+          const score = (metaDesc ? 1 : 0) + (keywords.length >= 3 ? 1 : 0) + (nombre.length >= 10 ? 1 : 0) + (slug ? 1 : 0);
+          const autogenerar = () => {
+            const base = nombre || "Este producto";
+            const cat = cats[0] ? cats[0].replace(/-/g, " ") : "alta calidad";
+            set("descCorta", `${base} de Costamallas: ${cat} con la mejor relación calidad-precio. Cotiza en línea y recibe asesoría experta. Envíos a toda Colombia.`.slice(0, 160));
+          };
+          return (
+            <div className="max-w-3xl mx-auto space-y-5">
+              {/* Estado SEO */}
+              <div className="card p-5 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: (score >= 3 ? "#16a34a" : score >= 2 ? "#d97706" : "#dc2626") + "18" }}>
+                  <TagIcon size={22} style={{ color: score >= 3 ? "#16a34a" : score >= 2 ? "#d97706" : "#dc2626" }} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-gray-800 dark:text-gray-100">Optimización SEO: {score}/4</p>
+                  <p className="text-xs text-muted">Esta pestaña se completa automáticamente con los datos del producto. Mejórala con el Asistente IA.</p>
+                </div>
+                <button type="button" onClick={autogenerar} className="btn-secondary btn-sm">
+                  <Sparkles size={13} /> Autogenerar
+                </button>
+              </div>
+
+              {/* Vista previa Google */}
+              <div className="card p-5">
+                <p className="text-xs font-bold uppercase tracking-widest text-muted mb-3">Vista previa en Google</p>
+                <div className="rounded-xl p-4 surface-2">
+                  <p className="text-[13px] text-emerald-700 dark:text-emerald-400 truncate">costamallas.com › producto › {slug}</p>
+                  <p className="text-[18px] text-blue-700 dark:text-blue-400 font-medium leading-tight mt-0.5 truncate">{metaTitulo}</p>
+                  <p className="text-[13px] text-soft mt-1 line-clamp-2">{metaDesc || "Agrega una meta descripción para mejorar el clic desde Google…"}</p>
+                </div>
+              </div>
+
+              {/* Campos editables */}
+              <div className="card p-5 space-y-4">
+                <SInput label="Meta título (automático)" value={metaTitulo} onChange={() => {}} hint="Se genera del nombre del producto + marca" />
+                <div>
+                  <Label>URL / Slug</Label>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-muted">costamallas.com/producto/</span>
+                    <input className="input flex-1" value={String(form.slug ?? "")} onChange={e => set("slug", e.target.value)} placeholder="malla-metalica-galvanizada" />
+                  </div>
+                </div>
+                <div>
+                  <Label>Meta descripción</Label>
+                  <textarea className="input resize-none" rows={3} value={metaDesc} onChange={e => set("descCorta", e.target.value)} maxLength={160}
+                    placeholder="Descripción breve que aparece en los resultados de búsqueda…" />
+                  <p className="text-[11px] mt-1" style={{ color: metaDesc.length > 160 ? "#dc2626" : "var(--text-muted)" }}>{metaDesc.length}/160 caracteres</p>
+                </div>
+                <div>
+                  <Label>Palabras clave (etiquetas)</Label>
+                  {keywords.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {keywords.map(k => <span key={k} className="text-[11px] font-semibold px-2.5 py-1 rounded-full text-white" style={{ backgroundColor: "var(--brand-color)" }}>{k}</span>)}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted">Agrega etiquetas en la pestaña <b>Producto</b> para usarlas como palabras clave SEO.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Guía Yoast */}
+              <div className="card p-5">
+                <p className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2 mb-2"><FileText size={15} style={{ color: "var(--brand-color)" }} /> Conexión con Yoast SEO Pro (para el desarrollador)</p>
+                <ol className="space-y-1.5 text-xs text-soft list-decimal list-inside">
+                  <li>Al exportar a WooCommerce, el <b>slug</b> y la <b>meta descripción</b> se mapean a los campos de Yoast (<code className="surface-3 px-1 rounded">_yoast_wpseo_metadesc</code>) y el <b>meta título</b> a <code className="surface-3 px-1 rounded">_yoast_wpseo_title</code>.</li>
+                  <li>Las <b>palabras clave</b> se envían como <code className="surface-3 px-1 rounded">_yoast_wpseo_focuskw</code> (la primera) y como tags del producto.</li>
+                  <li>Activa en Yoast Pro la API REST para recibir métricas (puntaje SEO, legibilidad) de vuelta vía <code className="surface-3 px-1 rounded">/wp-json/yoast/v1</code>.</li>
+                  <li>Guarda tu API key de Yoast en <b>Configuración → WooCommerce</b> para sincronizar métricas por producto.</li>
+                </ol>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* PESTAÑA: ASISTENTE IA */}
         {tab === "ia" && (

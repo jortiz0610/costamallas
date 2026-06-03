@@ -190,7 +190,7 @@ function CategoriasContent() {
                 <div
                   key={item.id}
                   className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors group"
-                  style={{ borderBottom: idx < items.length - 1 ? "1px solid #f1f5f9" : "none" }}
+                  style={{ borderBottom: idx < items.length - 1 ? "1px solid var(--border)" : "none" }}
                 >
                   <span
                     className="text-[10px] font-mono font-bold px-2 py-1 rounded-lg flex-shrink-0"

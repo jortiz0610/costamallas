@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
 import { cn } from "@/lib/utils";
-import { Archive, Check, X } from "lucide-react";
+import { Archive, Check, X, AlertTriangle, TrendingDown, Bell } from "lucide-react";
 import Link from "next/link";
 import type { NivelStock } from "@/types";
 import toast from "react-hot-toast";
@@ -52,16 +52,21 @@ export default function StockPage() {
   return (
     <>
       <Topbar title="Control de Stock" />
-      <div className="flex-1 overflow-y-auto p-6 space-y-5">
+      <div className="flex-1 overflow-y-auto page-bg p-6 space-y-5">
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: "Críticos", value: criticos, cls: "bg-red-50 border-red-200 text-red-700" },
-            { label: "Stock bajo", value: bajos, cls: "bg-orange-50 border-orange-200 text-orange-700" },
-            { label: "Total alertas", value: data.length, cls: "bg-yellow-50 border-yellow-200 text-yellow-700" },
-          ].map(({ label, value, cls }) => (
-            <div key={label} className={`p-4 rounded-xl border ${cls}`}>
-              <p className="text-[11px] font-medium uppercase tracking-wide opacity-70">{label}</p>
-              <p className="text-3xl font-bold mt-1">{value}</p>
+            { label: "Críticos", value: criticos, color: "#dc2626", Icon: AlertTriangle },
+            { label: "Stock bajo", value: bajos, color: "#d97706", Icon: TrendingDown },
+            { label: "Total alertas", value: data.length, color: "#ca8a04", Icon: Bell },
+          ].map(({ label, value, color, Icon }) => (
+            <div key={label} className="card p-4 flex items-center gap-4" style={{ borderLeft: `3px solid ${color}` }}>
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: color + "18" }}>
+                <Icon size={20} style={{ color }} />
+              </div>
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted">{label}</p>
+                <p className="text-3xl font-bold mt-0.5" style={{ color }}>{value}</p>
+              </div>
             </div>
           ))}
         </div>

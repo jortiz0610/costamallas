@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Package, ImageIcon, Tag, Archive, FileOutput, FileInput,
   AlertTriangle, Settings, LogOut, Users, UserCircle, ClipboardList,
   ShoppingCart, Wrench, Kanban, ChevronDown, ShieldCheck, BarChart2,
-  MessageSquare, Truck, CheckSquare, MessageSquareText,
+  MessageSquare, Truck, CheckSquare, MessageSquareText, Zap,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -45,6 +45,7 @@ const CRM_ITEMS = [
 const NEXUS_ITEMS = [
   { href: "/nexus", label: "Inbox", icon: MessageSquare, alertKey: "nexus" },
   { href: "/nexus/plantillas", label: "Plantillas", icon: MessageSquareText },
+  { href: "/nexus/flujos", label: "Flujos & Automatización", icon: Zap },
   { section: "Configura tus canales" },
   { href: "/configuracion?tab=canales", label: "Conexiones", icon: Settings },
 ];

@@ -1,6 +1,10 @@
 "use client";
-import { Bell, Sun, Moon } from "lucide-react";
+import {
+  Bell, Sun, Moon, Zap, Package, ImageIcon, Archive, UserPlus, ClipboardList,
+  CheckSquare, Wrench, MessageSquareText, Settings, Inbox, Truck, FileInput,
+} from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { useNotificaciones } from "@/hooks/useNotificaciones";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { useBrand } from "@/contexts/BrandContext";
@@ -8,6 +12,72 @@ import { cn } from "@/lib/utils";
 
 const ERP_COLOR = "#185FA5";
 const CRM_COLOR = "#BA7517";
+const NEXUS_COLOR = "#7c3aed";
+
+type QuickTask = { label: string; href: string; Icon: React.ElementType };
+const QUICK_TASKS: Record<string, QuickTask[]> = {
+  ERP: [
+    { label: "Nuevo producto", href: "/productos/nuevo", Icon: Package },
+    { label: "Subir imágenes", href: "/imagenes", Icon: ImageIcon },
+    { label: "Ver stock crítico", href: "/stock", Icon: Archive },
+    { label: "Nuevo proveedor", href: "/compras", Icon: Truck },
+    { label: "Importar de WooCommerce", href: "/importar", Icon: FileInput },
+  ],
+  CRM: [
+    { label: "Nuevo cliente", href: "/crm/clientes/nuevo", Icon: UserPlus },
+    { label: "Nueva cotización", href: "/crm/cotizaciones/nueva", Icon: ClipboardList },
+    { label: "Nueva tarea", href: "/crm/tareas", Icon: CheckSquare },
+    { label: "Agendar instalación", href: "/crm/instalaciones", Icon: Wrench },
+    { label: "Ver pipeline", href: "/crm/pipeline", Icon: ClipboardList },
+  ],
+  NEXUS: [
+    { label: "Ir al inbox", href: "/nexus", Icon: Inbox },
+    { label: "Nueva plantilla", href: "/nexus/plantillas", Icon: MessageSquareText },
+    { label: "Flujos y automatización", href: "/nexus/flujos", Icon: Zap },
+    { label: "Conexiones de canales", href: "/configuracion?tab=canales", Icon: Settings },
+  ],
+};
+
+function QuickTaskButton({ mode, color }: { mode: string; color: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const tasks = QUICK_TASKS[mode] ?? QUICK_TASKS.ERP;
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  return (
+    <div className="relative" ref={ref}>
+      <button onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1.5 px-3 h-9 rounded-lg text-xs font-semibold text-white transition-all hover:brightness-110"
+        style={{ backgroundColor: color }}>
+        <Zap size={14} /> <span className="hidden md:inline">Tarea rápida</span>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-60 card overflow-hidden z-50 animate-fade-up">
+          <div className="px-4 py-2.5 border-b divider">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted">Acciones rápidas · {mode}</p>
+          </div>
+          <div className="p-1.5">
+            {tasks.map(t => {
+              const Icon = t.Icon;
+              return (
+                <Link key={t.href + t.label} href={t.href} onClick={() => setOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:surface-2 transition-colors">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: color + "18" }}>
+                    <Icon size={14} style={{ color }} />
+                  </div>
+                  <span className="text-sm font-medium text-soft">{t.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface TopbarProps { title: string; actions?: React.ReactNode; }
 
@@ -16,7 +86,7 @@ export function Topbar({ title, actions }: TopbarProps) {
   const notifRef = useRef<HTMLDivElement>(null);
   const { noLeidas } = useNotificaciones();
   const { darkMode, toggleDark, mode } = useBrand();
-  const modeColor = mode === "ERP" ? ERP_COLOR : CRM_COLOR;
+  const modeColor = mode === "ERP" ? ERP_COLOR : mode === "NEXUS" ? NEXUS_COLOR : CRM_COLOR;
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -32,6 +102,7 @@ export function Topbar({ title, actions }: TopbarProps) {
       <h1 className="text-[15px] font-semibold text-gray-800 dark:text-gray-100 flex-1">{title}</h1>
       <span className="text-[10px] font-bold px-2.5 py-1 rounded-full text-white hidden sm:inline-flex items-center" style={{ backgroundColor: modeColor }}>{mode}</span>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
+      <QuickTaskButton mode={mode} color={modeColor} />
       <button onClick={toggleDark}
         className="w-9 h-9 flex items-center justify-center rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 border border-gray-200 dark:border-slate-700"
         title={darkMode ? "Modo claro" : "Modo oscuro"}>

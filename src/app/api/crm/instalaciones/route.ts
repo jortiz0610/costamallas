@@ -19,3 +19,33 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ success: true, data: instalaciones });
 }
+
+export async function POST(req: NextRequest) {
+  const user = await getUserFromRequest(req);
+  if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
+
+  const body = await req.json();
+  const { pedidoId, fechaAgendada, direccion, ciudad, tecnicoId, notas } = body;
+  if (!pedidoId) return NextResponse.json({ success: false, error: "Selecciona un pedido" }, { status: 400 });
+
+  // Evitar duplicados
+  const existe = await prisma.instalacion.findFirst({ where: { pedidoId } });
+  if (existe) return NextResponse.json({ success: false, error: "Este pedido ya tiene una instalación agendada" }, { status: 409 });
+
+  const instalacion = await prisma.instalacion.create({
+    data: {
+      pedidoId,
+      estado: fechaAgendada ? "AGENDADA" : "PENDIENTE",
+      fechaAgendada: fechaAgendada ? new Date(fechaAgendada) : null,
+      direccion: direccion || null,
+      ciudad: ciudad || null,
+      tecnicoId: tecnicoId || null,
+      notas: notas || null,
+    },
+  });
+
+  // Marcar el pedido como con instalación
+  await prisma.pedido.update({ where: { id: pedidoId }, data: { tieneInstalacion: true } }).catch(() => {});
+
+  return NextResponse.json({ success: true, data: instalacion }, { status: 201 });
+}
