@@ -109,7 +109,7 @@ function CategoriasContent() {
                   style={
                     activo
                       ? { backgroundColor: t.color + "15", borderColor: t.color, color: t.color }
-                      : { backgroundColor: "white", borderColor: "#e2e8f0", color: "#9ca3af" }
+                      : { backgroundColor: "var(--surface)", borderColor: "var(--border)", color: "var(--text-muted)" }
                   }
                 >
                   <div

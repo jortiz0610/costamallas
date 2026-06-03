@@ -34,6 +34,7 @@ model Usuario {
   pedidos       Pedido[]
   instalaciones Instalacion[]
   nexusMensajes NexusMensaje[]
+  tareas        Tarea[]
 
   @@map("usuarios")
   @@index([email])
@@ -77,11 +78,96 @@ model Cliente {
 
   cotizaciones Cotizacion[]
   pedidos      Pedido[]
+  tareas       Tarea[]
 
   @@map("clientes")
   @@index([vendedorId])
   @@index([activo])
   @@index([estado])
+}
+
+// ── Tareas y seguimientos (submódulo CRM) ──
+model Tarea {
+  id           String    @id @default(cuid())
+  titulo       String
+  descripcion  String?   @db.Text
+  tipo         String    @default("SEGUIMIENTO") // SEGUIMIENTO, LLAMADA, EMAIL, REUNION, COTIZACION, VISITA
+  prioridad    String    @default("NORMAL")      // BAJA, NORMAL, ALTA, URGENTE
+  estado       String    @default("PENDIENTE")   // PENDIENTE, EN_PROGRESO, COMPLETADA, CANCELADA
+  fechaVence   DateTime?
+  completadaEn DateTime?
+  clienteId    String?
+  cliente      Cliente?  @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  asignadoId   String?
+  asignado     Usuario?  @relation(fields: [asignadoId], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("tareas")
+  @@index([estado])
+  @@index([asignadoId])
+  @@index([clienteId])
+  @@index([fechaVence])
+}
+
+// ── Proveedores y compras (submódulo ERP) ──
+model Proveedor {
+  id           String   @id @default(cuid())
+  nombre       String
+  contacto     String?
+  email        String?
+  telefono     String?
+  nit          String?
+  direccion    String?
+  ciudad       String?
+  categorias   String[] @default([])
+  notas        String?  @db.Text
+  leadTimeDias Int?     // tiempo de entrega estimado
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ordenes      OrdenCompra[]
+
+  @@map("proveedores")
+  @@index([activo])
+}
+
+model OrdenCompra {
+  id           String   @id @default(cuid())
+  numero       String   @unique
+  proveedorId  String
+  proveedor    Proveedor @relation(fields: [proveedorId], references: [id], onDelete: Cascade)
+  estado       String   @default("BORRADOR") // BORRADOR, ENVIADA, RECIBIDA_PARCIAL, RECIBIDA, CANCELADA
+  total        Decimal  @default(0) @db.Decimal(14, 2)
+  notas        String?  @db.Text
+  items        Json     @default("[]")
+  fechaEsperada DateTime?
+  recibidaEn   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("ordenes_compra")
+  @@index([proveedorId])
+  @@index([estado])
+}
+
+// ── Plantillas y automatización (submódulo Nexus) ──
+model PlantillaNexus {
+  id          String   @id @default(cuid())
+  nombre      String
+  categoria   String   @default("GENERAL") // GENERAL, SALUDO, COTIZACION, SEGUIMIENTO, DESPEDIDA, FAQ
+  canal       String   @default("todos")   // todos, whatsapp, email, instagram...
+  contenido   String   @db.Text
+  atajo       String?  // ej: /saludo
+  activo      Boolean  @default(true)
+  vecesUsada  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("plantillas_nexus")
+  @@index([categoria])
+  @@index([activo])
 }
 
 model Cotizacion {

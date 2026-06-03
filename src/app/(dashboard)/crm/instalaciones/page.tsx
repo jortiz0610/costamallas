@@ -68,7 +68,7 @@ function InstalacionesContent() {
           {([{ v: "todos", l: "Todas" }, ...ESTADOS] as { v: string; l: string }[]).map(e => (
             <button key={e.v} onClick={() => setFiltro(e.v)}
               className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
-              style={filtro === e.v ? { backgroundColor: "#1f2937", color: "white" } : { backgroundColor: "#f1f5f9", color: "#6b7280" }}>
+              style={filtro === e.v ? { backgroundColor: "var(--brand-color)", color: "white" } : { backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>
               {e.l}
             </button>
           ))}

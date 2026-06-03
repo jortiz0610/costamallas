@@ -143,7 +143,7 @@ function PedidosContent() {
             className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all"
             style={tab === "internet"
               ? { backgroundColor: CRM_COLOR, color: "white" }
-              : { backgroundColor: "white", color: "#6b7280" }}
+              : { backgroundColor: "var(--surface)", color: "var(--text-muted)" }}
           >
             <Globe size={14} /> Pedidos web ({pedidosInternet.length})
           </button>
@@ -152,7 +152,7 @@ function PedidosContent() {
             className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all"
             style={tab === "instalacion"
               ? { backgroundColor: "#d97706", color: "white" }
-              : { backgroundColor: "white", color: "#6b7280" }}
+              : { backgroundColor: "var(--surface)", color: "var(--text-muted)" }}
           >
             <Wrench size={14} /> Con instalación ({pedidosInstalacion.length})
           </button>
@@ -181,7 +181,7 @@ function PedidosContent() {
         <div className="flex flex-wrap gap-1.5">
           <button onClick={() => setFiltroEstado("")}
             className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
-            style={!filtroEstado ? { backgroundColor: "#1f2937", color: "white" } : { backgroundColor: "#f1f5f9", color: "#6b7280" }}>
+            style={!filtroEstado ? { backgroundColor: "var(--brand-color)", color: "white" } : { backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>
             Todos ({base.length})
           </button>
           {ESTADOS_FLUJO.filter(e => e.v !== "CANCELADO").map(e => {
@@ -191,7 +191,7 @@ function PedidosContent() {
               <button key={e.v} onClick={() => setFiltroEstado(filtroEstado === e.v ? "" : e.v)}
                 className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
                 style={filtroEstado === e.v
-                  ? { backgroundColor: "#1f2937", color: "white" }
+                  ? { backgroundColor: "var(--brand-color)", color: "white" }
                   : { backgroundColor: e.bg, color: e.text }}>
                 {e.l} ({count})
               </button>

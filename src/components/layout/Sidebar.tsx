@@ -3,9 +3,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Package, ImageIcon, Tag, Archive, FileOutput, FileInput,
-  AlertTriangle, ScrollText, Settings, LogOut, Users, UserCircle, ClipboardList,
+  AlertTriangle, Settings, LogOut, Users, UserCircle, ClipboardList,
   ShoppingCart, Wrench, Kanban, ChevronDown, ShieldCheck, BarChart2,
-  MessageSquare, Globe, Smartphone, Instagram, Zap,
+  MessageSquare, Truck, CheckSquare, MessageSquareText,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,33 +24,35 @@ const ERP_ITEMS = [
   { href: "/categorias", label: "Catálogos", icon: Tag },
   { section: "Operaciones" },
   { href: "/stock", label: "Stock", icon: Archive, alertKey: "stock" },
+  { href: "/compras", label: "Compras", icon: Truck },
   { href: "/importar", label: "Importar WC", icon: FileInput },
   { href: "/exportar", label: "Exportar WC", icon: FileOutput },
   { href: "/errores", label: "Errores", icon: AlertTriangle, alertKey: "errores" },
 ];
 
 const CRM_ITEMS = [
+  { href: "/crm", label: "Resumen", icon: LayoutDashboard },
+  { section: "Gestión" },
   { href: "/crm/clientes", label: "Clientes", icon: UserCircle },
   { href: "/crm/cotizaciones", label: "Cotizaciones", icon: ClipboardList },
   { href: "/crm/pedidos", label: "Pedidos", icon: ShoppingCart },
+  { href: "/crm/tareas", label: "Tareas", icon: CheckSquare },
+  { section: "Producción" },
   { href: "/crm/pipeline", label: "Pipeline", icon: Kanban },
   { href: "/crm/instalaciones", label: "Instalaciones", icon: Wrench },
 ];
 
 const NEXUS_ITEMS = [
   { href: "/nexus", label: "Inbox", icon: MessageSquare, alertKey: "nexus" },
-  { section: "Canales activos" },
-  { href: "/nexus?canal=wordpress_form", label: "WordPress", icon: Globe },
-  { href: "/nexus?canal=whatsapp", label: "WhatsApp", icon: Smartphone },
-  { href: "/nexus?canal=instagram", label: "Instagram", icon: Instagram },
-  { href: "/nexus?canal=email", label: "Email", icon: Zap },
+  { href: "/nexus/plantillas", label: "Plantillas", icon: MessageSquareText },
+  { section: "Configura tus canales" },
+  { href: "/configuracion?tab=canales", label: "Conexiones", icon: Settings },
 ];
 
 const SYSTEM_ITEMS = [
   { href: "/usuarios", label: "Usuarios y Roles", icon: Users },
-  { href: "/reportes", label: "Reportes", icon: BarChart2 },
+  { href: "/reportes", label: "Reportes y logs", icon: BarChart2 },
   { href: "/sistema/seguridad", label: "Seguridad", icon: ShieldCheck },
-  { href: "/logs", label: "Logs", icon: ScrollText },
   { href: "/configuracion", label: "Configuración", icon: Settings },
 ];
 
@@ -96,7 +98,8 @@ export function Sidebar({
     }
     const Icon = item.icon!;
     const href = (item as { href: string }).href;
-    const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href.split("?")[0]);
+    const base = href.split("?")[0];
+    const isActive = base === "/" || base === "/crm" ? pathname === base : pathname.startsWith(base);
     const alertKey = (item as { alertKey?: string }).alertKey;
     const badgeCount = alertKey ? (badges[alertKey] ?? 0) : 0;
 

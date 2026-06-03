@@ -69,9 +69,9 @@ export default function ReportesPage() {
 
   return (
     <>
-      <Topbar title="Reportes de actividad" actions={
+      <Topbar title="Reportes y logs de auditoría" actions={
         <button onClick={() => refetch()} className="btn-secondary btn-sm">
-          <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} />
+          <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} /> Actualizar
         </button>
       } />
 
@@ -111,13 +111,13 @@ export default function ReportesPage() {
           <div className="flex gap-1 flex-wrap">
             <button onClick={() => { setFiltroAccion(""); setPage(1); }}
               className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-              style={!filtroAccion ? { backgroundColor: brand.brandColor, color: "white" } : { backgroundColor: "#f1f5f9", color: "#6b7280" }}>
+              style={!filtroAccion ? { backgroundColor: brand.brandColor, color: "white" } : { backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>
               Todos
             </button>
             {ACCIONES_RAPIDAS.map(a => (
               <button key={a} onClick={() => { setFiltroAccion(filtroAccion === a ? "" : a); setPage(1); }}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                style={filtroAccion === a ? { backgroundColor: accionColor(a), color: "white" } : { backgroundColor: "#f1f5f9", color: "#6b7280" }}>
+                style={filtroAccion === a ? { backgroundColor: accionColor(a), color: "white" } : { backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>
                 {a}
               </button>
             ))}

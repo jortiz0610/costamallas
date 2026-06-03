@@ -128,7 +128,7 @@ function ClientesContent() {
           <div className="flex flex-wrap gap-1.5">
             <button onClick={() => setFiltroEstado("")}
               className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
-              style={!filtroEstado ? { backgroundColor: "#1f2937", color: "white" } : { backgroundColor: "#f1f5f9", color: "#6b7280" }}>
+              style={!filtroEstado ? { backgroundColor: "var(--brand-color)", color: "white" } : { backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>
               Todos
             </button>
             {ESTADOS_CLIENTE.map(e => {

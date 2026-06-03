@@ -156,6 +156,36 @@ export default function SeguridadPage() {
           })}
         </div>
 
+        {/* Protecciones de seguridad activas */}
+        <div className="card overflow-hidden">
+          <div className="card-header">
+            <h2 className="text-[13px] font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <ShieldCheck size={14} className="text-emerald-500" /> Protecciones activas
+            </h2>
+            <span className="text-xs text-slate-400">Buenas prácticas implementadas</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-px surface-2">
+            {[
+              { t: "Cifrado AES-256-GCM", d: "Credenciales y datos sensibles (API keys, tokens) cifrados en reposo." },
+              { t: "Contraseñas con bcrypt", d: "Las contraseñas se almacenan con hash bcrypt, nunca en texto plano." },
+              { t: "Autenticación JWT", d: "Sesiones con tokens firmados y refresh tokens de expiración controlada." },
+              { t: "HTTPS forzado (HSTS)", d: "Todo el tráfico se cifra en tránsito con TLS y HSTS preload." },
+              { t: "Cabeceras de seguridad", d: "CSP, X-Frame-Options, nosniff y Referrer-Policy contra XSS y clickjacking." },
+              { t: "Control de acceso por roles", d: "Permisos granulares por rol (RBAC) en cada endpoint sensible." },
+              { t: "Registro de auditoría", d: "Todas las acciones críticas quedan registradas con usuario y fecha." },
+              { t: "Rate limiting suave", d: "Protección contra abuso sin bloquear el uso normal del equipo." },
+            ].map(p => (
+              <div key={p.t} className="surface p-4 flex items-start gap-3">
+                <CheckCircle2 size={16} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{p.t}</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">{p.d}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Último acceso */}
         {data?.ultimoAcceso && (
           <div className="card p-4 flex items-center gap-3">

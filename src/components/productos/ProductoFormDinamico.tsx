@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Save, Loader2, Plus, Trash2, Check, X, Star, Upload, ImageIcon } from "lucide-react";
+import { Save, Loader2, Plus, Trash2, Check, X, Star, Upload, ImageIcon, Sparkles, Wand2, FileText, Languages, Tag as TagIcon } from "lucide-react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -443,6 +443,7 @@ const TABS = [
   { id: "descripcion", label: "Descripción" },
   { id: "calidad",     label: "Calidad" },
   { id: "imagenes",    label: "Imágenes" },
+  { id: "ia",          label: "Asistente IA" },
 ] as const;
 type TabId = typeof TABS[number]["id"] | "ficha";
 
@@ -633,7 +634,8 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
         <div className="flex items-center flex-1 overflow-x-auto">
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id as TabId)}
-              className={`px-4 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-all -mb-px ${tab === t.id ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-200"}`}>
+              className={`flex items-center gap-1.5 px-4 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-all -mb-px ${tab === t.id ? "border-gray-900 text-gray-900 dark:border-gray-100" : "border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-200"}`}>
+              {t.id === "ia" && <Sparkles size={13} style={{ color: tab === t.id ? "var(--brand-color)" : undefined }} />}
               {t.label}
             </button>
           ))}
@@ -844,6 +846,58 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
                 <p className="text-xs text-gray-400 mt-1">Debes crear el producto antes de subir imágenes.</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* PESTAÑA: ASISTENTE IA */}
+        {tab === "ia" && (
+          <div className="max-w-3xl mx-auto space-y-5">
+            {/* Hero */}
+            <div className="card p-6 relative overflow-hidden" style={{ background: "linear-gradient(135deg, var(--brand-color-10), transparent)" }}>
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--brand-color)" }}>
+                  <Sparkles size={26} className="text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">Asistente de IA para productos</h2>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300">En construcción</span>
+                  </div>
+                  <p className="text-sm text-muted mt-1">Pronto podrás generar y optimizar el contenido de tus productos automáticamente con inteligencia artificial.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Funciones futuras */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[
+                { Icon: FileText, t: "Generar descripciones", d: "Crea descripciones de venta atractivas a partir del nombre y la ficha técnica." },
+                { Icon: TagIcon, t: "Sugerir etiquetas y SEO", d: "Recomienda palabras clave y meta-datos para posicionar mejor en buscadores." },
+                { Icon: Languages, t: "Traducir contenido", d: "Traduce automáticamente el catálogo a otros idiomas." },
+                { Icon: Wand2, t: "Optimizar imágenes", d: "Genera texto alternativo (alt) y nombres de archivo optimizados." },
+              ].map(f => {
+                const Icon = f.Icon;
+                return (
+                  <div key={f.t} className="card p-4 opacity-80">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-2" style={{ backgroundColor: "var(--brand-color-10)" }}>
+                      <Icon size={17} style={{ color: "var(--brand-color)" }} />
+                    </div>
+                    <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{f.t}</p>
+                    <p className="text-xs text-muted mt-1">{f.d}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Demo input deshabilitado */}
+            <div className="card p-5">
+              <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-2">Pídele algo al asistente</label>
+              <div className="flex gap-2 opacity-60 pointer-events-none">
+                <input className="input" placeholder="Ej: Escribe una descripción para esta malla de seguridad..." disabled />
+                <button className="btn-primary flex-shrink-0" disabled><Sparkles size={14} /> Generar</button>
+              </div>
+              <p className="text-[11px] text-muted mt-2">Esta función estará disponible próximamente. Estamos eligiendo el mejor motor de IA para integrar.</p>
+            </div>
           </div>
         )}
 

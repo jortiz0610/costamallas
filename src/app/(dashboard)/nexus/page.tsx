@@ -5,10 +5,11 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
 import {
   MessageSquare, Settings2, Search, Send, RefreshCw,
-  Globe, Smartphone, Instagram, Clock, CheckCheck,
-  Plus, X, Zap, Mail, Phone,
-  Inbox, PlugZap, Youtube, Twitter, Facebook, ShoppingBag, Store,
+  Globe, Smartphone, Instagram, CheckCheck,
+  X, Mail, MessageSquareText,
+  Inbox, PlugZap, Facebook,
 } from "lucide-react";
+import Link from "next/link";
 import { useBrand } from "@/contexts/BrandContext";
 import { timeAgoCO } from "@/lib/timezone";
 import toast from "react-hot-toast";
@@ -41,11 +42,9 @@ const CANAL_META: Record<string, { label: string; color: string; bgColor: string
   wordpress_form: { label: "WordPress",    color: "#21759b", bgColor: "#e8f4fb", Icon: Globe },
   whatsapp:       { label: "WhatsApp",     color: "#25d366", bgColor: "#e8fdf0", Icon: Smartphone },
   instagram:      { label: "Instagram",    color: "#e1306c", bgColor: "#fce8f0", Icon: Instagram },
+  facebook:       { label: "Facebook",     color: "#1877f2", bgColor: "#e8f0fe", Icon: Facebook },
   tiktok:         { label: "TikTok",       color: "#000000", bgColor: "#f0f0f0", Icon: MessageSquare },
   email:          { label: "Email",        color: "#6366f1", bgColor: "#eef0ff", Icon: Mail },
-  facebook:       { label: "Facebook",     color: "#1877f2", bgColor: "#e8f0fe", Icon: Facebook },
-  twitter:        { label: "X / Twitter",  color: "#1da1f2", bgColor: "#e8f4fb", Icon: Twitter },
-  youtube:        { label: "YouTube",      color: "#ff0000", bgColor: "#fde8e8", Icon: Youtube },
 };
 
 function CanalBadge({ canal, size = "sm" }: { canal: string; size?: "sm" | "md" }) {
@@ -232,158 +231,13 @@ function ChatView({ conv, onMarcarResuelta }: { conv: Conversacion; onMarcarResu
   );
 }
 
-// ── Panel de conexiones ──────────────────────────────────────────
-
-function ConexionesPanel({ onClose }: { onClose: () => void }) {
-  const { brand } = useBrand();
-  const qc = useQueryClient();
-  const [form, setForm] = useState({ canal: "wordpress_form", nombre: "", descripcion: "" });
-  const [saving, setSaving] = useState(false);
-
-  const { data: conexiones = [] } = useQuery<NexusConexion[]>({
-    queryKey: ["nexus-conexiones"],
-    queryFn: async () => (await (await fetch("/api/nexus/conexiones")).json()).data ?? [],
-  });
-
-  const CANALES_DISPONIBLES = [
-    { value: "wordpress_form", label: "WordPress Forms",    icon: Globe,        ready: true,  desc: "Formularios de contacto del sitio web" },
-    { value: "whatsapp",       label: "WhatsApp Business",  icon: Smartphone,   ready: false, desc: "Mensajes directos por WhatsApp API" },
-    { value: "instagram",      label: "Instagram DM",       icon: Instagram,    ready: false, desc: "Mensajes directos de Instagram" },
-    { value: "facebook",       label: "Facebook Messenger", icon: Facebook,     ready: false, desc: "Mensajes de Facebook Messenger" },
-    { value: "email",          label: "Email / IMAP",       icon: Mail,         ready: false, desc: "Bandeja de correo electrónico" },
-    { value: "tiktok",         label: "TikTok",             icon: MessageSquare,ready: false, desc: "Mensajes y comentarios TikTok" },
-    { value: "twitter",        label: "X / Twitter",        icon: Twitter,      ready: false, desc: "Menciones y DMs en X" },
-    { value: "youtube",        label: "YouTube",            icon: Youtube,      ready: false, desc: "Comentarios de videos" },
-  ];
-
-  const guardar = async () => {
-    if (!form.nombre) return toast.error("Nombre requerido");
-    setSaving(true);
-    const res = await fetch("/api/nexus/conexiones", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    const json = await res.json();
-    if (json.success) { toast.success("Conexión creada"); qc.invalidateQueries({ queryKey: ["nexus-conexiones"] }); setForm({ canal: "wordpress_form", nombre: "", descripcion: "" }); }
-    else toast.error(json.error);
-    setSaving(false);
-  };
-
-  const toggleActivo = async (id: string, activo: boolean) => {
-    await fetch("/api/nexus/conexiones", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, activo: !activo }) });
-    qc.invalidateQueries({ queryKey: ["nexus-conexiones"] });
-  };
-
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
-        <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-          <PlugZap size={16} style={{ color: brand.brandColor }} /> Gestión de conexiones
-        </h2>
-        <button onClick={onClose} className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
-          <X size={14} />
-        </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-5 space-y-5">
-        {/* Canales disponibles — vertical */}
-        <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Todos los canales</p>
-          <div className="space-y-2">
-            {CANALES_DISPONIBLES.map(c => {
-              const Icon = c.icon;
-              const meta = CANAL_META[c.value];
-              const yaConectado = conexiones.some(x => x.canal === c.value && x.activo);
-              return (
-                <div key={c.value}
-                  className={cn("p-3 rounded-xl border-2 flex items-center gap-3 transition-all",
-                    yaConectado
-                      ? "border-emerald-400 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20"
-                      : c.ready
-                        ? "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
-                        : "border-slate-100 dark:border-slate-800 opacity-50")}>
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: (meta?.color ?? "#6b7280") + "18" }}>
-                    <Icon size={18} style={{ color: meta?.color ?? "#6b7280" }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">{c.label}</p>
-                    <p className="text-[10px] text-slate-400">{c.desc}</p>
-                  </div>
-                  {yaConectado ? (
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-1 rounded-lg">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Activo
-                    </span>
-                  ) : c.ready ? (
-                    <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-lg">Disponible</span>
-                  ) : (
-                    <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">Próximo</span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Crear nueva conexión */}
-        <div className="border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
-          <p className="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-            <Plus size={13} /> Nueva conexión
-          </p>
-          <div>
-            <label className="text-xs text-slate-500 mb-1 block">Canal</label>
-            <select className="input text-xs py-1.5" value={form.canal} onChange={e => setForm(p => ({ ...p, canal: e.target.value }))}>
-              {CANALES_DISPONIBLES.filter(c => c.ready).map(c => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-slate-500 mb-1 block">Nombre de la conexión</label>
-            <input className="input text-xs py-1.5" placeholder="Ej: Formulario contacto principal" value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} />
-          </div>
-          <button onClick={guardar} disabled={saving} className="w-full py-2 rounded-xl text-xs font-semibold text-white transition-all" style={{ backgroundColor: brand.brandColor }}>
-            {saving ? "Creando…" : "Crear conexión"}
-          </button>
-        </div>
-
-        {/* Conexiones activas */}
-        {conexiones.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Conexiones activas</p>
-            <div className="space-y-2">
-              {conexiones.map(c => {
-                const meta = CANAL_META[c.canal];
-                const Icon = meta?.Icon ?? Globe;
-                return (
-                  <div key={c.id} className="border border-slate-200 dark:border-slate-700 rounded-xl p-3 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Icon size={15} style={{ color: meta?.color ?? "#6b7280" }} />
-                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex-1">{c.nombre}</p>
-                      <button onClick={() => toggleActivo(c.id, c.activo)}
-                        className="w-8 h-4 rounded-full relative transition-all"
-                        style={{ backgroundColor: c.activo ? "#16a34a" : "#d1d5db" }}>
-                        <span className={cn("absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform", c.activo ? "translate-x-4" : "translate-x-0.5")} />
-                      </button>
-                    </div>
-                    {c.webhookUrl && (
-                      <div className="bg-slate-50 dark:bg-slate-800 rounded-lg px-2.5 py-1.5">
-                        <p className="text-[9px] text-slate-400 mb-0.5">URL del webhook</p>
-                        <p className="text-[10px] font-mono text-slate-600 dark:text-slate-300 break-all">{c.webhookUrl}</p>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ── Página principal Nexus ───────────────────────────────────────
+
+const ESTADOS_CONV = [
+  { v: "ABIERTA",   l: "Abiertas",  c: "#16a34a", Icon: Inbox },
+  { v: "RESUELTA",  l: "Resueltas", c: "#185FA5", Icon: CheckCheck },
+  { v: "ARCHIVADA", l: "Archivadas",c: "#64748b", Icon: X },
+];
 
 function NexusContent() {
   const { brand } = useBrand();
@@ -392,7 +246,6 @@ function NexusContent() {
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("ABIERTA");
   const [filtroCanal, setFiltroCanal] = useState("");
-  const [showConexiones, setShowConexiones] = useState(false);
 
   const { data: result, isLoading, refetch } = useQuery({
     queryKey: ["nexus-conversaciones", filtroEstado, filtroCanal],
@@ -425,18 +278,19 @@ function NexusContent() {
 
   return (
     <>
-      <Topbar title="Nexus" actions={
+      <Topbar title="Nexus · Inbox" actions={
         <div className="flex items-center gap-2">
           {noLeidas > 0 && (
             <span className="text-xs font-bold text-white px-2.5 py-1 rounded-full" style={{ backgroundColor: brand.brandColor }}>
               {noLeidas} sin leer
             </span>
           )}
-          <button onClick={() => setShowConexiones(v => !v)}
-            className="btn-secondary btn-sm"
-            style={showConexiones ? { outline: `2px solid ${brand.brandColor}` } : {}}>
+          <Link href="/nexus/plantillas" className="btn-secondary btn-sm">
+            <MessageSquareText size={13} /> Plantillas
+          </Link>
+          <Link href="/configuracion?tab=canales" className="btn-secondary btn-sm">
             <Settings2 size={13} /> Conexiones
-          </button>
+          </Link>
           <button onClick={() => refetch()} className="btn-secondary btn-sm">
             <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} />
           </button>
@@ -445,39 +299,43 @@ function NexusContent() {
 
       <div className="flex-1 overflow-hidden flex">
         {/* Panel izq: lista de conversaciones */}
-        <div className="w-80 flex-shrink-0 flex flex-col border-r border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
-          {/* Búsqueda */}
-          <div className="px-3 py-3 border-b border-slate-100 dark:border-slate-800 space-y-2">
+        <div className="w-80 flex-shrink-0 flex flex-col surface" style={{ borderRight: "1px solid var(--border)" }}>
+          {/* Búsqueda + filtros */}
+          <div className="px-3 py-3 space-y-3" style={{ borderBottom: "1px solid var(--border)" }}>
             <div className="relative">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
                 className="input pl-9 py-1.5 text-xs" placeholder="Buscar conversación…" />
             </div>
-            {/* Filtro estado */}
-            <div className="flex gap-1">
-              {["ABIERTA", "RESUELTA", "ARCHIVADA"].map(e => (
-                <button key={e} onClick={() => setFiltroEstado(e === filtroEstado ? "" : e)}
-                  className="flex-1 py-1 rounded-lg text-[10px] font-semibold transition-all"
-                  style={filtroEstado === e ? { backgroundColor: brand.brandColor, color: "white" } : { backgroundColor: "#f1f5f9", color: "#6b7280" }}>
-                  {e}
-                </button>
-              ))}
+
+            {/* Filtro estado — segmentado amigable (#9) */}
+            <div className="flex gap-1 p-1 rounded-xl surface-2">
+              {ESTADOS_CONV.map(e => {
+                const Icon = e.Icon; const active = filtroEstado === e.v;
+                return (
+                  <button key={e.v} onClick={() => setFiltroEstado(e.v)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                    style={active ? { backgroundColor: e.c, color: "white", boxShadow: `0 2px 6px ${e.c}40` } : { color: "var(--text-muted)" }}>
+                    <Icon size={12} /> {e.l}
+                  </button>
+                );
+              })}
             </div>
+
             {/* Filtro canal */}
             <div className="flex gap-1 overflow-x-auto pb-0.5">
               <button onClick={() => setFiltroCanal("")}
-                className="flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all"
-                style={!filtroCanal ? { backgroundColor: brand.brandColor, color: "white" } : { backgroundColor: "#f1f5f9", color: "#6b7280" }}>
+                className="flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all"
+                style={!filtroCanal ? { backgroundColor: brand.brandColor, color: "white" } : { backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>
                 Todos
               </button>
               {CANALES.map(([key, meta]) => {
                 const Icon = meta.Icon;
                 return (
                   <button key={key} onClick={() => setFiltroCanal(filtroCanal === key ? "" : key)}
-                    className="flex-shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-all"
-                    style={filtroCanal === key ? { backgroundColor: meta.color, color: "white" } : { backgroundColor: "#f1f5f9", color: "#6b7280" }}>
-                    <Icon size={10} />
-                    {meta.label}
+                    className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all"
+                    style={filtroCanal === key ? { backgroundColor: meta.color, color: "white" } : { backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>
+                    <Icon size={10} /> {meta.label}
                   </button>
                 );
               })}
@@ -487,12 +345,12 @@ function NexusContent() {
           {/* Lista */}
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (
-              <div className="p-6 text-center text-xs text-slate-400">Cargando inbox…</div>
+              <div className="p-6 text-center text-xs text-muted">Cargando inbox…</div>
             ) : filtradas.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full gap-3 p-8 text-center">
-                <Inbox size={28} className="text-slate-200" />
-                <p className="text-sm font-medium text-slate-500">Bandeja vacía</p>
-                <p className="text-xs text-slate-400">Los mensajes de tus canales conectados aparecerán aquí</p>
+                <Inbox size={28} className="text-muted" />
+                <p className="text-sm font-medium text-soft">Bandeja vacía</p>
+                <p className="text-xs text-muted">Los mensajes de tus canales conectados aparecerán aquí</p>
               </div>
             ) : (
               filtradas.map(c => (
@@ -508,29 +366,22 @@ function NexusContent() {
           {convActiva ? (
             <ChatView conv={convActiva} onMarcarResuelta={marcarResuelta} />
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-8 bg-slate-50/50 dark:bg-slate-950/50">
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-8 page-bg">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ backgroundColor: brand.brandColor + "18" }}>
                 <MessageSquare size={28} style={{ color: brand.brandColor }} />
               </div>
               <div>
-                <p className="text-base font-semibold text-slate-700 dark:text-slate-200">Selecciona una conversación</p>
-                <p className="text-sm text-slate-400 mt-1">O conecta un canal para empezar a recibir mensajes</p>
+                <p className="text-base font-semibold text-soft">Selecciona una conversación</p>
+                <p className="text-sm text-muted mt-1">O conecta un canal para empezar a recibir mensajes</p>
               </div>
-              <button onClick={() => setShowConexiones(true)}
+              <Link href="/configuracion?tab=canales"
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
                 style={{ backgroundColor: brand.brandColor }}>
                 <PlugZap size={15} /> Conectar canal
-              </button>
+              </Link>
             </div>
           )}
         </div>
-
-        {/* Derecha: panel de conexiones (drawer) */}
-        {showConexiones && (
-          <div className="w-80 flex-shrink-0 border-l border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
-            <ConexionesPanel onClose={() => setShowConexiones(false)} />
-          </div>
-        )}
       </div>
     </>
   );

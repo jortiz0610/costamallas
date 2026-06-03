@@ -1,8 +1,13 @@
 "use client";
-import { useState, useRef } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { Settings, Link2, Check, X, Loader2, Eye, EyeOff, Building2, Palette, Upload, ImageIcon, ShoppingBag, Store, Users, Globe } from "lucide-react";
+import {
+  Settings, Link2, Check, X, Loader2, Eye, EyeOff, Building2, Palette, Upload, ImageIcon,
+  ShoppingBag, Store, Users, Globe, Smartphone, Instagram, Facebook, Mail, MessageSquare,
+  Plus, PlugZap, ChevronDown, BookOpen, Radio,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { useBrand } from "@/contexts/BrandContext";
 
@@ -361,22 +366,249 @@ function TabWordPressUsers() {
   );
 }
 
-const TABS = [
-  { id: "empresa",      label: "Empresa",        icon: Building2  },
-  { id: "woocommerce",  label: "WooCommerce",    icon: Link2      },
-  { id: "falabella",    label: "Falabella",       icon: ShoppingBag },
-  { id: "mercadolibre", label: "MercadoLibre",   icon: Store      },
-  { id: "wp_users",     label: "Usuarios WP",    icon: Users      },
+// ── Tab de Canales / Conexiones (Nexus + redes) ──
+interface NexusConexion { id: string; canal: string; nombre: string; activo: boolean; webhookUrl?: string; }
+
+const CANALES_DEF = [
+  {
+    value: "wordpress_form", label: "WordPress Forms", Icon: Globe, color: "#21759b", ready: true,
+    desc: "Recibe mensajes de los formularios de contacto de tu sitio web.",
+    campos: [{ k: "webhook", l: "URL del webhook (se genera al conectar)", ph: "Se genera automáticamente" }],
+    guia: [
+      "Instala el plugin de webhooks en WordPress (ej: WP Webhooks o CF7 to Webhook).",
+      "Crea la conexión aquí abajo para generar tu URL de webhook única.",
+      "Pega esa URL en el plugin como destino del formulario.",
+      "Los envíos del formulario llegarán automáticamente al inbox de Nexus.",
+    ],
+  },
+  {
+    value: "whatsapp", label: "WhatsApp Business", Icon: Smartphone, color: "#25d366", ready: true,
+    desc: "Conecta tu número de WhatsApp Business para chatear desde Nexus.",
+    campos: [
+      { k: "phoneId", l: "Phone Number ID", ph: "Ej: 123456789012345" },
+      { k: "token", l: "Token de acceso (Meta)", ph: "EAAG...", secret: true },
+    ],
+    guia: [
+      "Crea una app en Meta for Developers (developers.facebook.com).",
+      "Agrega el producto 'WhatsApp' y obtén tu Phone Number ID.",
+      "Genera un token de acceso permanente del sistema.",
+      "Pega el Phone Number ID y el token aquí, luego conecta.",
+    ],
+  },
+  {
+    value: "instagram", label: "Instagram Direct", Icon: Instagram, color: "#e1306c", ready: true,
+    desc: "Responde mensajes directos de Instagram desde el inbox.",
+    campos: [
+      { k: "pageId", l: "Instagram Business Account ID", ph: "Ej: 178414...", },
+      { k: "token", l: "Token de página (Meta)", ph: "EAAG...", secret: true },
+    ],
+    guia: [
+      "Vincula tu cuenta de Instagram a una página de Facebook.",
+      "En Meta for Developers agrega el producto 'Instagram Graph API'.",
+      "Concede permisos de mensajería y genera el token de página.",
+      "Pega el ID de la cuenta y el token, luego conecta.",
+    ],
+  },
+  {
+    value: "facebook", label: "Facebook Messenger", Icon: Facebook, color: "#1877f2", ready: true,
+    desc: "Centraliza los mensajes de tu página de Facebook.",
+    campos: [
+      { k: "pageId", l: "Facebook Page ID", ph: "Ej: 102938..." },
+      { k: "token", l: "Token de página", ph: "EAAG...", secret: true },
+    ],
+    guia: [
+      "En Meta for Developers agrega el producto 'Messenger'.",
+      "Selecciona tu página y genera el token de página.",
+      "Suscribe la página a los eventos de mensajes.",
+      "Pega el Page ID y el token aquí, luego conecta.",
+    ],
+  },
+  {
+    value: "email", label: "Email / IMAP", Icon: Mail, color: "#6366f1", ready: true,
+    desc: "Convierte tu bandeja de correo en conversaciones de Nexus.",
+    campos: [
+      { k: "host", l: "Servidor IMAP", ph: "imap.gmail.com" },
+      { k: "user", l: "Correo", ph: "ventas@costamallas.com" },
+      { k: "pass", l: "Contraseña de aplicación", ph: "••••••••", secret: true },
+    ],
+    guia: [
+      "Activa IMAP en tu proveedor de correo (Gmail, Outlook, etc.).",
+      "Genera una 'contraseña de aplicación' (no uses tu contraseña normal).",
+      "Ingresa el servidor IMAP, el correo y la contraseña de aplicación.",
+      "Conecta y los correos entrantes aparecerán en el inbox.",
+    ],
+  },
+  {
+    value: "tiktok", label: "TikTok", Icon: MessageSquare, color: "#111827", ready: false,
+    desc: "Mensajes y comentarios de TikTok (próximamente).",
+    campos: [],
+    guia: ["Integración en desarrollo. Estará disponible en una próxima versión."],
+  },
 ];
 
-export default function ConfiguracionPage() {
-  const [tab, setTab] = useState("empresa");
+function ChannelCard({ canal, conexiones, onConnect, onToggle, brandColor }: {
+  canal: typeof CANALES_DEF[number];
+  conexiones: NexusConexion[];
+  onConnect: (canal: string, nombre: string) => Promise<void>;
+  onToggle: (id: string, activo: boolean) => void;
+  brandColor: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [showGuia, setShowGuia] = useState(false);
+  const [nombre, setNombre] = useState("");
+  const [saving, setSaving] = useState(false);
+  const { Icon } = canal;
+  const activa = conexiones.find(c => c.canal === canal.value && c.activo);
+
+  const connect = async () => {
+    if (!nombre.trim()) return toast.error("Dale un nombre a la conexión");
+    setSaving(true);
+    await onConnect(canal.value, nombre.trim());
+    setSaving(false); setNombre(""); setOpen(false);
+  };
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="flex items-center gap-4 p-4">
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: canal.color + "18" }}>
+          <Icon size={22} style={{ color: canal.color }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{canal.label}</p>
+            {activa ? (
+              <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/15 px-2 py-0.5 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Conectado
+              </span>
+            ) : !canal.ready ? (
+              <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 dark:bg-amber-500/15 px-2 py-0.5 rounded-full">Próximamente</span>
+            ) : null}
+          </div>
+          <p className="text-xs text-muted mt-0.5">{canal.desc}</p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {activa ? (
+            <button onClick={() => onToggle(activa.id, activa.activo)}
+              className="w-10 h-5 rounded-full relative transition-all" style={{ backgroundColor: "#16a34a" }}>
+              <span className="absolute top-0.5 right-0.5 w-4 h-4 bg-white rounded-full shadow" />
+            </button>
+          ) : canal.ready ? (
+            <button onClick={() => setOpen(v => !v)} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: brandColor }}>
+              <Plus size={12} /> Conectar
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Formulario de conexión */}
+      {open && canal.ready && (
+        <div className="px-4 pb-4 pt-1 space-y-3 border-t divider animate-fade-up">
+          <div>
+            <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Nombre de la conexión</label>
+            <input className="input" value={nombre} onChange={e => setNombre(e.target.value)} placeholder={`Ej: ${canal.label} principal`} />
+          </div>
+          {canal.campos.filter(c => c.k !== "webhook").map(c => (
+            <div key={c.k}>
+              <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">{c.l}</label>
+              <input className="input font-mono text-xs" type={(c as { secret?: boolean }).secret ? "password" : "text"} placeholder={c.ph} />
+            </div>
+          ))}
+          <div className="flex gap-2">
+            <button onClick={connect} disabled={saving} className="btn-primary flex-1 justify-center">
+              {saving ? <Loader2 size={13} className="animate-spin" /> : <PlugZap size={13} />} Conectar canal
+            </button>
+            <button onClick={() => setShowGuia(v => !v)} className="btn-secondary">
+              <BookOpen size={13} /> Guía
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Guía de conexión */}
+      <button onClick={() => setShowGuia(v => !v)} className="w-full flex items-center justify-between px-4 py-2.5 border-t divider text-xs font-semibold text-muted hover:text-soft transition-colors">
+        <span className="flex items-center gap-1.5"><BookOpen size={12} /> Cómo conectar {canal.label}</span>
+        <ChevronDown size={13} className={showGuia ? "rotate-180" : ""} />
+      </button>
+      {showGuia && (
+        <div className="px-4 pb-4 surface-2 animate-fade-up">
+          <ol className="space-y-2 pt-3">
+            {canal.guia.map((paso, i) => (
+              <li key={i} className="flex items-start gap-2.5 text-xs text-soft">
+                <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ backgroundColor: canal.color }}>{i + 1}</span>
+                {paso}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TabCanales() {
+  const { brand } = useBrand();
+  const qc = useQueryClient();
+
+  const { data: conexiones = [] } = useQuery<NexusConexion[]>({
+    queryKey: ["nexus-conexiones"],
+    queryFn: async () => (await (await fetch("/api/nexus/conexiones")).json()).data ?? [],
+  });
+
+  const onConnect = async (canal: string, nombre: string) => {
+    const res = await fetch("/api/nexus/conexiones", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ canal, nombre }) });
+    const json = await res.json();
+    if (json.success) { toast.success(`${nombre} conectado`); qc.invalidateQueries({ queryKey: ["nexus-conexiones"] }); }
+    else toast.error(json.error ?? "Error");
+  };
+
+  const onToggle = async (id: string, activo: boolean) => {
+    await fetch("/api/nexus/conexiones", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, activo: !activo }) });
+    qc.invalidateQueries({ queryKey: ["nexus-conexiones"] });
+  };
+
+  const activos = conexiones.filter(c => c.activo).length;
+
+  return (
+    <div className="space-y-5 max-w-2xl">
+      <div className="card p-5 flex items-center gap-4" style={{ background: `linear-gradient(135deg, ${brand.brandColor}10, transparent)` }}>
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: brand.brandColor }}>
+          <Radio size={22} className="text-white" />
+        </div>
+        <div className="flex-1">
+          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Canales y redes sociales</h2>
+          <p className="text-xs text-muted mt-0.5">Conecta todos tus canales de comunicación. Los mensajes llegarán al inbox de Nexus y los contactos se guardarán automáticamente en el CRM.</p>
+        </div>
+        <span className="text-xs font-semibold px-3 py-1.5 rounded-xl flex-shrink-0" style={{ backgroundColor: brand.brandColor + "18", color: brand.brandColor }}>{activos} activos</span>
+      </div>
+
+      <div className="space-y-3">
+        {CANALES_DEF.map(canal => (
+          <ChannelCard key={canal.value} canal={canal} conexiones={conexiones} onConnect={onConnect} onToggle={onToggle} brandColor={brand.brandColor} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const TABS = [
+  { id: "empresa",      label: "Empresa",       icon: Building2   },
+  { id: "canales",      label: "Canales & Redes", icon: Radio     },
+  { id: "woocommerce",  label: "WooCommerce",   icon: Link2       },
+  { id: "falabella",    label: "Falabella",     icon: ShoppingBag },
+  { id: "mercadolibre", label: "MercadoLibre",  icon: Store       },
+  { id: "wp_users",     label: "Usuarios WP",   icon: Users       },
+];
+
+function ConfiguracionContent() {
+  const searchParams = useSearchParams();
+  const initial = searchParams.get("tab") ?? "empresa";
+  const [tab, setTab] = useState(TABS.some(t => t.id === initial) ? initial : "empresa");
   const { brand } = useBrand();
   return (
     <>
       <Topbar title="Configuración" />
       <div className="flex-1 overflow-y-auto page-bg">
-        <div className="border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-slate-900 px-6 overflow-x-auto">
+        <div className="bg-white dark:bg-slate-900 px-6 overflow-x-auto" style={{ borderBottom: "1px solid var(--border)" }}>
           <div className="flex gap-0.5 min-w-max">
             {TABS.map(t => {
               const Icon = t.icon;
@@ -384,7 +616,7 @@ export default function ConfiguracionPage() {
               return (
                 <button key={t.id} onClick={() => setTab(t.id)}
                   className="flex items-center gap-2 px-4 py-3.5 text-[12px] font-medium border-b-2 transition-all whitespace-nowrap"
-                  style={active ? { borderBottomColor: brand.brandColor, color: brand.brandColor } : { borderBottomColor: "transparent", color: "#6b7280" }}>
+                  style={active ? { borderBottomColor: brand.brandColor, color: brand.brandColor } : { borderBottomColor: "transparent", color: "var(--text-muted)" }}>
                   <Icon size={13} />{t.label}
                 </button>
               );
@@ -393,28 +625,25 @@ export default function ConfiguracionPage() {
         </div>
         <div className="p-6">
           {tab === "empresa"      && <TabEmpresa />}
+          {tab === "canales"      && <TabCanales />}
           {tab === "woocommerce"  && <TabWooCommerce />}
           {tab === "falabella"    && (
-            <TabMarketplace
-              nombre="Falabella Marketplace"
-              color="#9b0000"
-              logoChar="F"
+            <TabMarketplace nombre="Falabella Marketplace" color="#9b0000" logoChar="F"
               descripcion="Gestiona pedidos y productos en Falabella.com"
-              camposExtra={[{ key: "sellerId", label: "Seller ID", placeholder: "Tu ID de vendedor" }]}
-            />
+              camposExtra={[{ key: "sellerId", label: "Seller ID", placeholder: "Tu ID de vendedor" }]} />
           )}
           {tab === "mercadolibre" && (
-            <TabMarketplace
-              nombre="MercadoLibre"
-              color="#ffe600"
-              logoChar="ML"
+            <TabMarketplace nombre="MercadoLibre" color="#ffe600" logoChar="ML"
               descripcion="Sincroniza publicaciones y pedidos de MercadoLibre"
-              camposExtra={[{ key: "accessToken", label: "Access Token", placeholder: "APP_USR-..." }]}
-            />
+              camposExtra={[{ key: "accessToken", label: "Access Token", placeholder: "APP_USR-..." }]} />
           )}
           {tab === "wp_users"     && <TabWordPressUsers />}
         </div>
       </div>
     </>
   );
+}
+
+export default function ConfiguracionPage() {
+  return <Suspense><ConfiguracionContent /></Suspense>;
 }
