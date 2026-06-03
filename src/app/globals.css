@@ -30,45 +30,46 @@
 
 @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 
+/* ── Design tokens — FUERA de @layer para que Tailwind no los purgue ── */
+:root {
+  /* Marca */
+  --brand-color: #185FA5;
+  --brand-color-10: #185FA51a;
+  --brand-color-20: #185FA533;
+  --erp-color: #185FA5;
+  --crm-color: #BA7517;
+  --nexus-color: #7c3aed;
+
+  /* ── LIGHT MODE tokens ── */
+  --bg:            #eef2f9;   /* fondo de página */
+  --surface:       #ffffff;   /* tarjetas */
+  --surface-2:     #f7f9fc;   /* superficie secundaria / hover */
+  --surface-3:     #eef2f8;   /* chips neutrales */
+  --border:        #e3e9f2;   /* bordes suaves */
+  --border-strong: #d4dce8;
+  --text:          #1e293b;   /* texto principal */
+  --text-soft:     #475569;   /* texto secundario */
+  --text-muted:    #8696ac;   /* texto terciario */
+  --shadow:        0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.06);
+  --shadow-lg:     0 10px 30px -10px rgba(16,24,40,0.18);
+}
+
+html.dark {
+  /* ── DARK MODE tokens — profundo y elegante ── */
+  --bg:            #0a0e16;
+  --surface:       #141b27;
+  --surface-2:     #1b2433;
+  --surface-3:     #232f42;
+  --border:        #243044;
+  --border-strong: #324056;
+  --text:          #e7eef8;
+  --text-soft:     #b3c0d4;
+  --text-muted:    #7689a3;
+  --shadow:        0 1px 2px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-lg:     0 16px 40px -12px rgba(0,0,0,0.6);
+}
+
 @layer base {
-  :root {
-    /* Marca */
-    --brand-color: #185FA5;
-    --brand-color-10: #185FA51a;
-    --brand-color-20: #185FA533;
-    --erp-color: #185FA5;
-    --crm-color: #BA7517;
-    --nexus-color: #7c3aed;
-
-    /* ── LIGHT MODE tokens ── */
-    --bg:            #eef2f9;   /* fondo de página */
-    --surface:       #ffffff;   /* tarjetas */
-    --surface-2:     #f7f9fc;   /* superficie secundaria / hover */
-    --surface-3:     #eef2f8;   /* chips neutrales */
-    --border:        #e3e9f2;   /* bordes suaves */
-    --border-strong: #d4dce8;
-    --text:          #1e293b;   /* texto principal */
-    --text-soft:     #475569;   /* texto secundario */
-    --text-muted:    #8696ac;   /* texto terciario */
-    --shadow:        0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.06);
-    --shadow-lg:     0 10px 30px -10px rgba(16,24,40,0.18);
-  }
-
-  .dark {
-    /* ── DARK MODE tokens — profundo y elegante ── */
-    --bg:            #0a0e16;
-    --surface:       #141b27;
-    --surface-2:     #1b2433;
-    --surface-3:     #232f42;
-    --border:        #243044;
-    --border-strong: #324056;
-    --text:          #e7eef8;
-    --text-soft:     #b3c0d4;
-    --text-muted:    #7689a3;
-    --shadow:        0 1px 2px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.4);
-    --shadow-lg:     0 16px 40px -12px rgba(0,0,0,0.6);
-  }
-
   * { box-sizing: border-box; }
 
   html {
