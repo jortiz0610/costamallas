@@ -8,6 +8,7 @@ import {
   UserPlus, Plus, Star, Wrench, CheckSquare, Clock, DollarSign, Target,
 } from "lucide-react";
 import Link from "next/link";
+import toast from "react-hot-toast";
 import { formatCOP } from "@/lib/utils";
 
 const CRM_COLOR = "#BA7517";
@@ -56,6 +57,7 @@ function CRMDashboardContent() {
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([r1(), r2(), r3(), r4()]);
+    toast.success("CRM actualizado");
     setTimeout(() => setRefreshing(false), 2200);
   };
 

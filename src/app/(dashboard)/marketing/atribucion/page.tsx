@@ -10,12 +10,19 @@ import { CANALES, kpis } from "@/lib/marketing";
 const MKT = "#db2777";
 
 interface Campana { id: string; nombre: string; canal: string; inversion: number; impresiones: number; clics: number; leads: number; conversiones: number; ingresos: number; }
+interface LeadWeb { clienteId: string; nombre: string; fuente: string; utm_campaign?: string; producto?: string; fecha: string; }
 
 function AtribucionContent() {
   const { data: campanas = [] } = useQuery<Campana[]>({
     queryKey: ["mkt-campanas"],
     queryFn: async () => (await (await fetch("/api/marketing/campanas")).json()).data ?? [],
   });
+  const { data: leadsWeb = [] } = useQuery<LeadWeb[]>({
+    queryKey: ["mkt-leads-web"],
+    queryFn: async () => (await (await fetch("/api/marketing/leads")).json()).data ?? [],
+  });
+  const cotizadorUrl = typeof window !== "undefined" ? `${window.location.origin}/cotizar` : "/cotizar";
+  const copiar = (t: string) => { navigator.clipboard.writeText(t); };
 
   const totalLeads = campanas.reduce((a, c) => a + c.leads, 0);
 
@@ -61,6 +68,44 @@ function AtribucionContent() {
             </div>
           )}
         </div>
+
+        {/* Cotizador web embebible */}
+        <div className="card p-5">
+          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100 mb-2">Cotizador web embebible</h2>
+          <p className="text-xs text-muted mb-3">Comparte este enlace o incrústalo en tu web. Cada solicitud crea un lead en el CRM con su UTM de origen.</p>
+          <div className="flex flex-wrap gap-2 items-center">
+            <code className="flex-1 min-w-0 text-xs surface-2 px-3 py-2 rounded-lg break-all">{cotizadorUrl}?utm_source=web&utm_campaign=mi_campana</code>
+            <button onClick={() => copiar(`${cotizadorUrl}?utm_source=web&utm_campaign=mi_campana`)} className="btn-secondary btn-sm">Copiar enlace</button>
+            <a href={cotizadorUrl} target="_blank" rel="noreferrer" className="btn-secondary btn-sm">Abrir</a>
+          </div>
+          <div className="mt-3">
+            <p className="text-[11px] font-semibold text-muted mb-1">Código para incrustar (iframe):</p>
+            <code className="block text-[11px] surface-2 px-3 py-2 rounded-lg break-all">{`<iframe src="${cotizadorUrl}" width="100%" height="640" style="border:0;border-radius:16px"></iframe>`}</code>
+          </div>
+        </div>
+
+        {/* Leads web recientes */}
+        {leadsWeb.length > 0 && (
+          <div className="card overflow-hidden">
+            <div className="card-header"><h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Leads web recientes (con UTM)</h2><span className="text-xs text-muted">{leadsWeb.length}</span></div>
+            <div className="table-wrapper" style={{ border: "none" }}>
+              <table className="table">
+                <thead><tr><th>Lead</th><th>Fuente</th><th>Campaña</th><th>Producto</th><th className="text-right">Fecha</th></tr></thead>
+                <tbody>
+                  {leadsWeb.slice(0, 12).map((l, i) => (
+                    <tr key={i}>
+                      <td className="font-medium">{l.nombre}</td>
+                      <td><span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: MKT + "20", color: MKT }}>{l.fuente}</span></td>
+                      <td className="text-muted">{l.utm_campaign ?? "—"}</td>
+                      <td className="text-muted text-xs truncate max-w-[160px]">{l.producto ?? "—"}</td>
+                      <td className="text-right text-xs text-muted">{new Date(l.fecha).toLocaleDateString("es-CO")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Rendimiento detallado */}
         <div className="card overflow-hidden">

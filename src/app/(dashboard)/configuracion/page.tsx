@@ -6,7 +6,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import {
   Settings, Link2, Check, X, Loader2, Eye, EyeOff, Building2, Palette, Upload, ImageIcon,
   ShoppingBag, Store, Users, Globe, Smartphone, Instagram, Facebook, Mail, MessageSquare,
-  Plus, PlugZap, ChevronDown, BookOpen, Radio,
+  Plus, PlugZap, ChevronDown, BookOpen, Radio, Sparkles,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useBrand } from "@/contexts/BrandContext";
@@ -590,38 +590,177 @@ function TabCanales() {
   );
 }
 
+interface ConexionAds { plataforma: string; clientId: string; hasSecret: boolean; accountId: string; conectado: boolean; }
+const PLAT_META: Record<string, { nombre: string; color: string; docs: string }> = {
+  google: { nombre: "Google Ads", color: "#4285F4", docs: "https://developers.google.com/google-ads/api/docs/oauth/cloud-project" },
+  meta: { nombre: "Meta Ads (Facebook/Instagram)", color: "#1877F2", docs: "https://developers.facebook.com/docs/marketing-api/get-started" },
+  tiktok: { nombre: "TikTok Ads", color: "#111827", docs: "https://business-api.tiktok.com/portal/docs" },
+};
+
+function PlataformaCard({ conn, onSaved }: { conn: ConexionAds; onSaved: () => void }) {
+  const meta = PLAT_META[conn.plataforma];
+  const [clientId, setClientId] = useState(conn.clientId);
+  const [secret, setSecret] = useState("");
+  const [accountId, setAccountId] = useState(conn.accountId);
+  const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const guardar = async () => {
+    if (!clientId.trim()) return toast.error("Ingresa el Client ID");
+    setSaving(true);
+    const res = await fetch("/api/marketing/conexiones", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plataforma: conn.plataforma, clientId, secret: secret || undefined, accountId }) });
+    setSaving(false);
+    if ((await res.json()).success) { toast.success("Credenciales guardadas"); setSecret(""); onSaved(); }
+    else toast.error("Error al guardar");
+  };
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="flex items-center gap-4 p-4">
+        <div className="w-11 h-11 rounded-xl flex items-center justify-center font-bold text-white flex-shrink-0" style={{ backgroundColor: meta.color }}>{meta.nombre.charAt(0)}</div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{meta.nombre}</p>
+          <p className="text-xs text-muted">{conn.hasSecret ? "Credenciales guardadas" : "Sin configurar"}</p>
+        </div>
+        {conn.conectado ? (
+          <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/15 px-2.5 py-1 rounded-lg"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Conectado</span>
+        ) : conn.hasSecret ? (
+          <a href={`/api/marketing/oauth/${conn.plataforma}`} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ backgroundColor: meta.color }}>Conectar cuenta</a>
+        ) : (
+          <button onClick={() => setOpen(v => !v)} className="btn-secondary btn-sm">Configurar</button>
+        )}
+        <button onClick={() => setOpen(v => !v)} className="w-8 h-8 rounded-lg surface-2 flex items-center justify-center text-muted"><ChevronDown size={14} className={open ? "rotate-180" : ""} /></button>
+      </div>
+      {open && (
+        <div className="px-4 pb-4 space-y-3 border-t divider pt-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-muted uppercase mb-1">Client / App ID</label>
+              <input className="input font-mono text-xs" value={clientId} onChange={e => setClientId(e.target.value)} placeholder="123456789..." />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-muted uppercase mb-1">Account ID (opcional)</label>
+              <input className="input font-mono text-xs" value={accountId} onChange={e => setAccountId(e.target.value)} placeholder="act_..." />
+            </div>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-muted uppercase mb-1">Client Secret {conn.hasSecret && <span className="text-emerald-500 normal-case">(guardado — déjalo vacío para no cambiar)</span>}</label>
+            <input type="password" className="input font-mono text-xs" value={secret} onChange={e => setSecret(e.target.value)} placeholder="••••••••" />
+          </div>
+          <div className="flex items-center justify-between">
+            <a href={meta.docs} target="_blank" rel="noreferrer" className="text-[11px] font-semibold" style={{ color: meta.color }}>¿Cómo obtener mis credenciales? →</a>
+            <button onClick={guardar} disabled={saving} className="btn-primary btn-sm">{saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} Guardar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TabMarketingAds() {
-  const cuentas = [
-    { l: "Google Ads", c: "#4285F4", d: "Importa campañas, keywords, costos, conversiones y ROAS." },
-    { l: "Meta Ads (Facebook/Instagram)", c: "#1877F2", d: "Importa campañas, conjuntos, anuncios, leads y CTR." },
-    { l: "TikTok Ads", c: "#111827", d: "Importa campañas, grupos, anuncios, costos y conversiones." },
-  ];
+  const searchParams = useSearchParams();
+  const { data: conexiones = [], refetch } = useQuery<ConexionAds[]>({
+    queryKey: ["mkt-conexiones"],
+    queryFn: async () => (await (await fetch("/api/marketing/conexiones")).json()).data ?? [],
+  });
+
+  // Mostrar resultado del callback OAuth
+  const oauth = searchParams.get("oauth");
+  if (oauth && typeof window !== "undefined") {
+    const msg = searchParams.get("msg") ?? "";
+    setTimeout(() => { oauth === "ok" ? toast.success(msg) : toast.error(msg || "Error de conexión"); window.history.replaceState({}, "", "/configuracion?tab=marketing"); }, 100);
+  }
+
   return (
     <div className="space-y-4 max-w-2xl">
       <div className="card p-5 flex items-center gap-4" style={{ background: "linear-gradient(135deg, #db277712, transparent)" }}>
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "#db2777" }}><Radio size={22} className="text-white" /></div>
         <div>
           <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Conexiones de publicidad (Ads)</h2>
-          <p className="text-xs text-muted mt-0.5">Conecta tus cuentas publicitarias para importar métricas automáticamente al módulo de Marketing.</p>
+          <p className="text-xs text-muted mt-0.5">Guarda las credenciales de tu app y conecta cada plataforma vía OAuth para importar métricas al módulo de Marketing.</p>
         </div>
       </div>
-      {cuentas.map(a => (
-        <div key={a.l} className="card p-4 flex items-center gap-4">
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center font-bold text-white flex-shrink-0" style={{ backgroundColor: a.c }}>{a.l.charAt(0)}</div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{a.l}</p>
-            <p className="text-xs text-muted">{a.d}</p>
-          </div>
-          <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 dark:bg-amber-500/15 px-2.5 py-1 rounded-lg flex-shrink-0">Próximamente</span>
+      {conexiones.map(c => <PlataformaCard key={c.plataforma} conn={c} onSaved={refetch} />)}
+      <div className="card p-4">
+        <p className="text-[11px] text-muted"><b>Cómo funciona:</b> 1) Registra una app en la plataforma (Google Cloud / Meta for Developers / TikTok Business). 2) Pega el Client ID y Secret aquí. 3) Pulsa "Conectar cuenta" y autoriza. Mientras tanto puedes cargar campañas manualmente en <b>Marketing → Campañas</b>. La <b>URL de redirección</b> a registrar en cada app es: <code className="surface-3 px-1 rounded break-all">{typeof window !== "undefined" ? window.location.origin : ""}/api/marketing/oauth/callback</code></p>
+      </div>
+    </div>
+  );
+}
+
+function TabIA() {
+  const [proveedor, setProveedor] = useState("openai");
+  const [apiKey, setApiKey] = useState("");
+  const [modelo, setModelo] = useState("");
+  const [configurada, setConfigurada] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useQuery({
+    queryKey: ["ai-config"],
+    queryFn: async () => {
+      const j = await (await fetch("/api/ai/config")).json();
+      if (j.success) { setProveedor(j.data.proveedor); setModelo(j.data.modelo); setConfigurada(j.data.configurada); }
+      return j;
+    },
+  });
+
+  const guardar = async () => {
+    setSaving(true);
+    const res = await fetch("/api/ai/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proveedor, apiKey: apiKey || undefined, modelo }) });
+    setSaving(false);
+    if ((await res.json()).success) { toast.success("Configuración de IA guardada"); setApiKey(""); setConfigurada(true); }
+    else toast.error("Error al guardar");
+  };
+  const quitar = async () => {
+    if (!confirm("¿Quitar la API key de IA?")) return;
+    await fetch("/api/ai/config", { method: "DELETE" });
+    toast.success("API key eliminada"); setConfigurada(false);
+  };
+
+  const modeloDefault = proveedor === "anthropic" ? "claude-3-5-haiku-latest" : "gpt-4o-mini";
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+      <div className="card p-5 flex items-center gap-4" style={{ background: "linear-gradient(135deg, var(--brand-color-10), transparent)" }}>
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--brand-color)" }}><Sparkles size={22} className="text-white" /></div>
+        <div className="flex-1">
+          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Inteligencia Artificial</h2>
+          <p className="text-xs text-muted mt-0.5">Conecta una API de IA para activar el asistente generativo, auto-descripciones, SEO automático y el AI Marketing Advisor.</p>
         </div>
-      ))}
-      <p className="text-[11px] text-muted">La conexión vía OAuth requiere registrar apps en cada plataforma. Por ahora puedes cargar tus campañas manualmente en <b>Marketing → Campañas</b> y el dashboard calcula todas las métricas.</p>
+        {configurada && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-500/15 px-2.5 py-1 rounded-lg">Activa</span>}
+      </div>
+      <div className="card p-5 space-y-4">
+        <div>
+          <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Proveedor</label>
+          <div className="flex gap-2">
+            {[{ v: "openai", l: "OpenAI (GPT)" }, { v: "anthropic", l: "Anthropic (Claude)" }].map(p => (
+              <button key={p.v} onClick={() => setProveedor(p.v)} className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
+                style={proveedor === p.v ? { backgroundColor: "var(--brand-color)", color: "white" } : { backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>{p.l}</button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">API Key {configurada && <span className="text-emerald-500 normal-case">(guardada — déjala vacía para no cambiar)</span>}</label>
+          <input type="password" className="input font-mono text-xs" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder={proveedor === "anthropic" ? "sk-ant-..." : "sk-..."} />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Modelo (opcional)</label>
+          <input className="input font-mono text-xs" value={modelo} onChange={e => setModelo(e.target.value)} placeholder={modeloDefault} />
+          <p className="text-[11px] text-muted mt-1">Por defecto: <code className="surface-3 px-1 rounded">{modeloDefault}</code></p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={guardar} disabled={saving} className="btn-primary flex-1 justify-center">{saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Guardar</button>
+          {configurada && <button onClick={quitar} className="btn-secondary">Quitar key</button>}
+        </div>
+      </div>
+      <p className="text-[11px] text-muted">La API key se guarda cifrada (AES-256). Mientras no la configures, el asistente flotante sigue funcionando en modo básico (lee el estado del negocio sin IA generativa).</p>
     </div>
   );
 }
 
 const TABS = [
   { id: "empresa",      label: "Empresa",       icon: Building2   },
+  { id: "ia",           label: "IA",            icon: Sparkles    },
   { id: "canales",      label: "Canales & Redes", icon: Radio     },
   { id: "marketing",    label: "Conexiones Ads", icon: Radio      },
   { id: "woocommerce",  label: "WooCommerce",   icon: Link2       },
@@ -656,6 +795,7 @@ function ConfiguracionContent() {
         </div>
         <div className="p-6">
           {tab === "empresa"      && <TabEmpresa />}
+          {tab === "ia"           && <TabIA />}
           {tab === "canales"      && <TabCanales />}
           {tab === "marketing"    && <TabMarketingAds />}
           {tab === "woocommerce"  && <TabWooCommerce />}

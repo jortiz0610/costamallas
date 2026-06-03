@@ -8,6 +8,7 @@ import {
   Percent, Megaphone, Plus, RefreshCw, Sparkles, ArrowRight, BarChart3,
 } from "lucide-react";
 import Link from "next/link";
+import toast from "react-hot-toast";
 import { formatCOP } from "@/lib/utils";
 import { CANALES, kpis } from "@/lib/marketing";
 
@@ -27,7 +28,7 @@ function MarketingDashboardContent() {
     queryFn: async () => (await (await fetch("/api/marketing/campanas")).json()).data ?? [],
   });
 
-  const handleRefresh = async () => { setRefreshing(true); await refetch(); setTimeout(() => setRefreshing(false), 2200); };
+  const handleRefresh = async () => { setRefreshing(true); await refetch(); toast.success("Marketing actualizado"); setTimeout(() => setRefreshing(false), 2200); };
 
   const filtradas = canal ? campanas.filter(c => c.canal === canal) : campanas;
   const k = kpis(filtradas);

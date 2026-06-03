@@ -93,10 +93,21 @@ async function responder(pregunta: string): Promise<string> {
   }
 
   if (q.includes("hola") || q.includes("ayuda") || q.includes("puedes")) {
-    return "¡Hola! 👋 Soy tu asistente. Por ahora puedo darte el **estado actual** de clientes, productos, cotizaciones, pedidos y tareas, y explicarte los **procesos y flujos** del sistema. Prueba los botones de abajo o escríbeme.";
+    return "¡Hola! 👋 Soy tu asistente. Puedo darte el **estado actual** de clientes, productos, cotizaciones, pedidos y tareas, y explicarte los **procesos y flujos** del sistema. Prueba los botones de abajo o escríbeme.";
   }
 
-  return "Aún estoy aprendiendo 🤖. Puedo ayudarte con: estado de **clientes**, **productos**, **cotizaciones**, **pedidos**, **tareas**, o explicarte **procesos y flujos**. ¿Qué necesitas?";
+  // Pregunta abierta → intentar IA generativa (si hay API key configurada)
+  try {
+    const res = await fetch("/api/ai/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pregunta }) });
+    const json = await res.json();
+    if (json.success) return json.data.respuesta;
+    if (json.sinClave) {
+      return "Esa pregunta necesita IA generativa 🤖. Actívala pegando tu API key en **Configuración → IA**. Mientras tanto puedo darte el estado de **clientes, productos, cotizaciones, pedidos, tareas** o explicarte **procesos y flujos**.";
+    }
+    return json.error ?? "No pude procesar esa pregunta.";
+  } catch {
+    return "Puedo ayudarte con: estado de **clientes**, **productos**, **cotizaciones**, **pedidos**, **tareas**, o explicarte **procesos y flujos**.";
+  }
 }
 
 function fmt(texto: string) {
@@ -136,7 +147,7 @@ export function AsistenteIA() {
     <>
       {/* Botón flotante */}
       <button onClick={() => setOpen(v => !v)}
-        className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-2xl shadow-lg flex items-center justify-center transition-all hover:scale-105"
+        className="fixed bottom-20 lg:bottom-6 right-5 lg:right-6 z-40 w-14 h-14 rounded-2xl shadow-lg flex items-center justify-center transition-all hover:scale-105"
         style={{ background: `linear-gradient(135deg, ${brand.brandColor}, ${brand.brandColor}bb)` }}
         title="Asistente IA">
         {open ? <X size={22} className="text-white" /> : <Sparkles size={24} className="text-white" />}
@@ -144,7 +155,7 @@ export function AsistenteIA() {
 
       {/* Panel */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-50 w-[360px] max-w-[calc(100vw-3rem)] h-[520px] max-h-[calc(100vh-8rem)] card flex flex-col overflow-hidden animate-fade-up">
+        <div className="fixed bottom-36 lg:bottom-24 right-4 lg:right-6 z-50 w-[360px] max-w-[calc(100vw-2rem)] h-[520px] max-h-[calc(100vh-12rem)] card flex flex-col overflow-hidden animate-fade-up">
           {/* Header */}
           <div className="p-4 flex items-center gap-3 flex-shrink-0" style={{ background: `linear-gradient(135deg, ${brand.brandColor}, ${brand.brandColor}cc)` }}>
             <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center"><Sparkles size={18} className="text-white" /></div>

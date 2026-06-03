@@ -30,19 +30,29 @@ function av(n: string) { return AV[n.charCodeAt(0) % AV.length]; }
 function PipelineContent() {
   const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
+  const [dragCol, setDragCol] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
   const { data: pedidos = [], isLoading, refetch } = useQuery<Pedido[]>({
     queryKey: ["pedidos-pipeline"],
     queryFn: async () => (await (await fetch("/api/crm/pedidos")).json()).data ?? [],
     refetchInterval: 60_000,
   });
 
-  const handleRefresh = async () => { setRefreshing(true); await refetch(); setTimeout(() => setRefreshing(false), 2200); };
+  const handleRefresh = async () => { setRefreshing(true); await refetch(); toast.success("Pipeline actualizado"); setTimeout(() => setRefreshing(false), 2200); };
 
   const avanzar = async (pedidoId: string, nuevoEstado: string) => {
     const res = await fetch(`/api/crm/pedidos/${pedidoId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estado: nuevoEstado }) });
     const json = await res.json();
     if (json.success) { toast.success(`→ ${nuevoEstado.replace("_", " ").toLowerCase()}`); qc.invalidateQueries({ queryKey: ["pedidos-pipeline"] }); }
     else toast.error(json.error ?? "Error");
+  };
+
+  const onDrop = (colId: string) => {
+    setDragCol(null);
+    if (!dragId) return;
+    const ped = pedidos.find(p => p.id === dragId);
+    setDragId(null);
+    if (ped && ped.estado !== colId) avanzar(ped.id, colId);
   };
 
   const activos = pedidos.filter(p => p.estado !== "CANCELADO");
@@ -91,13 +101,22 @@ function PipelineContent() {
                       </div>
                     </div>
 
-                    {/* Cards */}
-                    <div className="flex-1 rounded-2xl p-2 space-y-2 overflow-y-auto surface-2 border divider" style={{ minHeight: "100px" }}>
+                    {/* Cards (zona de drop) */}
+                    <div
+                      onDragOver={e => { e.preventDefault(); if (dragCol !== col.id) setDragCol(col.id); }}
+                      onDragLeave={() => setDragCol(c => c === col.id ? null : c)}
+                      onDrop={() => onDrop(col.id)}
+                      className="flex-1 rounded-2xl p-2 space-y-2 overflow-y-auto surface-2 border transition-all"
+                      style={{ minHeight: "100px", borderColor: dragCol === col.id ? col.hdr : "var(--border)", backgroundColor: dragCol === col.id ? col.hdr + "10" : undefined, borderStyle: dragCol === col.id ? "dashed" : "solid", borderWidth: dragCol === col.id ? "2px" : "1px" }}>
                       {tarjetas.length === 0 && (
-                        <div className="text-center py-10 text-[11px] text-muted font-medium">Sin pedidos</div>
+                        <div className="text-center py-10 text-[11px] text-muted font-medium">{dragCol === col.id ? "Suelta aquí" : "Sin pedidos"}</div>
                       )}
                       {tarjetas.map(p => (
-                        <div key={p.id} className="card p-3 group hover:shadow-md transition-all" style={{ borderTop: `2px solid ${col.hdr}` }}>
+                        <div key={p.id} draggable
+                          onDragStart={() => setDragId(p.id)}
+                          onDragEnd={() => { setDragId(null); setDragCol(null); }}
+                          className={`card p-3 group hover:shadow-md transition-all cursor-grab active:cursor-grabbing ${dragId === p.id ? "opacity-40" : ""}`}
+                          style={{ borderTop: `2px solid ${col.hdr}` }}>
                           <div className="flex items-start justify-between mb-2">
                             <span className="text-[10px] font-mono font-bold text-muted surface-3 px-1.5 py-0.5 rounded">{p.numero}</span>
                             {p.tieneInstalacion && <span className="text-[9px] font-semibold text-amber-600 bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 rounded-full flex items-center gap-1"><Wrench size={8} />Inst.</span>}

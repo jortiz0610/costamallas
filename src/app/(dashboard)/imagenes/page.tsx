@@ -188,7 +188,7 @@ function ImagenesContent() {
 
   const seleccionado = productos.find(p => p.id === selId) ?? null;
 
-  const handleRefresh = async () => { setRefreshing(true); await refetch(); setTimeout(() => setRefreshing(false), 2200); };
+  const handleRefresh = async () => { setRefreshing(true); await refetch(); toast.success("Imágenes actualizadas"); setTimeout(() => setRefreshing(false), 2200); };
 
   return (
     <>

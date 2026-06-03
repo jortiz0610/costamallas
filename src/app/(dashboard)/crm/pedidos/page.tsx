@@ -87,6 +87,7 @@ function PedidosContent() {
   const handleRefresh = async () => {
     setRefreshing(true);
     await refetch();
+    toast.success("Pedidos actualizados");
     setTimeout(() => setRefreshing(false), 2000);
   };
 

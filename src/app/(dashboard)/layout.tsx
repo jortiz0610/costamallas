@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageCircle, X, Bell, AlertTriangle, CheckCircle, Info, Package } from "lucide-react";
 import type { NotificacionDTO } from "@/types";
 import { AsistenteIA } from "@/components/layout/AsistenteIA";
+import { MobileNav } from "@/components/layout/MobileNav";
 import { useBrand } from "@/contexts/BrandContext";
 
 async function fetchKPIs() {
@@ -88,7 +89,7 @@ function SupportButton() {
   return (
     <>
       <button onClick={() => setOpen(true)}
-        className="fixed bottom-7 right-24 z-40 w-11 h-11 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 surface border divider"
+        className="fixed bottom-[84px] lg:bottom-7 right-5 lg:right-24 z-40 w-11 h-11 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 surface border divider"
         title="Soporte">
         <MessageCircle size={18} style={{ color: "var(--brand-color)" }} />
       </button>
@@ -144,9 +145,10 @@ function ShellInner({ children }: { children: React.ReactNode }) {
           nexusSinLeer={nexusData?.noLeidas ?? 0}
         />
       </div>
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden pb-16 lg:pb-0">
         {children}
       </main>
+      <MobileNav />
       <NotifToastManager />
       <SupportButton />
       <AsistenteIA />

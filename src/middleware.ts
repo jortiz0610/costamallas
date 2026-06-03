@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login"];
+const PUBLIC_PATHS = ["/login", "/api/auth/login", "/cotizar", "/api/public", "/api/marketing/oauth"];
 const API_RATE_LIMIT = 200;
 
 export async function middleware(req: NextRequest): Promise<NextResponse> {
