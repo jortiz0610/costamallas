@@ -25,7 +25,8 @@ export async function POST(req: NextRequest, { params }: P) {
   let telRemit: string | undefined;
   let asunto: string | undefined;
   let contenido = "";
-  let metadata: Record<string, unknown> = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let metadata: any = {};
 
   if (canal === "wordpress_form") {
     // CF7, WPForms, Gravity Forms, etc.
