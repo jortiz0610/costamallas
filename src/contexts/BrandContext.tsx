@@ -94,10 +94,11 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!mounted) return;
-    document.documentElement.style.setProperty("--brand-color", brand.brandColor);
-    // Generar versiones claras del color
-    document.documentElement.style.setProperty("--brand-color-10", brand.brandColor + "1a");
-    document.documentElement.style.setProperty("--brand-color-20", brand.brandColor + "33");
+    const root = document.documentElement;
+    // Color corporativo base
+    root.style.setProperty("--brand-color", brand.brandColor);
+    root.style.setProperty("--brand-color-10", brand.brandColor + "1a");
+    root.style.setProperty("--brand-color-20", brand.brandColor + "33");
   }, [brand.brandColor, mounted]);
 
   const setBrand = useCallback((partial: Partial<BrandConfig>) => {

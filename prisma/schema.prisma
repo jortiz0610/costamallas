@@ -33,6 +33,7 @@ model Usuario {
   cotizaciones  Cotizacion[]
   pedidos       Pedido[]
   instalaciones Instalacion[]
+  nexusMensajes NexusMensaje[]
 
   @@map("usuarios")
   @@index([email])
@@ -553,4 +554,70 @@ enum TipoNotificacion {
   EXPORTACION_COMPLETA
   SYNC_WOOCOMMERCE
   SISTEMA
+  NEXUS_MENSAJE
+}
+
+// ─────────────────────────────────────────────
+// NEXUS — HUB OMNICANAL
+// ─────────────────────────────────────────────
+
+model NexusConexion {
+  id          String   @id @default(cuid())
+  canal       String
+  nombre      String
+  descripcion String?
+  config      Json     @default("{}")
+  activo      Boolean  @default(true)
+  webhookUrl  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  conversaciones NexusConversacion[]
+
+  @@map("nexus_conexiones")
+  @@index([canal])
+  @@index([activo])
+}
+
+model NexusConversacion {
+  id          String        @id @default(cuid())
+  conexionId  String
+  conexion    NexusConexion @relation(fields: [conexionId], references: [id], onDelete: Cascade)
+  canal       String
+  remitente   String
+  emailRemit  String?
+  telRemit    String?
+  asunto      String?
+  estado      String        @default("ABIERTA")
+  prioridad   String        @default("NORMAL")
+  leida       Boolean       @default(false)
+  metadata    Json?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  mensajes NexusMensaje[]
+
+  @@map("nexus_conversaciones")
+  @@index([conexionId])
+  @@index([estado])
+  @@index([leida])
+  @@index([createdAt])
+}
+
+model NexusMensaje {
+  id              String            @id @default(cuid())
+  conversacionId  String
+  conversacion    NexusConversacion @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
+  agenteId        String?
+  agente          Usuario?          @relation(fields: [agenteId], references: [id], onDelete: SetNull)
+  origen          String
+  contenido       String            @db.Text
+  tipo            String            @default("texto")
+  metadata        Json?
+  leido           Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+
+  @@map("nexus_mensajes")
+  @@index([conversacionId])
+  @@index([createdAt])
 }

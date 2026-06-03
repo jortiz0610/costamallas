@@ -6,7 +6,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Plus, Search, Building2, Phone, Mail, MapPin, X, Loader2, ChevronRight, Users, TrendingUp } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import { timeAgo } from "@/lib/utils";
+import { useBrand } from "@/contexts/BrandContext";
 
 interface Cliente {
   id: string; nombre: string; empresa?: string; email?: string;
@@ -15,9 +15,9 @@ interface Cliente {
   _count: { cotizaciones: number; pedidos: number };
 }
 
-function ModalCliente({ cliente, onClose, onSaved }: {
-  cliente?: Cliente; onClose: () => void; onSaved: () => void;
-}) {
+const CRM_COLOR = "#BA7517";
+
+function ModalCliente({ cliente, onClose, onSaved }: { cliente?: Cliente; onClose: () => void; onSaved: () => void }) {
   const esNuevo = !cliente;
   const [form, setForm] = useState({
     nombre: cliente?.nombre ?? "", empresa: cliente?.empresa ?? "",
@@ -39,63 +39,60 @@ function ModalCliente({ cliente, onClose, onSaved }: {
       if (!res.ok || !json.success) return toast.error(json.error ?? "Error");
       toast.success(esNuevo ? "Cliente creado" : "Cliente actualizado");
       onSaved();
-    } catch { toast.error("Error de conexión"); }
+    } catch { toast.error("Error de conexion"); }
     finally { setSaving(false); }
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl shadow-slate-200/80 w-full max-w-lg border border-slate-100">
-        {/* Header con gradiente */}
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-100 dark:border-gray-800">
+        <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
           <div>
-            <h2 className="text-base font-bold text-slate-800">{esNuevo ? "Nuevo cliente" : "Editar cliente"}</h2>
-            <p className="text-xs text-slate-400 mt-0.5">{esNuevo ? "Completa los datos del cliente" : "Actualiza la información"}</p>
+            <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">{esNuevo ? "Nuevo cliente" : "Editar cliente"}</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Modulo CRM</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all">
+          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400 hover:text-gray-600">
             <X size={15} />
           </button>
         </div>
-        <div className="p-6 space-y-4">
-          {/* Tipo selector */}
-          <div className="flex gap-2 p-1 bg-slate-100 rounded-2xl">
+        <div className="p-5 space-y-4">
+          <div className="flex gap-2 p-1 rounded-xl" style={{ backgroundColor: "#f1f5f9" }}>
             {["empresa", "persona"].map(t => (
-              <button key={t} type="button" onClick={() => setForm(p => ({ ...p, tipo: t }))}
-                className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all ${form.tipo === t
-                  ? "bg-white text-slate-800 shadow-sm shadow-slate-200"
-                  : "text-slate-400 hover:text-slate-600"}`}>
-                {t === "empresa" ? "🏢 Empresa" : "👤 Persona"}
+              <button key={t} onClick={() => setForm(p => ({ ...p, tipo: t }))}
+                className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
+                style={form.tipo === t ? { backgroundColor: CRM_COLOR, color: "white" } : { color: "#9ca3af" }}>
+                {t === "empresa" ? "Empresa" : "Persona"}
               </button>
             ))}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
-              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">Nombre *</label>
-              <input className="input" value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} placeholder="Nombre completo o razón social" />
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Nombre *</label>
+              <input className="input" value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} placeholder="Nombre o razon social" />
             </div>
             {form.tipo === "empresa" && (
               <div className="col-span-2">
-                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">Empresa</label>
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Empresa</label>
                 <input className="input" value={form.empresa} onChange={e => setForm(p => ({ ...p, empresa: e.target.value }))} placeholder="Nombre de la empresa" />
               </div>
             )}
             <div>
-              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">Email</label>
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Email</label>
               <input type="email" className="input" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">Teléfono</label>
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Telefono</label>
               <input className="input" value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))} placeholder="300 000 0000" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">Ciudad</label>
-              <input className="input" value={form.ciudad} onChange={e => setForm(p => ({ ...p, ciudad: e.target.value }))} placeholder="Bogotá" />
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Ciudad</label>
+              <input className="input" value={form.ciudad} onChange={e => setForm(p => ({ ...p, ciudad: e.target.value }))} placeholder="Bogota" />
             </div>
           </div>
         </div>
-        <div className="p-6 pt-0 flex gap-3">
+        <div className="p-5 pt-0 flex gap-3">
           <button onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
-          <button onClick={save} disabled={saving} className="btn-primary flex-1">
+          <button onClick={save} disabled={saving} className="flex-1 py-2 rounded-lg text-sm font-semibold text-white transition-all disabled:opacity-50 flex items-center justify-center gap-2" style={{ backgroundColor: CRM_COLOR }}>
             {saving && <Loader2 size={13} className="animate-spin" />}
             {esNuevo ? "Crear cliente" : "Guardar"}
           </button>
@@ -105,18 +102,20 @@ function ModalCliente({ cliente, onClose, onSaved }: {
   );
 }
 
-const GRADIENTS = [
-  "from-violet-400 to-indigo-500",
-  "from-sky-400 to-blue-500",
-  "from-emerald-400 to-teal-500",
-  "from-amber-400 to-orange-500",
-  "from-pink-400 to-rose-500",
-  "from-fuchsia-400 to-purple-500",
-];
+const AVATAR_COLORS = ["#BA7517","#185FA5","#7c3aed","#059669","#dc2626","#0891b2"];
+function avatarColor(name: string) { return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]; }
 
-function getGradient(name: string) {
-  const idx = name.charCodeAt(0) % GRADIENTS.length;
-  return GRADIENTS[idx];
+function LeadScore({ cot: c, ped: p }: { cot: number; ped: number }) {
+  const score = Math.min(100, c * 10 + p * 15);
+  const color = score >= 60 ? "#16a34a" : score >= 30 ? "#d97706" : "#dc2626";
+  return (
+    <div className="flex items-center gap-1.5 flex-shrink-0">
+      <div className="w-12 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+        <div className="h-full rounded-full" style={{ width: `${score}%`, backgroundColor: color }} />
+      </div>
+      <span className="text-[10px] font-semibold" style={{ color }}>{score}</span>
+    </div>
+  );
 }
 
 function ClientesContent() {
@@ -128,130 +127,89 @@ function ClientesContent() {
     queryKey: ["crm-clientes", busqueda],
     queryFn: async () => {
       const qs = busqueda ? `?busqueda=${encodeURIComponent(busqueda)}` : "";
-      const res = await fetch(`/api/crm/clientes${qs}`);
-      return (await res.json()).data ?? [];
+      return (await (await fetch(`/api/crm/clientes${qs}`)).json()).data ?? [];
     },
   });
-
-  const empresas = clientes.filter(c => c.tipo === "empresa").length;
-  const personas = clientes.filter(c => c.tipo === "persona").length;
 
   return (
     <>
       <Topbar title="Clientes" actions={
-        <button onClick={() => setModal({ open: true })} className="btn-primary btn-sm">
-          <Plus size={14} /> Nuevo cliente
+        <button onClick={() => setModal({ open: true })}
+          className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5"
+          style={{ backgroundColor: CRM_COLOR }}>
+          <Plus size={13} /> Nuevo cliente
         </button>
       } />
-
-      <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-gradient-to-br from-violet-500 to-indigo-600 rounded-2xl p-5 text-white shadow-lg shadow-violet-200">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-violet-200 text-xs font-semibold uppercase tracking-wider">Total clientes</span>
-              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-                <Users size={15} className="text-white" />
+      <div className="flex-1 overflow-y-auto page-bg p-5 space-y-4">
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { label: "Total", val: clientes.length, color: CRM_COLOR, Icon: Users },
+            { label: "Empresas", val: clientes.filter(c => c.tipo === "empresa").length, color: "#185FA5", Icon: Building2 },
+            { label: "Personas", val: clientes.filter(c => c.tipo === "persona").length, color: "#7c3aed", Icon: TrendingUp },
+          ].map(s => {
+            const Icon = s.Icon;
+            return (
+              <div key={s.label} className="card p-4 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: s.color + "18" }}>
+                  <Icon size={16} style={{ color: s.color }} />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">{s.label}</p>
+                  <p className="text-xl font-bold" style={{ color: s.color }}>{s.val}</p>
+                </div>
               </div>
-            </div>
-            <p className="text-3xl font-bold">{clientes.length}</p>
-          </div>
-          <div className="bg-gradient-to-br from-sky-500 to-blue-600 rounded-2xl p-5 text-white shadow-lg shadow-sky-200">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sky-200 text-xs font-semibold uppercase tracking-wider">Empresas</span>
-              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-                <Building2 size={15} className="text-white" />
-              </div>
-            </div>
-            <p className="text-3xl font-bold">{empresas}</p>
-          </div>
-          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-5 text-white shadow-lg shadow-emerald-200">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-emerald-200 text-xs font-semibold uppercase tracking-wider">Personas naturales</span>
-              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-                <TrendingUp size={15} className="text-white" />
-              </div>
-            </div>
-            <p className="text-3xl font-bold">{personas}</p>
-          </div>
+            );
+          })}
         </div>
 
-        {/* Buscador */}
-        <div className="relative mb-4 max-w-sm">
-          <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            value={busqueda}
-            onChange={e => setBusqueda(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm text-slate-700 placeholder-slate-400 outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-100 transition-all shadow-sm"
-            placeholder="Buscar por nombre, empresa, email…"
-          />
+        <div className="relative max-w-xs">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
+            className="input pl-9 py-1.5 text-xs" placeholder="Buscar cliente..." />
         </div>
 
-        {/* Lista */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="divide-y divide-slate-50">
-            {isLoading ? (
-              <div className="p-10 text-center">
-                <Loader2 size={20} className="animate-spin text-violet-400 mx-auto mb-2" />
-                <p className="text-sm text-slate-400">Cargando clientes…</p>
+        <div className="card overflow-hidden">
+          {isLoading ? (
+            <div className="p-10 text-center"><Loader2 size={18} className="animate-spin mx-auto" style={{ color: CRM_COLOR }} /></div>
+          ) : clientes.length === 0 ? (
+            <div className="p-12 text-center">
+              <Building2 size={28} className="mx-auto mb-3 text-gray-200" />
+              <p className="text-sm text-gray-400">Sin clientes</p>
+            </div>
+          ) : clientes.map(c => (
+            <div key={c.id} className="flex items-center gap-3 px-4 py-3 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors group last:border-b-0">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                style={{ backgroundColor: avatarColor(c.nombre) }}>
+                {c.nombre.charAt(0).toUpperCase()}
               </div>
-            ) : clientes.length === 0 ? (
-              <div className="p-14 text-center">
-                <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                  <Building2 size={24} className="text-slate-300" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{c.nombre}</p>
+                  {c.empresa && <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">{c.empresa}</span>}
                 </div>
-                <p className="text-sm font-semibold text-slate-500">Sin clientes aún</p>
-                <p className="text-xs text-slate-400 mt-1">Crea tu primer cliente para empezar</p>
-              </div>
-            ) : clientes.map(c => (
-              <div key={c.id} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50/80 transition-colors group">
-                {/* Avatar con gradiente */}
-                <div className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${getGradient(c.nombre)} flex items-center justify-center flex-shrink-0 font-bold text-[13px] text-white shadow-sm`}>
-                  {c.nombre.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-slate-800">{c.nombre}</p>
-                    {c.empresa && <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{c.empresa}</span>}
-                  </div>
-                  <div className="flex items-center gap-3 mt-0.5">
-                    {c.email && <span className="text-xs text-slate-400 flex items-center gap-1"><Mail size={10} />{c.email}</span>}
-                    {c.telefono && <span className="text-xs text-slate-400 flex items-center gap-1"><Phone size={10} />{c.telefono}</span>}
-                    {c.ciudad && <span className="text-xs text-slate-400 flex items-center gap-1"><MapPin size={10} />{c.ciudad}</span>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 flex-shrink-0">
-                  <div className="text-center hidden md:block">
-                    <p className="text-[10px] text-slate-400 font-medium">Cotizaciones</p>
-                    <p className="text-sm font-bold text-slate-700">{c._count.cotizaciones}</p>
-                  </div>
-                  <div className="text-center hidden md:block">
-                    <p className="text-[10px] text-slate-400 font-medium">Pedidos</p>
-                    <p className="text-sm font-bold text-slate-700">{c._count.pedidos}</p>
-                  </div>
-                  <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => setModal({ open: true, cliente: c })}
-                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-600 transition-colors">
-                      Editar
-                    </button>
-                    <Link href={`/crm/clientes/${c.id}`}
-                      className="px-3 py-1.5 rounded-xl bg-violet-500 hover:bg-violet-600 text-xs font-semibold text-white transition-colors flex items-center gap-1">
-                      Ver <ChevronRight size={11} />
-                    </Link>
-                  </div>
+                <div className="flex items-center gap-3 mt-0.5">
+                  {c.email && <span className="text-xs text-gray-400 flex items-center gap-1"><Mail size={9} />{c.email}</span>}
+                  {c.telefono && <span className="text-xs text-gray-400 flex items-center gap-1"><Phone size={9} />{c.telefono}</span>}
+                  {c.ciudad && <span className="text-xs text-gray-400 flex items-center gap-1"><MapPin size={9} />{c.ciudad}</span>}
                 </div>
               </div>
-            ))}
-          </div>
+              <LeadScore cot={c._count.cotizaciones} ped={c._count.pedidos} />
+              <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => setModal({ open: true, cliente: c })}
+                  className="px-2.5 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-xs font-semibold text-gray-600 dark:text-gray-300">Editar</button>
+                <Link href={`/crm/clientes/${c.id}`}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1"
+                  style={{ backgroundColor: CRM_COLOR }}>
+                  Ver <ChevronRight size={11} />
+                </Link>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
-
       {modal.open && (
-        <ModalCliente
-          cliente={modal.cliente}
-          onClose={() => setModal({ open: false })}
-          onSaved={() => { setModal({ open: false }); qc.invalidateQueries({ queryKey: ["crm-clientes"] }); }}
-        />
+        <ModalCliente cliente={modal.cliente} onClose={() => setModal({ open: false })}
+          onSaved={() => { setModal({ open: false }); qc.invalidateQueries({ queryKey: ["crm-clientes"] }); }} />
       )}
     </>
   );

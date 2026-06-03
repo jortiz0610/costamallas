@@ -27,7 +27,8 @@ export type TipoNotificacion =
   | "ERROR_VALIDACION"
   | "EXPORTACION_COMPLETA"
   | "SYNC_WOOCOMMERCE"
-  | "SISTEMA";
+  | "SISTEMA"
+  | "NEXUS_MENSAJE";
 
 export type TipoCatalogo =
   | "CATEGORIA"

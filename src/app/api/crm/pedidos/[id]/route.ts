@@ -42,24 +42,20 @@ export async function PUT(req: NextRequest, { params }: P) {
     },
   });
 
-  // Si pasa a EN_PRODUCCION, verificar y descontar stock
   if (estado === "EN_PRODUCCION") {
-    const pedido = await prisma.pedido.findUnique({
-      where: { id }, include: { items: true },
-    });
+    const pedido = await prisma.pedido.findUnique({ where: { id }, include: { items: true } });
     if (pedido?.items) {
       for (const item of pedido.items) {
         if (item.productoId) {
           await prisma.producto.update({
             where: { id: item.productoId },
             data: { stock: { decrement: Number(item.cantidad) } },
-          }).catch(() => {}); // Ignorar si no hay suficiente stock
+          }).catch(() => {});
         }
       }
     }
   }
 
-  // Si tiene instalación y se entrega, crear instalación pendiente
   if (estado === "DESPACHADO") {
     const pedido = await prisma.pedido.findUnique({ where: { id } });
     if (pedido?.tieneInstalacion) {
@@ -71,14 +67,8 @@ export async function PUT(req: NextRequest, { params }: P) {
     }
   }
 
-  // Log
   await prisma.log.create({
-    data: {
-      usuarioId: user.sub,
-      accion: "PEDIDO_ESTADO",
-      detalle: `Pedido ${id} → ${estado}`,
-      resultado: "OK",
-    },
+    data: { usuarioId: user.sub, accion: "PEDIDO_ESTADO", detalle: `Pedido ${id} -> ${estado}`, resultado: "OK" },
   }).catch(() => {});
 
   return NextResponse.json({ success: true, data: updated });
