@@ -590,9 +590,40 @@ function TabCanales() {
   );
 }
 
+function TabMarketingAds() {
+  const cuentas = [
+    { l: "Google Ads", c: "#4285F4", d: "Importa campañas, keywords, costos, conversiones y ROAS." },
+    { l: "Meta Ads (Facebook/Instagram)", c: "#1877F2", d: "Importa campañas, conjuntos, anuncios, leads y CTR." },
+    { l: "TikTok Ads", c: "#111827", d: "Importa campañas, grupos, anuncios, costos y conversiones." },
+  ];
+  return (
+    <div className="space-y-4 max-w-2xl">
+      <div className="card p-5 flex items-center gap-4" style={{ background: "linear-gradient(135deg, #db277712, transparent)" }}>
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "#db2777" }}><Radio size={22} className="text-white" /></div>
+        <div>
+          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Conexiones de publicidad (Ads)</h2>
+          <p className="text-xs text-muted mt-0.5">Conecta tus cuentas publicitarias para importar métricas automáticamente al módulo de Marketing.</p>
+        </div>
+      </div>
+      {cuentas.map(a => (
+        <div key={a.l} className="card p-4 flex items-center gap-4">
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center font-bold text-white flex-shrink-0" style={{ backgroundColor: a.c }}>{a.l.charAt(0)}</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{a.l}</p>
+            <p className="text-xs text-muted">{a.d}</p>
+          </div>
+          <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 dark:bg-amber-500/15 px-2.5 py-1 rounded-lg flex-shrink-0">Próximamente</span>
+        </div>
+      ))}
+      <p className="text-[11px] text-muted">La conexión vía OAuth requiere registrar apps en cada plataforma. Por ahora puedes cargar tus campañas manualmente en <b>Marketing → Campañas</b> y el dashboard calcula todas las métricas.</p>
+    </div>
+  );
+}
+
 const TABS = [
   { id: "empresa",      label: "Empresa",       icon: Building2   },
   { id: "canales",      label: "Canales & Redes", icon: Radio     },
+  { id: "marketing",    label: "Conexiones Ads", icon: Radio      },
   { id: "woocommerce",  label: "WooCommerce",   icon: Link2       },
   { id: "falabella",    label: "Falabella",     icon: ShoppingBag },
   { id: "mercadolibre", label: "MercadoLibre",  icon: Store       },
@@ -626,6 +657,7 @@ function ConfiguracionContent() {
         <div className="p-6">
           {tab === "empresa"      && <TabEmpresa />}
           {tab === "canales"      && <TabCanales />}
+          {tab === "marketing"    && <TabMarketingAds />}
           {tab === "woocommerce"  && <TabWooCommerce />}
           {tab === "falabella"    && (
             <TabMarketplace nombre="Falabella Marketplace" color="#9b0000" logoChar="F"

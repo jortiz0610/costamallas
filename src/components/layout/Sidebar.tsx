@@ -6,6 +6,7 @@ import {
   AlertTriangle, Settings, LogOut, Users, UserCircle, ClipboardList,
   ShoppingCart, Wrench, Kanban, ChevronDown, ShieldCheck, BarChart2,
   MessageSquare, Truck, CheckSquare, MessageSquareText, Zap, Ruler,
+  Megaphone, Target, TrendingUp, Radio,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,6 +16,17 @@ import { useState } from "react";
 const ERP_COLOR   = "#185FA5";
 const CRM_COLOR   = "#BA7517";
 const NEXUS_COLOR = "#7c3aed";
+const MKT_COLOR   = "#db2777";
+
+const MARKETING_ITEMS = [
+  { href: "/marketing", label: "Dashboard", icon: LayoutDashboard },
+  { section: "Análisis" },
+  { href: "/marketing/campanas", label: "Campañas", icon: Megaphone },
+  { href: "/marketing/atribucion", label: "Atribución de leads", icon: Target },
+  { href: "/marketing/reportes", label: "Reportes", icon: TrendingUp },
+  { section: "Conecta tus cuentas" },
+  { href: "/configuracion?tab=marketing", label: "Conexiones de Ads", icon: Radio },
+];
 
 const ERP_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -58,7 +70,7 @@ const SYSTEM_ITEMS = [
   { href: "/configuracion", label: "Configuración", icon: Settings },
 ];
 
-type Mode = "ERP" | "CRM" | "NEXUS";
+type Mode = "ERP" | "CRM" | "NEXUS" | "MARKETING";
 
 interface SidebarProps {
   stockCriticos?: number;
@@ -75,11 +87,12 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
-  const { brand, mode, setMode } = useBrand();
+  const { brand, mode, setMode, setSidebarOpen } = useBrand();
   const [sysOpen, setSysOpen] = useState(false);
+  const closeMobile = () => setSidebarOpen(false);
 
   const modeColor =
-    mode === "ERP" ? ERP_COLOR : mode === "CRM" ? CRM_COLOR : NEXUS_COLOR;
+    mode === "ERP" ? ERP_COLOR : mode === "CRM" ? CRM_COLOR : mode === "MARKETING" ? MKT_COLOR : NEXUS_COLOR;
 
   const badges: Record<string, number> = {
     stock: stockCriticos,
@@ -88,7 +101,7 @@ export function Sidebar({
   };
 
   const navItems =
-    mode === "ERP" ? ERP_ITEMS : mode === "CRM" ? CRM_ITEMS : NEXUS_ITEMS;
+    mode === "ERP" ? ERP_ITEMS : mode === "CRM" ? CRM_ITEMS : mode === "MARKETING" ? MARKETING_ITEMS : NEXUS_ITEMS;
 
   function NavItem({ item }: { item: (typeof ERP_ITEMS)[number] }) {
     if ("section" in item) {
@@ -108,6 +121,7 @@ export function Sidebar({
     return (
       <Link
         href={href}
+        onClick={closeMobile}
         className={cn("flex items-center gap-3 mx-2 px-3 py-2 rounded-lg text-[12.5px] transition-all group")}
         style={isActive ? { backgroundColor: modeColor + "18", color: modeColor } : {}}
       >
@@ -124,9 +138,10 @@ export function Sidebar({
   }
 
   const MODES: { key: Mode; label: string; color: string; badge?: number }[] = [
-    { key: "ERP",   label: "ERP",   color: ERP_COLOR },
-    { key: "CRM",   label: "CRM",   color: CRM_COLOR,   badge: crmPendientes },
-    { key: "NEXUS", label: "Nexus", color: NEXUS_COLOR, badge: nexusSinLeer },
+    { key: "ERP",       label: "ERP",   color: ERP_COLOR },
+    { key: "CRM",       label: "CRM",   color: CRM_COLOR,   badge: crmPendientes },
+    { key: "NEXUS",     label: "Nexus", color: NEXUS_COLOR, badge: nexusSinLeer },
+    { key: "MARKETING", label: "Mkt",   color: MKT_COLOR },
   ];
 
   return (

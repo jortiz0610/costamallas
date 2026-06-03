@@ -17,10 +17,12 @@ export interface BrandConfig {
 interface BrandContextValue {
   brand: BrandConfig;
   darkMode: boolean;
-  mode: "ERP" | "CRM" | "NEXUS";
+  mode: "ERP" | "CRM" | "NEXUS" | "MARKETING";
   setBrand: (b: Partial<BrandConfig>) => void;
   toggleDark: () => void;
-  setMode: (m: "ERP" | "CRM" | "NEXUS") => void;
+  setMode: (m: "ERP" | "CRM" | "NEXUS" | "MARKETING") => void;
+  sidebarOpen: boolean;
+  setSidebarOpen: (v: boolean) => void;
 }
 
 const DEFAULT_BRAND: BrandConfig = {
@@ -42,12 +44,15 @@ const BrandContext = createContext<BrandContextValue>({
   setBrand: () => {},
   toggleDark: () => {},
   setMode: () => {},
+  sidebarOpen: false,
+  setSidebarOpen: () => {},
 });
 
 export function BrandProvider({ children }: { children: React.ReactNode }) {
   const [brand, setBrandState] = useState<BrandConfig>(DEFAULT_BRAND);
   const [darkMode, setDarkMode] = useState(false);
-  const [mode, setModeState] = useState<"ERP" | "CRM" | "NEXUS">("ERP");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mode, setModeState] = useState<"ERP" | "CRM" | "NEXUS" | "MARKETING">("ERP");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -117,12 +122,12 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const setMode = useCallback((m: "ERP" | "CRM" | "NEXUS") => setModeState(m), []);
+  const setMode = useCallback((m: "ERP" | "CRM" | "NEXUS" | "MARKETING") => setModeState(m), []);
 
   if (!mounted) return null;
 
   return (
-    <BrandContext.Provider value={{ brand, darkMode, mode, setBrand, toggleDark, setMode }}>
+    <BrandContext.Provider value={{ brand, darkMode, mode, setBrand, toggleDark, setMode, sidebarOpen, setSidebarOpen }}>
       {children}
     </BrandContext.Provider>
   );

@@ -5,11 +5,37 @@
 // ============================================================
 
 import { generateSecret, generateURI, verifySync } from "otplib";
+import { SignJWT, jwtVerify } from "jose";
+import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { encrypt, decrypt } from "@/lib/encryption";
 
 const ISSUER = "Costamallas ERP";
 const claveDe = (userId: string) => `2fa:${userId}`;
+
+// ── Dispositivos confiables: el 2FA solo se pide en dispositivos nuevos y se vuelve a pedir cada 7 días ──
+const TRUST_COOKIE = "cm_2fa_trust";
+const TRUST_DAYS = 7;
+function jwtSecret() { return new TextEncoder().encode(process.env.JWT_SECRET ?? ""); }
+
+export async function dispositivoConfiable(userId: string): Promise<boolean> {
+  try {
+    const c = (await cookies()).get(TRUST_COOKIE)?.value;
+    if (!c) return false;
+    const { payload } = await jwtVerify(c, jwtSecret());
+    return payload.sub === userId && payload.type === "2fa-trust";
+  } catch { return false; }
+}
+
+export async function recordarDispositivo(userId: string): Promise<void> {
+  const token = await new SignJWT({ sub: userId, type: "2fa-trust" })
+    .setProtectedHeader({ alg: "HS256" }).setIssuedAt()
+    .setExpirationTime(`${TRUST_DAYS}d`).sign(jwtSecret());
+  (await cookies()).set(TRUST_COOKIE, token, {
+    httpOnly: true, secure: process.env.NODE_ENV === "production",
+    sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * TRUST_DAYS,
+  });
+}
 
 function checkToken(token: string, secret: string): boolean {
   try { return verifySync({ strategy: "totp", token, secret }).valid; }

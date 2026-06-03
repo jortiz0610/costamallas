@@ -2,6 +2,7 @@
 import {
   Bell, Sun, Moon, Zap, Package, ImageIcon, Archive, UserPlus, ClipboardList,
   CheckSquare, Wrench, MessageSquareText, Settings, Inbox, Truck, FileInput,
+  Megaphone, Target, Menu,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
@@ -35,6 +36,12 @@ const QUICK_TASKS: Record<string, QuickTask[]> = {
     { label: "Nueva plantilla", href: "/nexus/plantillas", Icon: MessageSquareText },
     { label: "Flujos y automatización", href: "/nexus/flujos", Icon: Zap },
     { label: "Conexiones de canales", href: "/configuracion?tab=canales", Icon: Settings },
+  ],
+  MARKETING: [
+    { label: "Ver dashboard", href: "/marketing", Icon: Inbox },
+    { label: "Nueva campaña", href: "/marketing/campanas", Icon: Megaphone },
+    { label: "Atribución de leads", href: "/marketing/atribucion", Icon: Target },
+    { label: "Conectar Ads", href: "/configuracion?tab=marketing", Icon: Settings },
   ],
 };
 
@@ -85,8 +92,8 @@ export function Topbar({ title, actions }: TopbarProps) {
   const [showNotif, setShowNotif] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const { noLeidas } = useNotificaciones();
-  const { darkMode, toggleDark, mode } = useBrand();
-  const modeColor = mode === "ERP" ? ERP_COLOR : mode === "NEXUS" ? NEXUS_COLOR : CRM_COLOR;
+  const { darkMode, toggleDark, mode, setSidebarOpen } = useBrand();
+  const modeColor = mode === "ERP" ? ERP_COLOR : mode === "NEXUS" ? NEXUS_COLOR : mode === "MARKETING" ? "#db2777" : CRM_COLOR;
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -97,9 +104,12 @@ export function Topbar({ title, actions }: TopbarProps) {
   }, []);
 
   return (
-    <header className="h-14 flex items-center gap-3 px-5 flex-shrink-0 topbar-bg z-10 relative">
-      <div className="w-1 h-5 rounded-full flex-shrink-0" style={{ backgroundColor: modeColor }} />
-      <h1 className="text-[15px] font-semibold text-gray-800 dark:text-gray-100 flex-1">{title}</h1>
+    <header className="h-14 flex items-center gap-3 px-4 sm:px-5 flex-shrink-0 topbar-bg z-10 relative">
+      <button onClick={() => setSidebarOpen(true)} className="lg:hidden w-9 h-9 flex items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800" title="Menú">
+        <Menu size={18} />
+      </button>
+      <div className="w-1 h-5 rounded-full flex-shrink-0 hidden sm:block" style={{ backgroundColor: modeColor }} />
+      <h1 className="text-[14px] sm:text-[15px] font-semibold text-gray-800 dark:text-gray-100 flex-1 truncate">{title}</h1>
       <span className="text-[10px] font-bold px-2.5 py-1 rounded-full text-white hidden sm:inline-flex items-center" style={{ backgroundColor: modeColor }}>{mode}</span>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
       <QuickTaskButton mode={mode} color={modeColor} />

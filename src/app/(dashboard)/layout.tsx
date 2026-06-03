@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageCircle, X, Bell, AlertTriangle, CheckCircle, Info, Package } from "lucide-react";
 import type { NotificacionDTO } from "@/types";
 import { AsistenteIA } from "@/components/layout/AsistenteIA";
+import { useBrand } from "@/contexts/BrandContext";
 
 async function fetchKPIs() {
   const res = await fetch("/api/dashboard/kpis");
@@ -117,7 +118,8 @@ function SupportButton() {
   );
 }
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+function ShellInner({ children }: { children: React.ReactNode }) {
+  const { sidebarOpen, setSidebarOpen } = useBrand();
   const { data } = useQuery({ queryKey: ["dashboard", "kpis"], queryFn: fetchKPIs, staleTime: 60_000 });
 
   const { data: nexusData } = useQuery({
@@ -132,11 +134,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen overflow-hidden page-bg">
-      <Sidebar
-        stockCriticos={data?.stock?.criticos ?? 0}
-        erroresPendientes={data?.woocommerce?.erroresPendientes ?? 0}
-        nexusSinLeer={nexusData?.noLeidas ?? 0}
-      />
+      {/* Backdrop móvil */}
+      {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+      {/* Sidebar: estático en desktop, cajón en móvil */}
+      <div className={`fixed lg:static inset-y-0 left-0 z-50 transition-transform duration-200 lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        <Sidebar
+          stockCriticos={data?.stock?.criticos ?? 0}
+          erroresPendientes={data?.woocommerce?.erroresPendientes ?? 0}
+          nexusSinLeer={nexusData?.noLeidas ?? 0}
+        />
+      </div>
       <main className="flex-1 flex flex-col overflow-hidden">
         {children}
       </main>
@@ -145,4 +152,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <AsistenteIA />
     </div>
   );
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return <ShellInner>{children}</ShellInner>;
 }
