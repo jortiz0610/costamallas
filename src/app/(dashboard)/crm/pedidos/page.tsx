@@ -2,7 +2,7 @@
 import { useState, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { ChevronRight, Package, Wrench, ClipboardList, Truck, CheckCircle2, Clock, Globe, RefreshCw } from "lucide-react";
+import { ChevronRight, Package, Wrench, ClipboardList, Truck, CheckCircle2, Clock, Globe, RefreshCw, Download, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import { formatCOP } from "@/lib/utils";
@@ -82,10 +82,24 @@ function PedidosContent() {
     queryFn: async () => (await (await fetch("/api/crm/pedidos")).json()).data ?? [],
   });
 
+  const [importando, setImportando] = useState(false);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await refetch();
     setTimeout(() => setRefreshing(false), 2000);
+  };
+
+  const importarWC = async () => {
+    setImportando(true);
+    try {
+      const res = await fetch("/api/woocommerce/import-orders", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || !json.success) { toast.error(json.error ?? "Error al importar"); return; }
+      const d = json.data;
+      toast.success(`${d.importados} pedidos importados · ${d.clientesCreados} clientes nuevos · ${d.omitidos} ya existían`);
+      qc.invalidateQueries({ queryKey: ["crm-pedidos"] });
+    } catch { toast.error("Error de conexión"); } finally { setImportando(false); }
   };
 
   const avanzar = async (pedido: Pedido) => {
@@ -127,12 +141,15 @@ function PedidosContent() {
   return (
     <>
       <Topbar title="Pedidos" actions={
-        <button
-          onClick={handleRefresh}
-          className={`btn-secondary btn-sm transition-all ${refreshing ? "animate-refresh-success" : ""}`}
-        >
-          <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} /> Actualizar
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={importarWC} disabled={importando}
+            className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5 disabled:opacity-60" style={{ backgroundColor: "#7c3aed" }}>
+            {importando ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} Importar de WooCommerce
+          </button>
+          <button onClick={handleRefresh} className={`btn-secondary btn-sm transition-all ${refreshing ? "animate-refresh-success" : ""}`}>
+            <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} /> Actualizar
+          </button>
+        </div>
       } />
       <div className="flex-1 overflow-y-auto page-bg p-5 space-y-4">
 

@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { signAccessToken, signRefreshToken, setAuthCookies } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { loginSchema } from "@/lib/validations/auth";
+import { is2FAEnabled, verificar2FA } from "@/lib/twofa";
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
@@ -45,6 +46,24 @@ export async function POST(req: NextRequest) {
         { success: false, error: "Credenciales incorrectas" },
         { status: 401 }
       );
+    }
+
+    // ── Doble autenticación (si está habilitada para este usuario) ──
+    if (await is2FAEnabled(usuario.id)) {
+      const codigo = (body?.code ?? body?.codigo ?? "").toString().trim();
+      if (!codigo) {
+        return NextResponse.json(
+          { success: false, twoFactorRequired: true, error: "Ingresa el código de tu app de autenticación" },
+          { status: 401 }
+        );
+      }
+      const ok = await verificar2FA(usuario.id, codigo);
+      if (!ok) {
+        return NextResponse.json(
+          { success: false, twoFactorRequired: true, error: "Código de verificación incorrecto" },
+          { status: 401 }
+        );
+      }
     }
 
     const [accessToken, refreshToken] = await Promise.all([

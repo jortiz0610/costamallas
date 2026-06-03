@@ -25,7 +25,17 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json({ success: true, data: usuarios });
+  // Estado 2FA (guardado en Configuracion como "2fa:<userId>")
+  const claves2fa = await prisma.configuracion.findMany({
+    where: { clave: { in: usuarios.map(u => `2fa:${u.id}`) } },
+    select: { clave: true, valor: true },
+  });
+  const habilitados = new Set(
+    claves2fa.filter(c => { try { return JSON.parse(c.valor).enabled; } catch { return false; } }).map(c => c.clave.replace("2fa:", ""))
+  );
+  const data = usuarios.map(u => ({ ...u, twoFactor: habilitados.has(u.id) }));
+
+  return NextResponse.json({ success: true, data });
 }
 
 export async function POST(req: NextRequest) {

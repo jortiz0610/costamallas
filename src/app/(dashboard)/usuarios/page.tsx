@@ -1,16 +1,96 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { Plus, Shield, Check, X, Loader2, KeyRound, UserX, UserCheck, Pencil, Users } from "lucide-react";
+import { Plus, Shield, Check, X, Loader2, KeyRound, UserX, UserCheck, Pencil, Users, ShieldCheck, Smartphone } from "lucide-react";
 import toast from "react-hot-toast";
+import Image from "next/image";
 import { timeAgo } from "@/lib/utils";
 import { useBrand } from "@/contexts/BrandContext";
 
 interface Usuario {
   id: string; nombre: string; email: string;
   rol: string; activo: boolean; ultimoAcceso: string | null; createdAt: string;
+  twoFactor?: boolean;
+}
+
+function Modal2FA({ usuario, onClose, onSaved }: { usuario: Usuario; onClose: () => void; onSaved: () => void }) {
+  const { brand } = useBrand();
+  const [paso, setPaso] = useState<"cargando" | "qr" | "ok">("cargando");
+  const [qr, setQr] = useState("");
+  const [codigo, setCodigo] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const yaActivo = usuario.twoFactor;
+
+  const generar = async () => {
+    setPaso("cargando");
+    const res = await fetch(`/api/usuarios/${usuario.id}/2fa`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "generate" }) });
+    const json = await res.json();
+    if (json.success) { setQr(json.data.qr); setPaso("qr"); }
+    else { toast.error(json.error ?? "Error"); onClose(); }
+  };
+
+  // Si no está activo, generar el QR al abrir
+  useEffect(() => { if (!yaActivo) generar(); /* eslint-disable-next-line */ }, []);
+
+  const activar = async () => {
+    if (codigo.length < 6) return toast.error("Ingresa el código de 6 dígitos");
+    setBusy(true);
+    const res = await fetch(`/api/usuarios/${usuario.id}/2fa`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "activate", code: codigo }) });
+    const json = await res.json();
+    setBusy(false);
+    if (json.success) { toast.success("2FA activado ✓"); onSaved(); }
+    else toast.error(json.error ?? "Código incorrecto");
+  };
+
+  const desactivar = async () => {
+    if (!confirm(`¿Desactivar la doble autenticación de ${usuario.nombre}?`)) return;
+    setBusy(true);
+    const res = await fetch(`/api/usuarios/${usuario.id}/2fa`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "disable" }) });
+    setBusy(false);
+    if ((await res.json()).success) { toast.success("2FA desactivado"); onSaved(); }
+    else toast.error("Error");
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="card w-full max-w-md overflow-hidden animate-fade-up">
+        <div className="card-header">
+          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2"><ShieldCheck size={16} style={{ color: brand.brandColor }} /> Doble autenticación · {usuario.nombre}</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg surface-2 flex items-center justify-center text-muted"><X size={15} /></button>
+        </div>
+
+        {yaActivo ? (
+          <div className="p-6 text-center space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-500/15 flex items-center justify-center mx-auto"><ShieldCheck size={28} className="text-emerald-600" /></div>
+            <div>
+              <p className="text-sm font-bold text-gray-800 dark:text-gray-100">2FA activo</p>
+              <p className="text-xs text-muted mt-1">Este usuario debe ingresar un código de su app de autenticación al iniciar sesión.</p>
+            </div>
+            <button onClick={desactivar} disabled={busy} className="btn-danger w-full justify-center">{busy ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />} Desactivar 2FA</button>
+          </div>
+        ) : paso === "cargando" ? (
+          <div className="p-10 text-center"><Loader2 size={22} className="animate-spin mx-auto" style={{ color: brand.brandColor }} /></div>
+        ) : (
+          <div className="p-6 space-y-4">
+            <ol className="text-xs text-soft space-y-1.5 list-decimal list-inside">
+              <li>Abre <b>Google Authenticator</b> (o Authy/Microsoft Authenticator) en tu teléfono.</li>
+              <li>Toca <b>+</b> → <b>Escanear código QR</b> y apunta a la imagen.</li>
+              <li>Ingresa el código de 6 dígitos que aparece para confirmar.</li>
+            </ol>
+            {qr && <div className="flex justify-center"><Image src={qr} alt="QR 2FA" width={200} height={200} className="rounded-xl border divider bg-white p-2" unoptimized /></div>}
+            <input value={codigo} onChange={e => setCodigo(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              className="input text-center text-lg tracking-[0.3em] font-mono" placeholder="000000" inputMode="numeric" />
+            <button onClick={activar} disabled={busy} className="w-full py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50" style={{ backgroundColor: brand.brandColor }}>
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />} Activar 2FA
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 const ROLES = [
@@ -202,6 +282,7 @@ function ModalUsuario({ usuario, onClose, onSaved }: {
 function UsuariosContent() {
   const { brand } = useBrand();
   const [modal, setModal] = useState<{ open: boolean; usuario?: Usuario }>({ open: false });
+  const [modal2fa, setModal2fa] = useState<Usuario | null>(null);
   const qc = useQueryClient();
 
   const { data: usuarios = [], isLoading } = useQuery<Usuario[]>({
@@ -284,7 +365,15 @@ function UsuariosContent() {
                     <p className="text-[11px] text-gray-400 dark:text-slate-500">{u.email}</p>
                   </div>
                   <RolBadge rol={u.rol} />
-                  <p className="text-[11px] text-gray-400 dark:text-slate-500 hidden lg:block w-28 text-right">
+                  <button onClick={() => setModal2fa(u)}
+                    title={u.twoFactor ? "2FA activo — gestionar" : "Activar doble autenticación"}
+                    className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full transition-colors"
+                    style={u.twoFactor
+                      ? { backgroundColor: "#16a34a18", color: "#16a34a" }
+                      : { backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>
+                    {u.twoFactor ? <ShieldCheck size={11} /> : <Smartphone size={11} />} 2FA
+                  </button>
+                  <p className="text-[11px] text-gray-400 dark:text-slate-500 hidden lg:block w-24 text-right">
                     {u.ultimoAcceso ? timeAgo(u.ultimoAcceso) : "Nunca"}
                   </p>
                   <div className="flex items-center gap-1">
@@ -315,6 +404,13 @@ function UsuariosContent() {
           usuario={modal.usuario}
           onClose={() => setModal({ open: false })}
           onSaved={() => { setModal({ open: false }); qc.invalidateQueries({ queryKey: ["usuarios"] }); }}
+        />
+      )}
+      {modal2fa && (
+        <Modal2FA
+          usuario={modal2fa}
+          onClose={() => setModal2fa(null)}
+          onSaved={() => { setModal2fa(null); qc.invalidateQueries({ queryKey: ["usuarios"] }); }}
         />
       )}
     </>

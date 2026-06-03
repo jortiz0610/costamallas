@@ -374,3 +374,94 @@ function mapPrismaToDetalle(p: {
     updatedAt: p.updatedAt.toISOString(),
   };
 }
+
+// ── Importar PEDIDOS desde WooCommerce ────────────────────────
+// Identifica/crea el cliente por email o teléfono y crea el Pedido en el CRM.
+
+interface WCOrder {
+  id: number; number: string; status: string; total: string; date_created: string;
+  customer_note?: string;
+  billing: { first_name?: string; last_name?: string; email?: string; phone?: string; city?: string; address_1?: string; company?: string };
+  line_items: { name: string; quantity: number; price: number; total: string; sku?: string; product_id?: number }[];
+}
+
+const WC_ESTADO_MAP: Record<string, string> = {
+  pending: "NUEVO", "on-hold": "NUEVO", processing: "CONFIRMADO",
+  completed: "ENTREGADO", cancelled: "CANCELADO", refunded: "CANCELADO", failed: "NUEVO",
+};
+
+export interface ImportOrdersResult { total: number; importados: number; omitidos: number; clientesCreados: number; errores: string[]; }
+
+export async function importarPedidosWC(creds: WCCredentials, perPage = 50): Promise<ImportOrdersResult> {
+  const res: ImportOrdersResult = { total: 0, importados: 0, omitidos: 0, clientesCreados: 0, errores: [] };
+
+  const orders = await wcFetch<WCOrder[]>(creds, `orders?per_page=${perPage}&orderby=date&order=desc`, { method: "GET" });
+  res.total = orders.length;
+
+  for (const order of orders) {
+    try {
+      const numero = `WC-${order.number}`;
+      const existe = await prisma.pedido.findUnique({ where: { numero } });
+      if (existe) { res.omitidos++; continue; }
+
+      const email = order.billing?.email?.trim().toLowerCase() || null;
+      const telefono = order.billing?.phone?.trim() || null;
+      const nombre = [order.billing?.first_name, order.billing?.last_name].filter(Boolean).join(" ").trim() || order.billing?.company || "Cliente WooCommerce";
+
+      // Identificar cliente por email o teléfono
+      let cliente = null as { id: string } | null;
+      if (email || telefono) {
+        cliente = await prisma.cliente.findFirst({
+          where: { OR: [...(email ? [{ email }] : []), ...(telefono ? [{ telefono }] : [])] },
+          select: { id: true },
+        });
+      }
+      if (!cliente) {
+        cliente = await prisma.cliente.create({
+          data: {
+            nombre, email, telefono,
+            empresa: order.billing?.company || null,
+            ciudad: order.billing?.city || null,
+            direccion: order.billing?.address_1 || null,
+            estado: "CLIENTE_ACTIVO",
+            tipo: order.billing?.company ? "empresa" : "persona",
+            notas: "Cliente identificado automáticamente desde un pedido de WooCommerce.",
+          },
+          select: { id: true },
+        });
+        res.clientesCreados++;
+      }
+
+      // Mapear ítems (vincula a producto por SKU si existe)
+      const items = [] as { productoId: string | null; descripcion: string; cantidad: number; precioUnitario: number; subtotal: number; unidad: string | null; orden: number }[];
+      for (let i = 0; i < order.line_items.length; i++) {
+        const li = order.line_items[i];
+        let productoId: string | null = null;
+        if (li.sku) {
+          const prod = await prisma.producto.findUnique({ where: { sku: li.sku }, select: { id: true } });
+          productoId = prod?.id ?? null;
+        }
+        items.push({
+          productoId, descripcion: li.name, cantidad: Number(li.quantity),
+          precioUnitario: Number(li.price), subtotal: Number(li.total), unidad: "und", orden: i,
+        });
+      }
+
+      await prisma.pedido.create({
+        data: {
+          numero, clienteId: cliente.id,
+          estado: WC_ESTADO_MAP[order.status] ?? "NUEVO",
+          total: Number(order.total),
+          notas: order.customer_note || null,
+          direccionEntrega: order.billing?.address_1 || null,
+          items: { create: items },
+        },
+      });
+      res.importados++;
+    } catch (e) {
+      res.errores.push(`Pedido ${order.number}: ${(e as Error).message}`);
+    }
+  }
+
+  return res;
+}
