@@ -36,7 +36,7 @@ function NotifToast({ notif, onClose }: { notif: NotificacionDTO; onClose: () =>
   };
 
   return (
-    <div className="flex items-start gap-3 bg-white border border-gray-100 rounded-2xl shadow-lg px-4 py-3 w-80 animate-slide-in-right">
+    <div className="flex items-start gap-3 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-lg px-4 py-3 w-80 animate-slide-in-right">
       <div className="flex-shrink-0 mt-0.5">{icons[notif.tipo] ?? <Bell size={16} />}</div>
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-semibold text-gray-800 truncate">{notif.titulo}</p>
@@ -144,7 +144,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { data } = useQuery({ queryKey: ["dashboard", "kpis"], queryFn: fetchKPIs, staleTime: 60_000 });
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
       <Sidebar
         stockCriticos={data?.stock?.criticos ?? 0}
         erroresPendientes={data?.woocommerce?.erroresPendientes ?? 0}
