@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { formatCOP, formatDate, cn } from "@/lib/utils";
 import Link from "next/link";
+import toast from "react-hot-toast";
 import type { DashboardKPIs, NivelStock } from "@/types";
 import { useBrand } from "@/contexts/BrandContext";
 
@@ -39,6 +40,7 @@ export default function DashboardPage() {
   const handleRefresh = async () => {
     setRefreshing(true);
     await refetch();
+    toast.success("Dashboard actualizado");
     setTimeout(() => setRefreshing(false), 2200);
   };
 

@@ -131,5 +131,6 @@ export function isAdmin(user: JWTPayload): boolean {
 }
 
 export function canWrite(user: JWTPayload): boolean {
-  return user.rol === "ADMIN" || user.rol === "USUARIO";
+  // Todos pueden escribir excepto los de solo lectura
+  return user.rol !== "SOLO_LECTURA";
 }

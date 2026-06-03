@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
 import Link from "next/link";
 import { Plus, Search, Filter, RefreshCw, Package } from "lucide-react";
+import toast from "react-hot-toast";
 import { formatCOP, cn } from "@/lib/utils";
 import type { ProductoListItem, NivelStock, EstadoProducto } from "@/types";
 
@@ -55,6 +56,7 @@ export default function ProductosPage() {
   const handleRefresh = async () => {
     setRefreshing(true);
     await refetch();
+    toast.success("Productos actualizados");
     setTimeout(() => setRefreshing(false), 2200);
   };
 

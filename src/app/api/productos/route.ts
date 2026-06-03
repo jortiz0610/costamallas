@@ -27,11 +27,22 @@ export async function GET(req: NextRequest) {
   const where: Prisma.ProductoWhereInput = {};
 
   if (busqueda) {
-    where.OR = [
-      { sku: { contains: busqueda, mode: "insensitive" } },
-      { nombre: { contains: busqueda, mode: "insensitive" } },
-      { acfMarcaFabricante: { contains: busqueda, mode: "insensitive" } },
-    ];
+    // Busca por cada palabra (AND) y tolera plurales (mallas → malla)
+    const terms = busqueda.trim().split(/\s+/).filter(Boolean);
+    where.AND = terms.map((t) => {
+      const variants = [t];
+      if (t.length > 3 && t.toLowerCase().endsWith("s")) variants.push(t.slice(0, -1)); // singular
+      const or: Prisma.ProductoWhereInput[] = [];
+      for (const v of variants) {
+        or.push(
+          { sku: { contains: v, mode: "insensitive" } },
+          { nombre: { contains: v, mode: "insensitive" } },
+          { acfMarcaFabricante: { contains: v, mode: "insensitive" } },
+          { categorias: { has: v.toLowerCase() } },
+        );
+      }
+      return { OR: or };
+    });
   }
   if (categoria) where.categorias = { has: categoria };
   if (estado) where.intEstado = estado;

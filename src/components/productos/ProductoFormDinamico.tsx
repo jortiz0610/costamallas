@@ -713,7 +713,9 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
       const res = await fetch(url, { method: modo === "crear" ? "POST" : "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const json = await res.json();
       if (!res.ok || !json.success) return toast.error(json.error ?? "Error al guardar");
-      toast.success(modo === "crear" ? "Producto creado ✓" : "Guardado ✓");
+      toast.success(modo === "crear" ? "Producto creado ✓" : "Producto actualizado ✓");
+      if (json.wcSync === "ok") toast.success("Sincronizado con WooCommerce ✓", { icon: "🛒" });
+      else if (json.wcSync === "error") toast("Guardado, pero no se pudo sincronizar con WooCommerce", { icon: "⚠️" });
       if (modo === "crear") router.push(`/productos/${json.data.id}`);
     } catch { toast.error("Error de conexión"); }
     finally { setSaving(false); }

@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest, canWrite, isAdmin } from "@/lib/auth";
+import { getWCCredentials, syncProductosToWC } from "@/lib/woocommerce";
 import { productoSchema } from "@/lib/validations/producto";
 import { nivelStock } from "@/lib/utils";
 
@@ -89,7 +90,22 @@ export async function PUT(req: NextRequest, { params }: Params) {
       },
     });
 
-    return NextResponse.json({ success: true, data: updated });
+    // Auto-sincronizar a WooCommerce si está publicado o ya existe en WC
+    let wcSync: "ok" | "error" | "skip" = "skip";
+    if (updated.publicado || updated.wcId) {
+      try {
+        const creds = await getWCCredentials();
+        if (creds) {
+          const r = await syncProductosToWC([id], creds);
+          wcSync = r.failed > 0 ? "error" : "ok";
+        }
+      } catch (e) {
+        console.error("[WC auto-sync]", e);
+        wcSync = "error";
+      }
+    }
+
+    return NextResponse.json({ success: true, data: updated, wcSync });
   } catch (err) {
     console.error("[PUT /api/productos/id]", err);
     return NextResponse.json({ success: false, error: "Error al actualizar" }, { status: 500 });
