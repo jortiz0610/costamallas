@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Topbar } from "@/components/layout/Topbar";
 import { KPICard } from "@/components/dashboard/KPICard";
 import {
@@ -25,6 +26,7 @@ const stockBadge: Record<NivelStock, string> = {
 };
 
 export default function DashboardPage() {
+  const [refreshing, setRefreshing] = useState(false);
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["dashboard", "kpis"],
     queryFn: fetchKPIs,
@@ -32,13 +34,19 @@ export default function DashboardPage() {
     refetchInterval: 2 * 60 * 1000,
   });
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refetch();
+    setTimeout(() => setRefreshing(false), 2200);
+  };
+
   return (
     <>
       <Topbar
         title="Dashboard"
         actions={
-          <button onClick={() => refetch()} className="btn-secondary btn-sm">
-            <RefreshCw size={13} className={isLoading ? "animate-spin" : ""} />
+          <button onClick={handleRefresh} className={`btn-secondary btn-sm transition-all ${refreshing ? "animate-refresh-success" : ""}`}>
+            <RefreshCw size={13} className={isLoading ? "animate-spin" : refreshing ? "animate-spin-once" : ""} />
             Actualizar
           </button>
         }

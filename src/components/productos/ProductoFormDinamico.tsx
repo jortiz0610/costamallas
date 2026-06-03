@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Save, Loader2, Plus, Trash2, Check, ChevronDown, X } from "lucide-react";
+import { Save, Loader2, Plus, Trash2, Check, X, Star, Upload, ImageIcon } from "lucide-react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import Image from "next/image";
 
 type FD = Record<string, unknown>;
 interface Props { initialData?: FD; productoId?: string; modo: "crear" | "editar"; }
@@ -174,44 +176,28 @@ function TagInput({ label, value, onChange, hint, placeholder }: {
   );
 }
 
-function CatDropdown({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h);
-  }, []);
+function CatSelector({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
   const toggle = (v: string) => value.includes(v) ? onChange(value.filter(c => c !== v)) : onChange([...value, v]);
-  const sel = CATS.filter(c => value.includes(c.v));
-
   return (
-    <div ref={ref} className="relative">
+    <div>
       <Label>Categorías</Label>
-      <button type="button" onClick={() => setOpen(!open)}
-        className="w-full border border-gray-200 rounded-lg px-3 py-2 flex items-center justify-between gap-2 hover:border-gray-300 focus:border-[#FFCC00] focus:ring-2 focus:ring-[#FFCC00]/20 outline-none transition-all bg-white">
-        <div className="flex flex-wrap gap-1.5 flex-1">
-          {sel.length === 0
-            ? <span className="text-sm text-gray-400">Seleccionar categorías…</span>
-            : sel.map(c => <span key={c.v} className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${c.c}`}>{c.l}</span>)
-          }
-        </div>
-        <ChevronDown size={14} className={`text-gray-400 transition-transform flex-shrink-0 ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-50 py-1 overflow-hidden">
-          {CATS.map(c => (
+      <div className="flex flex-col gap-1.5 mt-1">
+        {CATS.map(c => {
+          const sel = value.includes(c.v);
+          return (
             <button type="button" key={c.v} onClick={() => toggle(c.v)}
-              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left">
-              <div className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-all border-2 ${value.includes(c.v) ? "border-0" : "border-gray-200"}`}
-                style={value.includes(c.v) ? { backgroundColor: c.dot } : {}}>
-                {value.includes(c.v) && <Check size={11} className="text-white" />}
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-left transition-all border-2 ${sel ? "border-transparent shadow-sm" : "border-gray-100 hover:border-gray-200"}`}
+              style={sel ? { backgroundColor: c.dot + "22", borderColor: c.dot } : { backgroundColor: "transparent" }}>
+              <div className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-all ${sel ? "" : "bg-gray-100"}`}
+                style={sel ? { backgroundColor: c.dot } : {}}>
+                {sel && <Check size={11} className="text-white" />}
               </div>
-              <span className="text-sm text-gray-700 flex-1">{c.l}</span>
-              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.dot }} />
+              <span className="text-[12px] font-semibold flex-1" style={{ color: sel ? c.dot : "#6b7280" }}>{c.l}</span>
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.dot, opacity: sel ? 1 : 0.3 }} />
             </button>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -456,8 +442,121 @@ const TABS = [
   { id: "producto",    label: "Producto" },
   { id: "descripcion", label: "Descripción" },
   { id: "calidad",     label: "Calidad" },
+  { id: "imagenes",    label: "Imágenes" },
 ] as const;
 type TabId = typeof TABS[number]["id"] | "ficha";
+
+interface AcfImagen { id: string; productoId: string; urlImagen: string; altText: string | null; esPrincipal: boolean; posicion: number; }
+
+function GaleriaProducto({ productoId }: { productoId: string }) {
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const { data: imagenes = [], isLoading } = useQuery<AcfImagen[]>({
+    queryKey: ["imagenes", productoId],
+    queryFn: async () => (await (await fetch(`/api/imagenes?productoId=${productoId}`)).json()).data ?? [],
+  });
+
+  const handleUpload = async (files: FileList | null) => {
+    if (!files) return;
+    setUploading(true);
+    let ok = 0;
+    for (const file of Array.from(files)) {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("productoId", productoId);
+      fd.append("esPrincipal", String(ok === 0 && imagenes.length === 0));
+      try {
+        const res = await fetch("/api/imagenes/upload", { method: "POST", body: fd });
+        const json = await res.json();
+        if (!res.ok || !json.success) toast.error(`${file.name}: ${json.error}`);
+        else ok++;
+      } catch { toast.error(`Error: ${file.name}`); }
+    }
+    if (ok > 0) { toast.success(`${ok} imagen${ok > 1 ? "es" : ""} subidas`); qc.invalidateQueries({ queryKey: ["imagenes", productoId] }); }
+    setUploading(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("¿Eliminar esta imagen?")) return;
+    const res = await fetch(`/api/imagenes?id=${id}`, { method: "DELETE" });
+    const json = await res.json();
+    if (json.success) { toast.success("Eliminada"); qc.invalidateQueries({ queryKey: ["imagenes", productoId] }); }
+    else toast.error(json.error ?? "Error");
+  };
+
+  const handlePrincipal = async (id: string) => {
+    const res = await fetch("/api/imagenes", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, esPrincipal: true }) });
+    const json = await res.json();
+    if (json.success) { toast.success("Imagen principal actualizada"); qc.invalidateQueries({ queryKey: ["imagenes", productoId] }); }
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Upload area */}
+      <div
+        onClick={() => fileRef.current?.click()}
+        className="border-2 border-dashed border-gray-200 rounded-2xl p-8 flex flex-col items-center gap-3 cursor-pointer hover:border-gray-300 hover:bg-gray-50 transition-all group"
+      >
+        <div className="w-14 h-14 rounded-2xl bg-gray-100 group-hover:bg-gray-200 flex items-center justify-center transition-colors">
+          {uploading ? <Loader2 size={22} className="animate-spin text-gray-400" /> : <Upload size={22} className="text-gray-400" />}
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-semibold text-gray-600">{uploading ? "Subiendo imágenes…" : "Haz clic para subir imágenes"}</p>
+          <p className="text-xs text-gray-400 mt-0.5">JPG, PNG, WEBP · Máx 5MB por imagen</p>
+        </div>
+        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden"
+          onChange={e => handleUpload(e.target.files)} />
+      </div>
+
+      {/* Galería */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 size={18} className="animate-spin text-gray-300" />
+        </div>
+      ) : imagenes.length === 0 ? (
+        <div className="text-center py-8">
+          <ImageIcon size={28} className="mx-auto mb-2 text-gray-200" />
+          <p className="text-sm text-gray-400">Sin imágenes — sube la primera arriba</p>
+        </div>
+      ) : (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{imagenes.length} imagen{imagenes.length !== 1 ? "es" : ""}</p>
+            <p className="text-[11px] text-gray-400">Hover para ver opciones · ⭐ = Principal</p>
+          </div>
+          <div className="grid grid-cols-4 gap-3">
+            {imagenes.map(img => (
+              <div key={img.id} className="relative group rounded-xl overflow-hidden border-2 aspect-square"
+                style={{ borderColor: img.esPrincipal ? "#FFCC00" : "transparent" }}>
+                <Image src={img.urlImagen} alt={img.altText ?? ""} fill className="object-cover" unoptimized />
+                {img.esPrincipal && (
+                  <div className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-yellow-400 flex items-center justify-center">
+                    <Star size={12} className="text-white fill-white" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                  {!img.esPrincipal && (
+                    <button onClick={() => handlePrincipal(img.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-400 text-white text-xs font-semibold"
+                      title="Marcar como principal">
+                      <Star size={11} /> Principal
+                    </button>
+                  )}
+                  <button onClick={() => handleDelete(img.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-semibold">
+                    <Trash2 size={11} /> Eliminar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ProductoFormDinamico({ initialData, productoId, modo }: Props) {
   const router = useRouter();
@@ -617,6 +716,11 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
             {/* Sidebar */}
             <div className="space-y-4">
 
+              {/* Categorías — arriba y presente */}
+              <div className="card p-4">
+                <CatSelector value={cats} onChange={v => set("categorias", v)} />
+              </div>
+
               {/* Estado */}
               <div className="card p-4 space-y-2">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Estado</p>
@@ -634,11 +738,6 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
                 <SToggle label="Publicado en tienda" desc="Visible en costamallas.com" checked={Boolean(form.publicado)} onChange={v => set("publicado", v)} />
                 <SToggle label="Producto destacado" desc="Aparece en secciones featured" checked={Boolean(form.destacado)} onChange={v => set("destacado", v)} />
                 <SToggle label="Listo para exportar" desc="Aparece en la cola de exportación a WC" checked={Boolean(form.intListoExportar)} onChange={v => set("intListoExportar", v)} />
-              </div>
-
-              {/* Categorías */}
-              <div className="card p-4">
-                <CatDropdown value={cats} onChange={v => set("categorias", v)} />
               </div>
 
               {/* Etiquetas */}
@@ -728,6 +827,21 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
                     return info ? <span key={cat} className={`text-xs px-3 py-1.5 rounded-full font-medium ${info.c}`}>{info.l}</span> : null;
                   })}
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* PESTAÑA: IMÁGENES */}
+        {tab === "imagenes" && (
+          <div className="max-w-3xl mx-auto">
+            {productoId ? (
+              <GaleriaProducto productoId={productoId} />
+            ) : (
+              <div className="card p-12 text-center">
+                <ImageIcon size={28} className="mx-auto mb-3 text-gray-200" />
+                <p className="text-sm font-semibold text-gray-500">Guarda el producto primero</p>
+                <p className="text-xs text-gray-400 mt-1">Debes crear el producto antes de subir imágenes.</p>
               </div>
             )}
           </div>

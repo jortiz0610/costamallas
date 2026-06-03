@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
       orderBy: { [orderBy]: order },
       include: {
         imagenes: { where: { esPrincipal: true }, take: 1, select: { urlImagen: true } },
+        _count: { select: { imagenes: true } },
       },
     }),
     prisma.producto.count({ where }),
@@ -68,6 +69,7 @@ export async function GET(req: NextRequest) {
     intListoExportar: p.intListoExportar,
     updatedAt: p.updatedAt.toISOString(),
     imagenPrincipal: p.imagenes[0]?.urlImagen ?? null,
+    _count: { imagenes: p._count.imagenes },
   }));
 
   return NextResponse.json({

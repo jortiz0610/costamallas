@@ -13,14 +13,7 @@ export async function GET(_req: NextRequest, { params }: P) {
     where: { id },
     include: {
       vendedor: { select: { nombre: true, email: true } },
-      cotizaciones: {
-        orderBy: { createdAt: "desc" }, take: 10,
-        select: { id: true, numero: true, estado: true, total: true, createdAt: true },
-      },
-      pedidos: {
-        orderBy: { createdAt: "desc" }, take: 10,
-        select: { id: true, numero: true, estado: true, total: true, createdAt: true },
-      },
+      _count: { select: { cotizaciones: true, pedidos: true } },
     },
   });
 
@@ -34,12 +27,28 @@ export async function PUT(req: NextRequest, { params }: P) {
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
 
   const body = await req.json();
-  const { nombre, empresa, email, telefono, ciudad, direccion, nit, tipo, notas, activo } = body;
+  const { nombre, empresa, cargo, email, telefono, whatsapp, ciudad, departamento,
+          direccion, nit, paginaWeb, tipo, notas, activo, estado } = body;
 
   const updated = await prisma.cliente.update({
     where: { id },
-    data: { nombre, empresa, email, telefono, ciudad, direccion, nit, tipo, notas,
-      ...(activo !== undefined && { activo }) },
+    data: {
+      ...(nombre !== undefined && { nombre }),
+      ...(empresa !== undefined && { empresa }),
+      ...(cargo !== undefined && { cargo }),
+      ...(email !== undefined && { email }),
+      ...(telefono !== undefined && { telefono }),
+      ...(whatsapp !== undefined && { whatsapp }),
+      ...(ciudad !== undefined && { ciudad }),
+      ...(departamento !== undefined && { departamento }),
+      ...(direccion !== undefined && { direccion }),
+      ...(nit !== undefined && { nit }),
+      ...(paginaWeb !== undefined && { paginaWeb }),
+      ...(tipo !== undefined && { tipo }),
+      ...(notas !== undefined && { notas }),
+      ...(activo !== undefined && { activo }),
+      ...(estado !== undefined && { estado }),
+    },
   });
 
   return NextResponse.json({ success: true, data: updated });

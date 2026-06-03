@@ -37,14 +37,17 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
 
   const body = await req.json();
-  const { nombre, empresa, email, telefono, ciudad, direccion, nit, tipo, notas } = body;
+  const { nombre, empresa, cargo, email, telefono, whatsapp, ciudad, departamento,
+          direccion, nit, paginaWeb, tipo, notas, estado } = body;
 
   if (!nombre?.trim()) return NextResponse.json({ success: false, error: "Nombre requerido" }, { status: 400 });
 
   const cliente = await prisma.cliente.create({
     data: {
-      nombre, empresa, email, telefono, ciudad, direccion, nit,
-      tipo: tipo ?? "empresa", notas,
+      nombre, empresa, cargo, email, telefono, whatsapp, ciudad, departamento,
+      direccion, nit, paginaWeb,
+      tipo: tipo ?? "persona", notas,
+      estado: estado ?? "PROSPECTO",
       vendedorId: user.sub,
     },
   });

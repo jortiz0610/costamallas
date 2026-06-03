@@ -54,21 +54,26 @@ enum Rol {
 // ─────────────────────────────────────────────
 
 model Cliente {
-  id         String   @id @default(cuid())
-  nombre     String
-  empresa    String?
-  email      String?
-  telefono   String?
-  ciudad     String?
-  direccion  String?
-  nit        String?
-  tipo       String   @default("empresa")
-  notas      String?  @db.Text
-  vendedorId String?
-  vendedor   Usuario? @relation(fields: [vendedorId], references: [id], onDelete: SetNull)
-  activo     Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id           String   @id @default(cuid())
+  nombre       String
+  empresa      String?
+  cargo        String?
+  email        String?
+  telefono     String?
+  whatsapp     String?
+  ciudad       String?
+  departamento String?
+  direccion    String?
+  nit          String?
+  paginaWeb    String?
+  tipo         String   @default("persona")
+  estado       String   @default("PROSPECTO")
+  notas        String?  @db.Text
+  vendedorId   String?
+  vendedor     Usuario? @relation(fields: [vendedorId], references: [id], onDelete: SetNull)
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   cotizaciones Cotizacion[]
   pedidos      Pedido[]
@@ -76,6 +81,7 @@ model Cliente {
   @@map("clientes")
   @@index([vendedorId])
   @@index([activo])
+  @@index([estado])
 }
 
 model Cotizacion {

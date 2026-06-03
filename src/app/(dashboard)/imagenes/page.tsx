@@ -2,15 +2,17 @@
 import { useState, useRef, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { Upload, Trash2, Star, Loader2, ImageIcon, X, Search, Grid3X3, List, AlertTriangle, Package, RefreshCw, CheckCircle } from "lucide-react";
+import { Upload, Trash2, Star, Loader2, ImageIcon, Search, RefreshCw, AlertTriangle, CheckCircle, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import Image from "next/image";
 import { useBrand } from "@/contexts/BrandContext";
 
 interface AcfImagen { id: string; productoId: string; urlImagen: string; altText: string | null; esPrincipal: boolean; posicion: number; }
-interface ProductoConImagenes { id: string; sku: string; nombre: string; categorias: string[]; intEstado: string; _count: { imagenes: number }; imagenPrincipal?: string | null; }
+interface ProductoConImagenes {
+  id: string; sku: string; nombre: string; categorias: string[]; intEstado: string;
+  _count: { imagenes: number }; imagenPrincipal?: string | null;
+}
 type FiltroImg = "todos" | "con_imagenes" | "sin_imagenes";
-type Vista = "grid" | "list";
 
 async function fetchProductos(filtro: FiltroImg, busqueda: string) {
   const params = new URLSearchParams({ limit: "200", orderBy: "nombre" });
@@ -28,11 +30,8 @@ async function fetchImagenes(productoId: string): Promise<AcfImagen[]> {
   return (await res.json()).data ?? [];
 }
 
-function UploadZone({ productoId, onDone }: { productoId: string; onDone: () => void }) {
+function UploadButton({ productoId, onDone }: { productoId: string; onDone: () => void }) {
   const [uploading, setUploading] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const [prog, setProg] = useState(0);
-  const [total, setTotal] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const { brand } = useBrand();
 
@@ -40,7 +39,6 @@ function UploadZone({ productoId, onDone }: { productoId: string; onDone: () => 
     if (!files || !productoId) return;
     setUploading(true);
     const arr = Array.from(files);
-    setTotal(arr.length); setProg(0);
     let ok = 0;
     for (const file of arr) {
       const fd = new FormData();
@@ -51,80 +49,125 @@ function UploadZone({ productoId, onDone }: { productoId: string; onDone: () => 
         if (!res.ok || !json.success) toast.error(`${file.name}: ${json.error}`);
         else ok++;
       } catch { toast.error(`Error: ${file.name}`); }
-      setProg(p => p + 1);
     }
-    if (ok > 0) toast.success(`${ok} imagen${ok > 1 ? "es" : ""} subida${ok > 1 ? "s" : ""} a FTP Hostinger`);
+    if (ok > 0) toast.success(`${ok} imagen${ok > 1 ? "es" : ""} subidas`);
     setUploading(false); onDone();
   };
 
   return (
-    <div onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)}
-      onDrop={e => { e.preventDefault(); setDragOver(false); handleUpload(e.dataTransfer.files); }}
-      onClick={() => !uploading && fileRef.current?.click()}
-      className="border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all"
-      style={{ borderColor: dragOver ? brand.brandColor : "#e2e8f0", backgroundColor: dragOver ? brand.brandColor + "08" : "transparent" }}>
+    <>
       <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={e => handleUpload(e.target.files)} />
-      {uploading ? (
-        <div className="space-y-2">
-          <Loader2 size={22} className="animate-spin mx-auto" style={{ color: brand.brandColor }} />
-          <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Subiendo {prog}/{total} a catalogo.costamallas.com...</p>
-          <div className="w-full max-w-xs mx-auto bg-gray-100 dark:bg-gray-700 rounded-full h-1.5">
-            <div className="h-1.5 rounded-full transition-all" style={{ width: `${(prog/total)*100}%`, backgroundColor: brand.brandColor }} />
-          </div>
-        </div>
-      ) : (
-        <>
-          <Upload size={22} className="mx-auto mb-2 text-gray-300" />
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Arrastra imagenes o haz clic</p>
-          <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP · max 5MB · FTP Hostinger</p>
-        </>
-      )}
-    </div>
+      <button
+        onClick={() => fileRef.current?.click()}
+        disabled={uploading}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-50 flex-shrink-0"
+        style={{ backgroundColor: brand.brandColor }}
+      >
+        {uploading ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
+        Agregar
+      </button>
+    </>
   );
 }
 
-function GaleriaProducto({ productoId, onClose }: { productoId: string; onClose: () => void }) {
+function ProductoImageRow({ producto }: { producto: ProductoConImagenes }) {
   const qc = useQueryClient();
   const { brand } = useBrand();
+
   const { data: imagenes = [], isLoading } = useQuery({
-    queryKey: ["imagenes", productoId],
-    queryFn: () => fetchImagenes(productoId),
-    enabled: !!productoId,
+    queryKey: ["imagenes", producto.id],
+    queryFn: () => fetchImagenes(producto.id),
   });
+
   const handleDelete = async (id: string) => {
-    if (!confirm("Eliminar esta imagen del FTP?")) return;
+    if (!confirm("Eliminar imagen?")) return;
     const res = await fetch(`/api/imagenes?id=${id}`, { method: "DELETE" });
     const json = await res.json();
-    if (json.success) { toast.success("Eliminada"); qc.invalidateQueries({ queryKey: ["imagenes", productoId] }); qc.invalidateQueries({ queryKey: ["productos-imagenes"] }); }
-    else toast.error(json.error ?? "Error");
+    if (json.success) {
+      toast.success("Eliminada");
+      qc.invalidateQueries({ queryKey: ["imagenes", producto.id] });
+      qc.invalidateQueries({ queryKey: ["productos-imagenes"] });
+    } else toast.error(json.error ?? "Error");
   };
+
   const handlePrincipal = async (id: string) => {
-    const res = await fetch("/api/imagenes", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, esPrincipal: true }) });
+    const res = await fetch("/api/imagenes", {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, esPrincipal: true }),
+    });
     const json = await res.json();
-    if (json.success) { toast.success("Principal actualizada"); qc.invalidateQueries({ queryKey: ["imagenes", productoId] }); }
+    if (json.success) {
+      toast.success("Principal actualizada");
+      qc.invalidateQueries({ queryKey: ["imagenes", producto.id] });
+    }
   };
+
   return (
-    <div className="space-y-4">
-      <UploadZone productoId={productoId} onDone={() => { qc.invalidateQueries({ queryKey: ["imagenes", productoId] }); qc.invalidateQueries({ queryKey: ["productos-imagenes"] }); }} />
+    <div className="card p-4">
+      {/* Product header */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 dark:bg-slate-700 relative flex-shrink-0">
+          {producto.imagenPrincipal ? (
+            <Image src={producto.imagenPrincipal} alt={producto.nombre} fill className="object-cover" unoptimized />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center"><ImageIcon size={14} className="text-gray-300" /></div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{producto.nombre}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-xs font-mono text-gray-400">{producto.sku}</span>
+            {producto.categorias?.length > 0 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ backgroundColor: brand.brandColor + "15", color: brand.brandColor }}>
+                {producto.categorias[0]}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {imagenes.length === 0
+            ? <span className="flex items-center gap-1 text-[11px] font-semibold text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-lg"><AlertTriangle size={10} />Sin fotos</span>
+            : <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded-lg"><CheckCircle size={10} />{imagenes.length} foto{imagenes.length !== 1 ? "s" : ""}</span>
+          }
+          <UploadButton
+            productoId={producto.id}
+            onDone={() => {
+              qc.invalidateQueries({ queryKey: ["imagenes", producto.id] });
+              qc.invalidateQueries({ queryKey: ["productos-imagenes"] });
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Photos strip */}
       {isLoading ? (
-        <div className="py-8 text-center"><Loader2 size={18} className="animate-spin mx-auto" style={{ color: brand.brandColor }} /></div>
+        <div className="h-16 flex items-center justify-center">
+          <Loader2 size={14} className="animate-spin" style={{ color: brand.brandColor }} />
+        </div>
       ) : imagenes.length === 0 ? (
-        <div className="py-8 text-center"><ImageIcon size={22} className="mx-auto mb-2 text-gray-200" /><p className="text-sm text-gray-400">Sin imagenes — sube la primera arriba</p></div>
+        <div className="h-16 flex items-center justify-center rounded-xl border-2 border-dashed border-gray-200 dark:border-slate-700">
+          <p className="text-xs text-gray-400">Sin imágenes — haz clic en Agregar</p>
+        </div>
       ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+        <div className="flex gap-2 flex-wrap">
           {imagenes.map(img => (
-            <div key={img.id} className="relative group rounded-xl overflow-hidden border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 aspect-square">
+            <div key={img.id} className="relative group w-16 h-16 rounded-xl overflow-hidden border-2 flex-shrink-0"
+              style={{ borderColor: img.esPrincipal ? brand.brandColor : "transparent" }}>
               <Image src={img.urlImagen} alt={img.altText ?? ""} fill className="object-cover" unoptimized />
               {img.esPrincipal && (
-                <div className="absolute top-1.5 left-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 text-white" style={{ backgroundColor: brand.brandColor }}>
-                  <Star size={8} /> Principal
+                <div className="absolute top-0.5 left-0.5">
+                  <Star size={8} className="text-white drop-shadow" />
                 </div>
               )}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1">
                 {!img.esPrincipal && (
-                  <button onClick={() => handlePrincipal(img.id)} className="p-1.5 rounded-lg bg-white/90 text-gray-700 hover:bg-white" title="Principal"><Star size={13} /></button>
+                  <button onClick={() => handlePrincipal(img.id)} className="p-1 rounded-md bg-white/90 text-gray-700 hover:bg-white" title="Principal">
+                    <Star size={10} />
+                  </button>
                 )}
-                <button onClick={() => handleDelete(img.id)} className="p-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600" title="Eliminar"><Trash2 size={13} /></button>
+                <button onClick={() => handleDelete(img.id)} className="p-1 rounded-md bg-red-500 text-white hover:bg-red-600" title="Eliminar">
+                  <Trash2 size={10} />
+                </button>
               </div>
             </div>
           ))}
@@ -135,16 +178,14 @@ function GaleriaProducto({ productoId, onClose }: { productoId: string; onClose:
 }
 
 const FILTROS: { key: FiltroImg; label: string; color: string }[] = [
-  { key: "todos",         label: "Todos",          color: "#6b7280" },
-  { key: "con_imagenes",  label: "Con imagenes",   color: "#16a34a" },
-  { key: "sin_imagenes",  label: "Sin imagenes",   color: "#dc2626" },
+  { key: "todos",        label: "Todos",         color: "#6b7280" },
+  { key: "con_imagenes", label: "Con imágenes",  color: "#16a34a" },
+  { key: "sin_imagenes", label: "Sin imágenes",  color: "#dc2626" },
 ];
 
 function ImagenesContent() {
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState<FiltroImg>("todos");
-  const [vista, setVista] = useState<Vista>("grid");
-  const [abierto, setAbierto] = useState<string | null>(null);
   const { brand } = useBrand();
 
   const { data: productos = [], isLoading, refetch } = useQuery<ProductoConImagenes[]>({
@@ -158,17 +199,18 @@ function ImagenesContent() {
 
   return (
     <>
-      <Topbar title="Modulo de imagenes" actions={
+      <Topbar title="Gestión de imágenes" actions={
         <button onClick={() => refetch()} className="btn-secondary btn-sm">
           <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} /> Actualizar
         </button>
       } />
       <div className="flex-1 overflow-y-auto page-bg">
+        {/* Stats */}
         <div className="grid grid-cols-4 gap-4 p-5 pb-0">
           {[
             { label: "Productos", val: productos.length, color: brand.brandColor },
-            { label: "Con imagenes", val: conImg, color: "#16a34a" },
-            { label: "Sin imagenes", val: sinImg, color: "#dc2626" },
+            { label: "Con imágenes", val: conImg, color: "#16a34a" },
+            { label: "Sin imágenes", val: sinImg, color: "#dc2626" },
             { label: "Total FTP", val: totalImg, color: "#7c3aed" },
           ].map(s => (
             <div key={s.label} className="card p-4">
@@ -177,8 +219,10 @@ function ImagenesContent() {
             </div>
           ))}
         </div>
+
+        {/* Filters */}
         <div className="px-5 py-4 flex flex-wrap items-center gap-3">
-          <div className="flex rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+          <div className="flex rounded-xl overflow-hidden border border-gray-200 dark:border-slate-700">
             {FILTROS.map(f => (
               <button key={f.key} onClick={() => setFiltro(f.key)}
                 className="px-3 py-1.5 text-xs font-semibold transition-all"
@@ -191,75 +235,27 @@ function ImagenesContent() {
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input value={busqueda} onChange={e => setBusqueda(e.target.value)} className="input pl-9 py-1.5 text-xs" placeholder="Buscar producto..." />
           </div>
-          <div className="flex rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 ml-auto">
-            <button onClick={() => setVista("grid")} className="p-2 transition-all" style={vista === "grid" ? { backgroundColor: brand.brandColor, color: "white" } : { color: "#9ca3af" }}><Grid3X3 size={14} /></button>
-            <button onClick={() => setVista("list")} className="p-2 transition-all" style={vista === "list" ? { backgroundColor: brand.brandColor, color: "white" } : { color: "#9ca3af" }}><List size={14} /></button>
-          </div>
         </div>
-        <div className="px-5 pb-6">
+
+        {/* Product list */}
+        <div className="px-5 pb-6 space-y-3">
           {isLoading ? (
-            <div className="flex items-center justify-center py-20"><Loader2 size={22} className="animate-spin mr-2" style={{ color: brand.brandColor }} /><span className="text-sm text-gray-400">Cargando...</span></div>
+            <div className="flex items-center justify-center py-20">
+              <Loader2 size={22} className="animate-spin mr-2" style={{ color: brand.brandColor }} />
+              <span className="text-sm text-gray-400">Cargando...</span>
+            </div>
           ) : productos.length === 0 ? (
-            <div className="card p-12 text-center"><Package size={28} className="mx-auto mb-3 text-gray-200" /><p className="text-sm text-gray-400">Sin productos</p></div>
-          ) : vista === "grid" ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {productos.map(p => (
-                <div key={p.id} onClick={() => setAbierto(abierto === p.id ? null : p.id)}
-                  className="card cursor-pointer hover:shadow-md transition-all overflow-hidden"
-                  style={abierto === p.id ? { boxShadow: `0 0 0 2px ${brand.brandColor}` } : {}}>
-                  <div className="aspect-square bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
-                    {p.imagenPrincipal ? (
-                      <Image src={p.imagenPrincipal} alt={p.nombre} fill className="object-cover" unoptimized />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center"><ImageIcon size={24} className="text-gray-200" /></div>
-                    )}
-                    <div className="absolute bottom-1.5 right-1.5">
-                      {p._count.imagenes === 0
-                        ? <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">Sin imgs</span>
-                        : <span className="bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">{p._count.imagenes}</span>}
-                    </div>
-                  </div>
-                  <div className="p-2.5">
-                    <p className="text-[11px] font-semibold text-gray-800 dark:text-gray-200 truncate">{p.nombre}</p>
-                    <p className="text-[10px] text-gray-400">{p.sku}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="card p-12 text-center">
+              <ImageIcon size={28} className="mx-auto mb-3 text-gray-200" />
+              <p className="text-sm text-gray-400">Sin productos</p>
             </div>
           ) : (
-            <div className="card overflow-hidden">
-              {productos.map(p => (
-                <div key={p.id} onClick={() => setAbierto(abierto === p.id ? null : p.id)}
-                  className="flex items-center gap-4 px-4 py-3 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 cursor-pointer transition-colors last:border-b-0">
-                  <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 relative flex-shrink-0">
-                    {p.imagenPrincipal ? <Image src={p.imagenPrincipal} alt={p.nombre} fill className="object-cover" unoptimized /> : <div className="w-full h-full flex items-center justify-center"><ImageIcon size={14} className="text-gray-300" /></div>}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{p.nombre}</p>
-                    <p className="text-xs text-gray-400">{p.sku}</p>
-                  </div>
-                  {p._count.imagenes === 0
-                    ? <span className="flex items-center gap-1 text-xs text-red-600 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-lg"><AlertTriangle size={11} />Sin imgs</span>
-                    : <span className="text-xs text-emerald-700 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded-lg font-medium flex items-center gap-1"><CheckCircle size={11} />{p._count.imagenes} imgs</span>}
-                </div>
-              ))}
-            </div>
-          )}
-          {abierto && (
-            <div className="mt-4 card p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">{productos.find(p => p.id === abierto)?.nombre}</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">{productos.find(p => p.id === abierto)?.sku} · FTP Hostinger</p>
-                </div>
-                <button onClick={() => setAbierto(null)} className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400"><X size={14} /></button>
-              </div>
-              <GaleriaProducto productoId={abierto} onClose={() => setAbierto(null)} />
-            </div>
+            productos.map(p => <ProductoImageRow key={p.id} producto={p} />)
           )}
         </div>
       </div>
     </>
   );
 }
+
 export default function ImagenesPage() { return <Suspense><ImagenesContent /></Suspense>; }

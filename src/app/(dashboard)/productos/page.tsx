@@ -45,11 +45,18 @@ export default function ProductosPage() {
   if (busqueda) params.busqueda = busqueda;
   if (estado) params.estado = estado;
 
+  const [refreshing, setRefreshing] = useState(false);
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["productos", params],
     queryFn: () => fetchProductos(params),
     staleTime: 30_000,
   });
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refetch();
+    setTimeout(() => setRefreshing(false), 2200);
+  };
 
   return (
     <>
@@ -57,8 +64,8 @@ export default function ProductosPage() {
         title="Productos"
         actions={
           <>
-            <button onClick={() => refetch()} className="btn-secondary btn-sm">
-              <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} />
+            <button onClick={handleRefresh} className={`btn-secondary btn-sm transition-all ${refreshing ? "animate-refresh-success" : ""}`}>
+              <RefreshCw size={12} className={isLoading ? "animate-spin" : refreshing ? "animate-spin-once" : ""} />
             </button>
             <Link href="/productos/nuevo" className="btn-primary btn-sm">
               <Plus size={14} /> Nuevo producto

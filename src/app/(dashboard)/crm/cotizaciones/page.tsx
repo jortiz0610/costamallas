@@ -2,9 +2,10 @@
 import { useState, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { Plus, Search, X, Loader2, Trash2, FileText } from "lucide-react";
+import { Plus, Search, X, Loader2, Trash2, FileText, ExternalLink } from "lucide-react";
 import toast from "react-hot-toast";
 import { formatCOP } from "@/lib/utils";
+import Link from "next/link";
 
 interface Cotizacion {
   id: string; numero: string; estado: string; total: number; createdAt: string;
@@ -168,7 +169,6 @@ function NuevaCotizacion({ onClose, onSaved }: { onClose: () => void; onSaved: (
 }
 
 function CotizacionesContent() {
-  const [modal, setModal] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState("");
   const qc = useQueryClient();
   const { data: cotizaciones = [], isLoading } = useQuery<Cotizacion[]>({
@@ -186,9 +186,9 @@ function CotizacionesContent() {
   return (
     <>
       <Topbar title="Cotizaciones" actions={
-        <button onClick={() => setModal(true)} className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: CRM_COLOR }}>
-          <Plus size={13} /> Nueva cotizacion
-        </button>
+        <Link href="/crm/cotizaciones/nueva" className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: CRM_COLOR }}>
+          <Plus size={13} /> Nueva cotización
+        </Link>
       } />
       <div className="flex-1 overflow-y-auto page-bg p-5 space-y-4">
         <div className="grid grid-cols-5 gap-3">
@@ -200,7 +200,7 @@ function CotizacionesContent() {
                 className="card p-3 text-left transition-all hover:shadow-md"
                 style={activo ? { backgroundColor: e.bg, borderColor: e.text + "60" } : {}}>
                 <p className="text-xs text-gray-400">{e.l}</p>
-                <p className="text-xl font-bold mt-0.5" style={{ color: activo ? e.text : "#111827" }}>{count}</p>
+                <p className="text-xl font-bold mt-0.5 text-gray-800 dark:text-gray-100" style={{ color: activo ? e.text : undefined }}>{count}</p>
               </button>
             );
           })}
@@ -225,7 +225,6 @@ function CotizacionesContent() {
           ))}
         </div>
       </div>
-      {modal && <NuevaCotizacion onClose={() => setModal(false)} onSaved={() => { setModal(false); qc.invalidateQueries({ queryKey: ["crm-cotizaciones"] }); }} />}
     </>
   );
 }

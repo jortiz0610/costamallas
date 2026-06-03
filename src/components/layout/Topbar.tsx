@@ -27,22 +27,20 @@ export function Topbar({ title, actions }: TopbarProps) {
   }, []);
 
   return (
-    <header className="h-14 flex items-center gap-3 px-5 flex-shrink-0 topbar-bg">
+    <header className="h-14 flex items-center gap-3 px-5 flex-shrink-0 topbar-bg z-10 relative">
       <div className="w-1 h-5 rounded-full flex-shrink-0" style={{ backgroundColor: modeColor }} />
       <h1 className="text-[15px] font-semibold text-gray-800 dark:text-gray-100 flex-1">{title}</h1>
       <span className="text-[10px] font-bold px-2.5 py-1 rounded-full text-white hidden sm:inline-flex items-center" style={{ backgroundColor: modeColor }}>{mode}</span>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
       <button onClick={toggleDark}
-        className="w-9 h-9 flex items-center justify-center rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-        style={{ border: "1px solid #e2e8f0" }}
+        className="w-9 h-9 flex items-center justify-center rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 border border-gray-200 dark:border-slate-700"
         title={darkMode ? "Modo claro" : "Modo oscuro"}>
         {darkMode ? <Sun size={15} /> : <Moon size={15} />}
       </button>
       <div className="relative" ref={notifRef}>
         <button onClick={() => setShowNotif(v => !v)}
-          className={cn("relative w-9 h-9 flex items-center justify-center rounded-lg transition-colors",
-            showNotif ? "bg-gray-100 dark:bg-gray-800" : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400")}
-          style={{ border: "1px solid #e2e8f0" }}>
+          className={cn("relative w-9 h-9 flex items-center justify-center rounded-lg transition-colors border border-gray-200 dark:border-slate-700",
+            showNotif ? "bg-gray-100 dark:bg-slate-800" : "hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-500 dark:text-gray-400")}>
           <Bell size={15} />
           {noLeidas > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full" style={{ backgroundColor: modeColor }} />}
         </button>

@@ -4,10 +4,10 @@ import { useState, useRef, useEffect, Suspense } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
 import {
-  MessageSquare, Settings2, Search, Filter, Send, RefreshCw,
-  Globe, Smartphone, Instagram, Tag, Clock, CheckCheck,
-  ChevronRight, Plus, X, Zap, Users, Mail, Phone,
-  AlertCircle, Circle, Inbox, PlugZap,
+  MessageSquare, Settings2, Search, Send, RefreshCw,
+  Globe, Smartphone, Instagram, Clock, CheckCheck,
+  Plus, X, Zap, Mail, Phone,
+  Inbox, PlugZap, Youtube, Twitter, Facebook, ShoppingBag, Store,
 } from "lucide-react";
 import { useBrand } from "@/contexts/BrandContext";
 import { timeAgoCO } from "@/lib/timezone";
@@ -38,11 +38,14 @@ interface Conversacion {
 // ── Helpers de canal ─────────────────────────────────────────────
 
 const CANAL_META: Record<string, { label: string; color: string; bgColor: string; Icon: React.ElementType }> = {
-  wordpress_form: { label: "WordPress", color: "#21759b", bgColor: "#e8f4fb", Icon: Globe },
-  whatsapp:       { label: "WhatsApp",  color: "#25d366", bgColor: "#e8fdf0", Icon: Smartphone },
-  instagram:      { label: "Instagram", color: "#e1306c", bgColor: "#fce8f0", Icon: Instagram },
-  tiktok:         { label: "TikTok",    color: "#000000", bgColor: "#f0f0f0", Icon: MessageSquare },
-  email:          { label: "Email",     color: "#6366f1", bgColor: "#eef0ff", Icon: Mail },
+  wordpress_form: { label: "WordPress",    color: "#21759b", bgColor: "#e8f4fb", Icon: Globe },
+  whatsapp:       { label: "WhatsApp",     color: "#25d366", bgColor: "#e8fdf0", Icon: Smartphone },
+  instagram:      { label: "Instagram",    color: "#e1306c", bgColor: "#fce8f0", Icon: Instagram },
+  tiktok:         { label: "TikTok",       color: "#000000", bgColor: "#f0f0f0", Icon: MessageSquare },
+  email:          { label: "Email",        color: "#6366f1", bgColor: "#eef0ff", Icon: Mail },
+  facebook:       { label: "Facebook",     color: "#1877f2", bgColor: "#e8f0fe", Icon: Facebook },
+  twitter:        { label: "X / Twitter",  color: "#1da1f2", bgColor: "#e8f4fb", Icon: Twitter },
+  youtube:        { label: "YouTube",      color: "#ff0000", bgColor: "#fde8e8", Icon: Youtube },
 };
 
 function CanalBadge({ canal, size = "sm" }: { canal: string; size?: "sm" | "md" }) {
@@ -243,11 +246,14 @@ function ConexionesPanel({ onClose }: { onClose: () => void }) {
   });
 
   const CANALES_DISPONIBLES = [
-    { value: "wordpress_form", label: "WordPress Forms", icon: Globe, ready: true },
-    { value: "whatsapp",       label: "WhatsApp Business", icon: Smartphone, ready: false },
-    { value: "instagram",      label: "Instagram DM", icon: Instagram, ready: false },
-    { value: "tiktok",         label: "TikTok", icon: MessageSquare, ready: false },
-    { value: "email",          label: "Email / IMAP", icon: Mail, ready: false },
+    { value: "wordpress_form", label: "WordPress Forms",    icon: Globe,        ready: true,  desc: "Formularios de contacto del sitio web" },
+    { value: "whatsapp",       label: "WhatsApp Business",  icon: Smartphone,   ready: false, desc: "Mensajes directos por WhatsApp API" },
+    { value: "instagram",      label: "Instagram DM",       icon: Instagram,    ready: false, desc: "Mensajes directos de Instagram" },
+    { value: "facebook",       label: "Facebook Messenger", icon: Facebook,     ready: false, desc: "Mensajes de Facebook Messenger" },
+    { value: "email",          label: "Email / IMAP",       icon: Mail,         ready: false, desc: "Bandeja de correo electrónico" },
+    { value: "tiktok",         label: "TikTok",             icon: MessageSquare,ready: false, desc: "Mensajes y comentarios TikTok" },
+    { value: "twitter",        label: "X / Twitter",        icon: Twitter,      ready: false, desc: "Menciones y DMs en X" },
+    { value: "youtube",        label: "YouTube",            icon: Youtube,      ready: false, desc: "Comentarios de videos" },
   ];
 
   const guardar = async () => {
@@ -280,24 +286,39 @@ function ConexionesPanel({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
-        {/* Canales disponibles */}
+        {/* Canales disponibles — vertical */}
         <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Canales disponibles</p>
-          <div className="grid grid-cols-2 gap-2">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Todos los canales</p>
+          <div className="space-y-2">
             {CANALES_DISPONIBLES.map(c => {
               const Icon = c.icon;
               const meta = CANAL_META[c.value];
               const yaConectado = conexiones.some(x => x.canal === c.value && x.activo);
               return (
-                <div key={c.value} className={cn("p-3 rounded-xl border flex items-center gap-2 transition-all",
-                  yaConectado ? "border-emerald-200 dark:border-emerald-800" : "border-slate-200 dark:border-slate-700",
-                  !c.ready && "opacity-50")}>
-                  <Icon size={18} style={{ color: meta?.color ?? "#6b7280" }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">{c.label}</p>
-                    <p className="text-[10px] text-slate-400">{yaConectado ? "Conectado" : c.ready ? "Disponible" : "Próximamente"}</p>
+                <div key={c.value}
+                  className={cn("p-3 rounded-xl border-2 flex items-center gap-3 transition-all",
+                    yaConectado
+                      ? "border-emerald-400 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20"
+                      : c.ready
+                        ? "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+                        : "border-slate-100 dark:border-slate-800 opacity-50")}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: (meta?.color ?? "#6b7280") + "18" }}>
+                    <Icon size={18} style={{ color: meta?.color ?? "#6b7280" }} />
                   </div>
-                  {yaConectado && <span className="w-2 h-2 rounded-full bg-emerald-500" />}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">{c.label}</p>
+                    <p className="text-[10px] text-slate-400">{c.desc}</p>
+                  </div>
+                  {yaConectado ? (
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-1 rounded-lg">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Activo
+                    </span>
+                  ) : c.ready ? (
+                    <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded-lg">Disponible</span>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">Próximo</span>
+                  )}
                 </div>
               );
             })}

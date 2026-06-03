@@ -2,7 +2,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { Settings, Link2, Check, X, Loader2, Eye, EyeOff, Building2, Palette, Upload, ImageIcon } from "lucide-react";
+import { Settings, Link2, Check, X, Loader2, Eye, EyeOff, Building2, Palette, Upload, ImageIcon, ShoppingBag, Store, Users, Globe } from "lucide-react";
 import toast from "react-hot-toast";
 import { useBrand } from "@/contexts/BrandContext";
 
@@ -233,9 +233,140 @@ function TabWooCommerce() {
   );
 }
 
+function TabMarketplace({ nombre, color, logoChar, descripcion, camposExtra }: {
+  nombre: string; color: string; logoChar: string; descripcion: string;
+  camposExtra?: { key: string; label: string; placeholder: string; type?: string }[];
+}) {
+  const [apiKey, setApiKey] = useState("");
+  const [sellerId, setSellerId] = useState("");
+  const [show, setShow] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setTimeout(() => { setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2500); }, 800);
+  };
+
+  return (
+    <div className="space-y-5 max-w-2xl">
+      <div className="card p-5">
+        <div className="flex items-center gap-4 mb-5">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl font-black"
+            style={{ backgroundColor: color }}>
+            {logoChar}
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200">{nombre}</h2>
+            <p className="text-xs text-gray-400 mt-0.5">{descripcion}</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2 text-xs font-semibold text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-3 py-1.5 rounded-xl">
+            <span className="w-2 h-2 rounded-full bg-amber-400" />
+            Próximamente
+          </div>
+        </div>
+
+        <div className="space-y-4 opacity-60 pointer-events-none select-none">
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">API Key / Client ID</label>
+            <div className="relative">
+              <input type={show ? "text" : "password"} className="input font-mono text-xs pr-10" value={apiKey}
+                onChange={e => setApiKey(e.target.value)} placeholder="Ingresa tu API key..." />
+              <button type="button" onClick={() => setShow(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                {show ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
+          </div>
+
+          {(camposExtra ?? []).map(f => (
+            <div key={f.key}>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">{f.label}</label>
+              <input type={f.type ?? "text"} className="input" value={sellerId}
+                onChange={e => setSellerId(e.target.value)} placeholder={f.placeholder} />
+            </div>
+          ))}
+
+          <div className="flex gap-3 pt-2">
+            <button disabled className="btn-secondary opacity-50">
+              <Check size={13} /> Probar conexión
+            </button>
+            <button onClick={handleSave} disabled={saving || saved} className="btn-primary">
+              {saving ? <Loader2 size={13} className="animate-spin" /> : saved ? <Check size={13} /> : null}
+              {saved ? "Guardado" : "Guardar configuración"}
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50">
+          <p className="text-xs text-blue-600 dark:text-blue-300 font-medium">
+            La integración con {nombre} estará disponible próximamente. Una vez activa, los pedidos y clientes se sincronizarán automáticamente con el CRM.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TabWordPressUsers() {
+  return (
+    <div className="space-y-5 max-w-2xl">
+      <div className="card p-5">
+        <div className="flex items-center gap-4 mb-5">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white" style={{ backgroundColor: "#21759b" }}>
+            <Globe size={24} />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200">Usuarios de WordPress</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Sincroniza compradores del sitio web con el CRM</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50">
+            <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300 mb-2">Cómo funciona la identificación automática</p>
+            <ul className="space-y-2">
+              {[
+                "Cuando un usuario hace un pedido en WordPress, su email se busca en el CRM",
+                "Si el teléfono o email coincide con un cliente existente, se vincula automáticamente",
+                "Las compras aparecen en el perfil del cliente en el módulo CRM",
+                "Si es nuevo, se crea el perfil automáticamente como 'Cliente activo'",
+              ].map((t, i) => (
+                <li key={i} className="flex items-start gap-2 text-xs text-emerald-600 dark:text-emerald-400">
+                  <Check size={12} className="mt-0.5 flex-shrink-0" />
+                  {t}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="opacity-60 space-y-4 pointer-events-none select-none">
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">URL de WordPress</label>
+              <input className="input" placeholder="https://tutienda.com" type="url" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Application Password</label>
+              <input className="input font-mono text-xs" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx" type="password" />
+            </div>
+          </div>
+
+          <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50">
+            <p className="text-xs text-blue-600 dark:text-blue-300 font-medium">
+              Esta integración estará disponible próximamente. Usa las credenciales de WooCommerce ya configuradas para acceder a los datos de compradores.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const TABS = [
-  { id: "empresa", label: "Empresa", icon: Building2 },
-  { id: "woocommerce", label: "WooCommerce", icon: Link2 },
+  { id: "empresa",      label: "Empresa",        icon: Building2  },
+  { id: "woocommerce",  label: "WooCommerce",    icon: Link2      },
+  { id: "falabella",    label: "Falabella",       icon: ShoppingBag },
+  { id: "mercadolibre", label: "MercadoLibre",   icon: Store      },
+  { id: "wp_users",     label: "Usuarios WP",    icon: Users      },
 ];
 
 export default function ConfiguracionPage() {
@@ -243,26 +374,45 @@ export default function ConfiguracionPage() {
   const { brand } = useBrand();
   return (
     <>
-      <Topbar title="Configuracion" />
+      <Topbar title="Configuración" />
       <div className="flex-1 overflow-y-auto page-bg">
-        <div className="border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 px-6">
-          <div className="flex gap-1">
+        <div className="border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-slate-900 px-6 overflow-x-auto">
+          <div className="flex gap-0.5 min-w-max">
             {TABS.map(t => {
               const Icon = t.icon;
               const active = tab === t.id;
               return (
                 <button key={t.id} onClick={() => setTab(t.id)}
-                  className="flex items-center gap-2 px-4 py-3.5 text-[13px] font-medium border-b-2 transition-all"
+                  className="flex items-center gap-2 px-4 py-3.5 text-[12px] font-medium border-b-2 transition-all whitespace-nowrap"
                   style={active ? { borderBottomColor: brand.brandColor, color: brand.brandColor } : { borderBottomColor: "transparent", color: "#6b7280" }}>
-                  <Icon size={14} />{t.label}
+                  <Icon size={13} />{t.label}
                 </button>
               );
             })}
           </div>
         </div>
         <div className="p-6">
-          {tab === "empresa" && <TabEmpresa />}
-          {tab === "woocommerce" && <TabWooCommerce />}
+          {tab === "empresa"      && <TabEmpresa />}
+          {tab === "woocommerce"  && <TabWooCommerce />}
+          {tab === "falabella"    && (
+            <TabMarketplace
+              nombre="Falabella Marketplace"
+              color="#9b0000"
+              logoChar="F"
+              descripcion="Gestiona pedidos y productos en Falabella.com"
+              camposExtra={[{ key: "sellerId", label: "Seller ID", placeholder: "Tu ID de vendedor" }]}
+            />
+          )}
+          {tab === "mercadolibre" && (
+            <TabMarketplace
+              nombre="MercadoLibre"
+              color="#ffe600"
+              logoChar="ML"
+              descripcion="Sincroniza publicaciones y pedidos de MercadoLibre"
+              camposExtra={[{ key: "accessToken", label: "Access Token", placeholder: "APP_USR-..." }]}
+            />
+          )}
+          {tab === "wp_users"     && <TabWordPressUsers />}
         </div>
       </div>
     </>
