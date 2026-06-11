@@ -8,6 +8,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useNotificaciones } from "@/hooks/useNotificaciones";
 import { NotificationsPanel } from "./NotificationsPanel";
+import { ReportarError } from "./ReportarError";
 import { useBrand } from "@/contexts/BrandContext";
 import { cn } from "@/lib/utils";
 
@@ -113,6 +114,7 @@ export function Topbar({ title, actions }: TopbarProps) {
       <span className="text-[10px] font-bold px-2.5 py-1 rounded-full text-white hidden sm:inline-flex items-center" style={{ backgroundColor: modeColor }}>{mode}</span>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
       <QuickTaskButton mode={mode} color={modeColor} />
+      <ReportarError />
       <button onClick={toggleDark}
         className="w-9 h-9 flex items-center justify-center rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 border border-gray-200 dark:border-slate-700"
         title={darkMode ? "Modo claro" : "Modo oscuro"}>

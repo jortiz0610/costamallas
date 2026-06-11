@@ -801,3 +801,26 @@ model NexusMensaje {
   @@index([conversacionId])
   @@index([createdAt])
 }
+
+// ─────────────────────────────────────────────
+// REPORTES DE ERROR (enviados por usuarios)
+// ─────────────────────────────────────────────
+
+model ReporteError {
+  id            String   @id @default(cuid())
+  usuarioId     String?
+  usuarioNombre String
+  usuarioRol    String
+  modulo        String              // ruta/ubicación (pathname)
+  accion        String?             // qué estaba haciendo
+  descripcion   String?  @db.Text
+  url           String?
+  userAgent     String?
+  estado        String   @default("NUEVO") // NUEVO, EN_REVISION, RESUELTO
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("reportes_error")
+  @@index([estado])
+  @@index([createdAt])
+}

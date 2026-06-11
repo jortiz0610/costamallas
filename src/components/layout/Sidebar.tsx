@@ -67,6 +67,7 @@ const NEXUS_ITEMS = [
 const SYSTEM_ITEMS = [
   { href: "/usuarios", label: "Usuarios y Roles", icon: Users },
   { href: "/reportes", label: "Reportes y logs", icon: BarChart2 },
+  { href: "/sistema/reportes", label: "Reportes de error", icon: AlertTriangle },
   { href: "/sistema/seguridad", label: "Seguridad", icon: ShieldCheck },
   { href: "/configuracion", label: "Configuración", icon: Settings },
 ];
