@@ -39,8 +39,7 @@ const ERP_ITEMS = [
   { href: "/stock", label: "Stock", icon: Archive, alertKey: "stock" },
   { href: "/compras", label: "Compras", icon: Truck },
   { href: "/facturacion", label: "Facturación", icon: Receipt },
-  { href: "/importar", label: "Importar WC", icon: FileInput },
-  { href: "/exportar", label: "Exportar WC", icon: FileOutput },
+  { href: "/woocommerce", label: "Sincronización WC", icon: FileInput },
   { href: "/errores", label: "Errores", icon: AlertTriangle, alertKey: "errores" },
 ];
 
