@@ -79,11 +79,93 @@ model Cliente {
   cotizaciones Cotizacion[]
   pedidos      Pedido[]
   tareas       Tarea[]
+  facturas     Factura[]
 
   @@map("clientes")
   @@index([vendedorId])
   @@index([activo])
   @@index([estado])
+}
+
+// ─────────────────────────────────────────────
+// FACTURACIÓN (base + electrónica vía tercero/DIAN)
+// ─────────────────────────────────────────────
+
+model Factura {
+  id           String   @id @default(cuid())
+  numero       String   @unique
+  prefijo      String?
+  consecutivo  Int?
+
+  clienteId    String
+  cliente      Cliente  @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+  pedidoId     String?
+  cotizacionId String?
+
+  estado       String   @default("BORRADOR")
+  estadoDian   String   @default("NO_APLICA")
+  cufe         String?
+  proveedorRef String?
+  qrUrl        String?
+  xmlUrl       String?
+  pdfUrl       String?
+  mensajeDian  String?  @db.Text
+
+  subtotal     Decimal  @default(0) @db.Decimal(14, 2)
+  descuento    Decimal  @default(0) @db.Decimal(14, 2)
+  iva          Decimal  @default(0) @db.Decimal(14, 2)
+  total        Decimal  @default(0) @db.Decimal(14, 2)
+
+  formaPago      String?
+  metodoPago     String?
+  saldoPendiente Decimal @default(0) @db.Decimal(14, 2)
+  fechaEmision   DateTime?
+  fechaVence     DateTime?
+
+  notas        String?  @db.Text
+  items        ItemFactura[]
+  pagos        PagoFactura[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("facturas")
+  @@index([clienteId])
+  @@index([estado])
+  @@index([estadoDian])
+  @@index([pedidoId])
+}
+
+model ItemFactura {
+  id             String  @id @default(cuid())
+  facturaId      String
+  factura        Factura @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  productoId     String?
+  descripcion    String
+  cantidad       Decimal @db.Decimal(10, 2)
+  precioUnitario Decimal @db.Decimal(14, 2)
+  descuento      Decimal @default(0) @db.Decimal(5, 2)
+  ivaPct         Decimal @default(19) @db.Decimal(5, 2)
+  subtotal       Decimal @db.Decimal(14, 2)
+  unidad         String?
+  orden          Int     @default(0)
+
+  @@map("items_factura")
+  @@index([facturaId])
+}
+
+model PagoFactura {
+  id         String   @id @default(cuid())
+  facturaId  String
+  factura    Factura  @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  monto      Decimal  @db.Decimal(14, 2)
+  metodo     String   @default("TRANSFERENCIA")
+  referencia String?
+  fecha      DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@map("pagos_factura")
+  @@index([facturaId])
 }
 
 // ── Tareas y seguimientos (submódulo CRM) ──
@@ -307,6 +389,12 @@ model Producto {
 
   descCorta   String?        @db.Text
   descripcion String?        @db.Text
+
+  // SEO (autogenerado con IA)
+  seoTitulo      String?
+  seoDescripcion String?     @db.Text
+  seoKeywords    String[]    @default([])
+  seoTexto       String?     @db.Text
 
   precioNormal  Decimal?     @db.Decimal(14, 2)
   precioOferta  Decimal?     @db.Decimal(14, 2)

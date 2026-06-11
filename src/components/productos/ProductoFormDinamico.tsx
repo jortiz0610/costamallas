@@ -268,6 +268,93 @@ function FichaTecnicaUploader({ productoId, urlInicial, nombreInicial }: { produ
   );
 }
 
+function SeoTab({ form, set, productoId }: { form: Record<string, unknown>; set: (k: string, v: unknown) => void; productoId?: string }) {
+  const [cargando, setCargando] = useState(false);
+  const nombre = String(form.nombre ?? "");
+  const cats = Array.isArray(form.categorias) ? form.categorias as string[] : [];
+  const seoTitulo = String(form.seoTitulo ?? "") || (nombre ? `${nombre} | Costamallas` : "");
+  const seoDesc = String(form.seoDescripcion ?? "");
+  const seoTexto = String(form.seoTexto ?? "");
+  const keywords = Array.isArray(form.seoKeywords) ? form.seoKeywords as string[] : [];
+  const slug = String(form.slug ?? "") || "producto";
+  const score = (seoTitulo ? 1 : 0) + (seoDesc ? 1 : 0) + (keywords.length >= 3 ? 1 : 0) + (seoTexto ? 1 : 0);
+
+  const autogenerar = async () => {
+    if (!nombre) return toast.error("Primero ingresa el nombre del producto");
+    setCargando(true);
+    try {
+      const res = await fetch("/api/ai/seo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ productoId, nombre, categorias: cats, descripcion: String(form.descCorta ?? "") }) });
+      const json = await res.json();
+      if (!json.success) return toast.error(json.error ?? "Error");
+      const d = json.data;
+      set("seoTitulo", d.seoTitulo); set("seoDescripcion", d.seoDescripcion);
+      set("seoKeywords", d.seoKeywords); set("seoTexto", d.seoTexto);
+      if (d.slug && !form.slug) set("slug", d.slug);
+      toast.success(json.conIA ? "SEO generado con IA ✓ revisa y guarda" : "SEO generado (sin IA). Conéctala en Configuración → IA");
+    } catch { toast.error("Error al generar SEO"); } finally { setCargando(false); }
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-5">
+      <div className="card p-5 flex items-center gap-4">
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: (score >= 3 ? "#16a34a" : score >= 2 ? "#d97706" : "#dc2626") + "18" }}>
+          <TagIcon size={22} style={{ color: score >= 3 ? "#16a34a" : score >= 2 ? "#d97706" : "#dc2626" }} />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-bold text-gray-800 dark:text-gray-100">Optimización SEO: {score}/4</p>
+          <p className="text-xs text-muted">Genera meta-datos optimizados con la IA configurada. Revisa y guarda el producto.</p>
+        </div>
+        <button type="button" onClick={autogenerar} disabled={cargando} className="btn-primary btn-sm">
+          {cargando ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />} Autogenerar con IA
+        </button>
+      </div>
+
+      {/* Vista previa Google */}
+      <div className="card p-5">
+        <p className="text-xs font-bold uppercase tracking-widest text-muted mb-3">Vista previa en Google</p>
+        <div className="rounded-xl p-4 surface-2">
+          <p className="text-[13px] text-emerald-700 dark:text-emerald-400 truncate">costamallas.com › producto › {slug}</p>
+          <p className="text-[18px] text-blue-700 dark:text-blue-400 font-medium leading-tight mt-0.5 truncate">{seoTitulo || "Título SEO del producto"}</p>
+          <p className="text-[13px] text-soft mt-1 line-clamp-2">{seoDesc || "Agrega una meta descripción para mejorar el clic desde Google…"}</p>
+        </div>
+      </div>
+
+      <div className="card p-5 space-y-4">
+        <div>
+          <Label>Meta título</Label>
+          <input className="input" value={String(form.seoTitulo ?? "")} onChange={e => set("seoTitulo", e.target.value)} maxLength={70} placeholder={`${nombre} | Costamallas`} />
+        </div>
+        <div>
+          <Label>URL / Slug</Label>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted">/producto/</span>
+            <input className="input flex-1" value={String(form.slug ?? "")} onChange={e => set("slug", e.target.value)} placeholder="malla-metalica-galvanizada" />
+          </div>
+        </div>
+        <div>
+          <Label>Meta descripción</Label>
+          <textarea className="input resize-none" rows={3} value={seoDesc} onChange={e => set("seoDescripcion", e.target.value)} maxLength={200} placeholder="Descripción breve para los resultados de búsqueda…" />
+          <p className="text-[11px] mt-1" style={{ color: seoDesc.length > 160 ? "#dc2626" : "var(--text-muted)" }}>{seoDesc.length}/160 recomendado</p>
+        </div>
+        <TagInput label="Palabras clave (SEO)" value={keywords} onChange={v => set("seoKeywords", v)} hint="Enter o coma para agregar" />
+        <div>
+          <Label>Texto SEO</Label>
+          <textarea className="input resize-none" rows={3} value={seoTexto} onChange={e => set("seoTexto", e.target.value)} placeholder="Párrafo de venta optimizado para buscadores…" />
+        </div>
+      </div>
+
+      <div className="card p-5">
+        <p className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2 mb-2"><FileText size={15} style={{ color: "var(--brand-color)" }} /> Conexión con Yoast SEO Pro (al exportar a WooCommerce)</p>
+        <ol className="space-y-1.5 text-xs text-soft list-decimal list-inside">
+          <li>Meta título → <code className="surface-3 px-1 rounded">_yoast_wpseo_title</code>, Meta descripción → <code className="surface-3 px-1 rounded">_yoast_wpseo_metadesc</code>.</li>
+          <li>Primera palabra clave → <code className="surface-3 px-1 rounded">_yoast_wpseo_focuskw</code>; el resto como tags del producto.</li>
+          <li>El slug y el texto SEO se envían en la descripción del producto.</li>
+        </ol>
+      </div>
+    </div>
+  );
+}
+
 function CatSelector({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
   const toggle = (v: string) => value.includes(v) ? onChange(value.filter(c => c !== v)) : onChange([...value, v]);
   return (
@@ -950,86 +1037,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
         )}
 
         {/* PESTAÑA: SEO */}
-        {tab === "seo" && (() => {
-          const nombre = String(form.nombre ?? "");
-          const cats = Array.isArray(form.categorias) ? form.categorias as string[] : [];
-          const keywords = Array.isArray(form.etiquetas) ? form.etiquetas as string[] : [];
-          const metaTitulo = nombre ? `${nombre} | Costamallas` : "Título del producto | Costamallas";
-          const metaDesc = String(form.descCorta ?? "");
-          const slug = String(form.slug ?? "") || "producto";
-          const score = (metaDesc ? 1 : 0) + (keywords.length >= 3 ? 1 : 0) + (nombre.length >= 10 ? 1 : 0) + (slug ? 1 : 0);
-          const autogenerar = () => {
-            const base = nombre || "Este producto";
-            const cat = cats[0] ? cats[0].replace(/-/g, " ") : "alta calidad";
-            set("descCorta", `${base} de Costamallas: ${cat} con la mejor relación calidad-precio. Cotiza en línea y recibe asesoría experta. Envíos a toda Colombia.`.slice(0, 160));
-          };
-          return (
-            <div className="max-w-3xl mx-auto space-y-5">
-              {/* Estado SEO */}
-              <div className="card p-5 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: (score >= 3 ? "#16a34a" : score >= 2 ? "#d97706" : "#dc2626") + "18" }}>
-                  <TagIcon size={22} style={{ color: score >= 3 ? "#16a34a" : score >= 2 ? "#d97706" : "#dc2626" }} />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-gray-800 dark:text-gray-100">Optimización SEO: {score}/4</p>
-                  <p className="text-xs text-muted">Esta pestaña se completa automáticamente con los datos del producto. Mejórala con el Asistente IA.</p>
-                </div>
-                <button type="button" onClick={autogenerar} className="btn-secondary btn-sm">
-                  <Sparkles size={13} /> Autogenerar
-                </button>
-              </div>
-
-              {/* Vista previa Google */}
-              <div className="card p-5">
-                <p className="text-xs font-bold uppercase tracking-widest text-muted mb-3">Vista previa en Google</p>
-                <div className="rounded-xl p-4 surface-2">
-                  <p className="text-[13px] text-emerald-700 dark:text-emerald-400 truncate">costamallas.com › producto › {slug}</p>
-                  <p className="text-[18px] text-blue-700 dark:text-blue-400 font-medium leading-tight mt-0.5 truncate">{metaTitulo}</p>
-                  <p className="text-[13px] text-soft mt-1 line-clamp-2">{metaDesc || "Agrega una meta descripción para mejorar el clic desde Google…"}</p>
-                </div>
-              </div>
-
-              {/* Campos editables */}
-              <div className="card p-5 space-y-4">
-                <SInput label="Meta título (automático)" value={metaTitulo} onChange={() => {}} hint="Se genera del nombre del producto + marca" />
-                <div>
-                  <Label>URL / Slug</Label>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-muted">costamallas.com/producto/</span>
-                    <input className="input flex-1" value={String(form.slug ?? "")} onChange={e => set("slug", e.target.value)} placeholder="malla-metalica-galvanizada" />
-                  </div>
-                </div>
-                <div>
-                  <Label>Meta descripción</Label>
-                  <textarea className="input resize-none" rows={3} value={metaDesc} onChange={e => set("descCorta", e.target.value)} maxLength={160}
-                    placeholder="Descripción breve que aparece en los resultados de búsqueda…" />
-                  <p className="text-[11px] mt-1" style={{ color: metaDesc.length > 160 ? "#dc2626" : "var(--text-muted)" }}>{metaDesc.length}/160 caracteres</p>
-                </div>
-                <div>
-                  <Label>Palabras clave (etiquetas)</Label>
-                  {keywords.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {keywords.map(k => <span key={k} className="text-[11px] font-semibold px-2.5 py-1 rounded-full text-white" style={{ backgroundColor: "var(--brand-color)" }}>{k}</span>)}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted">Agrega etiquetas en la pestaña <b>Producto</b> para usarlas como palabras clave SEO.</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Guía Yoast */}
-              <div className="card p-5">
-                <p className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2 mb-2"><FileText size={15} style={{ color: "var(--brand-color)" }} /> Conexión con Yoast SEO Pro (para el desarrollador)</p>
-                <ol className="space-y-1.5 text-xs text-soft list-decimal list-inside">
-                  <li>Al exportar a WooCommerce, el <b>slug</b> y la <b>meta descripción</b> se mapean a los campos de Yoast (<code className="surface-3 px-1 rounded">_yoast_wpseo_metadesc</code>) y el <b>meta título</b> a <code className="surface-3 px-1 rounded">_yoast_wpseo_title</code>.</li>
-                  <li>Las <b>palabras clave</b> se envían como <code className="surface-3 px-1 rounded">_yoast_wpseo_focuskw</code> (la primera) y como tags del producto.</li>
-                  <li>Activa en Yoast Pro la API REST para recibir métricas (puntaje SEO, legibilidad) de vuelta vía <code className="surface-3 px-1 rounded">/wp-json/yoast/v1</code>.</li>
-                  <li>Guarda tu API key de Yoast en <b>Configuración → WooCommerce</b> para sincronizar métricas por producto.</li>
-                </ol>
-              </div>
-            </div>
-          );
-        })()}
+        {tab === "seo" && <SeoTab form={form as Record<string, unknown>} set={set} productoId={productoId} />}
 
         {/* PESTAÑA: ASISTENTE IA */}
         {tab === "ia" && (

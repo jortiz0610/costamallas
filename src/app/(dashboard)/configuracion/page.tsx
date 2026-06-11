@@ -755,6 +755,24 @@ function TabIA() {
         </div>
       </div>
       <p className="text-[11px] text-muted">La API key se guarda cifrada (AES-256). Mientras no la configures, el asistente flotante sigue funcionando en modo básico (lee el estado del negocio sin IA generativa).</p>
+
+      {/* Guía: qué hace la IA y dónde se usa */}
+      <div className="card p-5">
+        <p className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2 mb-3"><Sparkles size={15} style={{ color: "var(--brand-color)" }} /> ¿Qué hace la IA en el sistema?</p>
+        <p className="text-xs text-muted mb-3">Se usa <b>un solo proveedor centralizado</b> (el que configures aquí) en todas las funciones de IA:</p>
+        <ul className="space-y-2 text-xs text-soft">
+          <li className="flex gap-2"><span className="font-bold" style={{ color: "var(--brand-color)" }}>1.</span> <span><b>Asistente flotante</b>: responde preguntas del negocio respetando el rol del usuario.</span></li>
+          <li className="flex gap-2"><span className="font-bold" style={{ color: "var(--brand-color)" }}>2.</span> <span><b>Productos · SEO</b>: genera meta título, descripción, keywords y texto SEO automáticamente.</span></li>
+          <li className="flex gap-2"><span className="font-bold" style={{ color: "var(--brand-color)" }}>3.</span> <span><b>Productos · Ficha técnica</b>: analiza el PDF cargado y sugiere los campos del producto.</span></li>
+          <li className="flex gap-2"><span className="font-bold" style={{ color: "var(--brand-color)" }}>4.</span> <span><b>Nexus</b>: respuestas asistidas a clientes usando la info de productos y cotizaciones.</span></li>
+          <li className="flex gap-2"><span className="font-bold" style={{ color: "var(--brand-color)" }}>5.</span> <span><b>Growth</b>: análisis de campañas (AI Marketing Advisor).</span></li>
+        </ul>
+        <div className="mt-3 pt-3 border-t divider text-[11px] text-muted">
+          <p className="font-semibold text-soft mb-1">Cómo obtener tu API key:</p>
+          <p>• <b>OpenAI</b>: platform.openai.com → API keys → Create new secret key.</p>
+          <p>• <b>Anthropic</b>: console.anthropic.com → API keys. Recomendado el modelo <code className="surface-3 px-1 rounded">claude-3-5-haiku</code> (rápido y económico).</p>
+        </div>
+      </div>
     </div>
   );
 }
