@@ -13,6 +13,7 @@ import Link from "next/link";
 import toast from "react-hot-toast";
 import type { DashboardKPIs, NivelStock } from "@/types";
 import { useBrand } from "@/contexts/BrandContext";
+import { useAuth } from "@/hooks/useAuth";
 
 async function fetchKPIs(): Promise<DashboardKPIs> {
   const res = await fetch("/api/dashboard/kpis");
@@ -30,6 +31,7 @@ const stockBadge: Record<NivelStock, string> = {
 export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const { brand } = useBrand();
+  const { user } = useAuth();
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["dashboard", "kpis"],
     queryFn: fetchKPIs,
@@ -155,10 +157,11 @@ export default function DashboardPage() {
               <ShoppingCart size={18} className="text-purple-600" />
             </div>
             <div>
-              <p className="text-[11px] text-gray-500 uppercase tracking-wide">Última sincronización</p>
+              <p className="text-[11px] text-gray-500 uppercase tracking-wide">Tu último acceso</p>
               <p className="text-[13px] font-semibold text-gray-800">
-                {data?.woocommerce.ultimaSync ? formatDate(data.woocommerce.ultimaSync) : "Nunca"}
+                {user?.ultimoAcceso ? formatDate(user.ultimoAcceso) : "Ahora"}
               </p>
+              <p className="text-[10px] text-gray-400 mt-0.5">Sinc. WC: {data?.woocommerce.ultimaSync ? formatDate(data.woocommerce.ultimaSync) : "Nunca"}</p>
             </div>
           </div>
           <div className="card p-5 flex items-center gap-4">
