@@ -12,6 +12,7 @@ import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/contexts/BrandContext";
 import { useState } from "react";
+import { puedeVerModulo, esAdmin } from "@/lib/permisos";
 
 const ERP_COLOR   = "#185FA5";
 const CRM_COLOR   = "#BA7517";
@@ -137,12 +138,14 @@ export function Sidebar({
     );
   }
 
-  const MODES: { key: Mode; label: string; color: string; badge?: number }[] = [
-    { key: "ERP",       label: "ERP",   color: ERP_COLOR },
-    { key: "CRM",       label: "CRM",   color: CRM_COLOR,   badge: crmPendientes },
-    { key: "NEXUS",     label: "Nexus", color: NEXUS_COLOR, badge: nexusSinLeer },
-    { key: "MARKETING", label: "Mkt",   color: MKT_COLOR },
-  ];
+  const MODES = ([
+    { key: "ERP",       label: "ERP",    color: ERP_COLOR },
+    { key: "CRM",       label: "CRM",    color: CRM_COLOR,   badge: crmPendientes },
+    { key: "NEXUS",     label: "Nexus",  color: NEXUS_COLOR, badge: nexusSinLeer },
+    { key: "MARKETING", label: "Growth", color: MKT_COLOR },
+  ] as { key: Mode; label: string; color: string; badge?: number }[]).filter(m => puedeVerModulo(user?.rol, m.key));
+
+  const verSistema = esAdmin(user?.rol);
 
   return (
     <aside className="w-[210px] min-w-[210px] flex flex-col h-full sidebar-bg">
@@ -192,7 +195,8 @@ export function Sidebar({
         ))}
       </nav>
 
-      {/* Sistema (collapsible) */}
+      {/* Sistema (collapsible) — solo admin/superadmin */}
+      {verSistema && (
       <div style={{ borderTop: "1px solid rgba(100,116,139,0.12)" }}>
         <button
           onClick={() => setSysOpen((v) => !v)}
@@ -224,6 +228,7 @@ export function Sidebar({
           </div>
         )}
       </div>
+      )}
 
       {/* User */}
       <div className="p-3" style={{ borderTop: "1px solid rgba(100,116,139,0.12)" }}>

@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useBrand } from "@/contexts/BrandContext";
+import { useAuth } from "@/hooks/useAuth";
+import { puedeVerModulo } from "@/lib/permisos";
 import {
-  LayoutDashboard, Package, UserCircle, MessageSquare, Megaphone, Menu,
+  Package, UserCircle, MessageSquare, Megaphone, Menu,
 } from "lucide-react";
 
 const ERP_COLOR = "#185FA5";
@@ -17,19 +18,19 @@ const MODULOS: Record<string, { label: string; href: string; Icon: React.Element
   ERP:       { label: "ERP",     href: "/",                Icon: Package,        color: ERP_COLOR },
   CRM:       { label: "CRM",     href: "/crm",             Icon: UserCircle,     color: CRM_COLOR },
   NEXUS:     { label: "Nexus",   href: "/nexus",           Icon: MessageSquare,  color: NEXUS_COLOR },
-  MARKETING: { label: "Mkt",     href: "/marketing",       Icon: Megaphone,      color: MKT_COLOR },
+  MARKETING: { label: "Growth",  href: "/marketing",       Icon: Megaphone,      color: MKT_COLOR },
 };
 
 export function MobileNav() {
-  const pathname = usePathname();
   const { mode, setMode, setSidebarOpen } = useBrand();
+  const { user } = useAuth();
 
-  const items = [
+  const items = ([
     { key: "ERP" as const, ...MODULOS.ERP },
     { key: "CRM" as const, ...MODULOS.CRM },
     { key: "NEXUS" as const, ...MODULOS.NEXUS },
     { key: "MARKETING" as const, ...MODULOS.MARKETING },
-  ];
+  ]).filter(it => puedeVerModulo(user?.rol, it.key));
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 topbar-bg border-t divider"

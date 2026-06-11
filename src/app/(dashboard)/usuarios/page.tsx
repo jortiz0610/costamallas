@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import Image from "next/image";
 import { timeAgo } from "@/lib/utils";
 import { useBrand } from "@/contexts/BrandContext";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Usuario {
   id: string; nombre: string; email: string;
@@ -281,6 +282,8 @@ function ModalUsuario({ usuario, onClose, onSaved }: {
 
 function UsuariosContent() {
   const { brand } = useBrand();
+  const { user: actual } = useAuth();
+  const soySuper = actual?.rol === "SUPERADMIN";
   const [modal, setModal] = useState<{ open: boolean; usuario?: Usuario }>({ open: false });
   const [modal2fa, setModal2fa] = useState<Usuario | null>(null);
   const qc = useQueryClient();
@@ -349,6 +352,7 @@ function UsuariosContent() {
               </div>
             ) : usuarios.map(u => {
               const rolMeta = ROLES.find(r => r.v === u.rol);
+              const protegido = u.rol === "SUPERADMIN" && !soySuper; // admin no edita superadmin
               return (
                 <div key={u.id} className={`flex items-center gap-4 px-5 py-4 hover:bg-gray-50 dark:hover:bg-slate-800/40 transition-colors ${!u.activo ? "opacity-40" : ""}`}>
                   <div
@@ -365,6 +369,7 @@ function UsuariosContent() {
                     <p className="text-[11px] text-gray-400 dark:text-slate-500">{u.email}</p>
                   </div>
                   <RolBadge rol={u.rol} />
+                  {!protegido && (
                   <button onClick={() => setModal2fa(u)}
                     title={u.twoFactor ? "2FA activo — gestionar" : "Activar doble autenticación"}
                     className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full transition-colors"
@@ -373,9 +378,13 @@ function UsuariosContent() {
                       : { backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>
                     {u.twoFactor ? <ShieldCheck size={11} /> : <Smartphone size={11} />} 2FA
                   </button>
+                  )}
                   <p className="text-[11px] text-gray-400 dark:text-slate-500 hidden lg:block w-24 text-right">
                     {u.ultimoAcceso ? timeAgo(u.ultimoAcceso) : "Nunca"}
                   </p>
+                  {protegido ? (
+                    <span className="text-[10px] text-muted italic px-2">Protegido</span>
+                  ) : (
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => setModal({ open: true, usuario: u })}
@@ -392,6 +401,7 @@ function UsuariosContent() {
                       {u.activo ? <UserX size={14} /> : <UserCheck size={14} />}
                     </button>
                   </div>
+                  )}
                 </div>
               );
             })}

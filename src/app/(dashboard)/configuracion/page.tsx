@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useBrand } from "@/contexts/BrandContext";
+import { useAuth } from "@/hooks/useAuth";
 
 interface WCStatus { configured: boolean; ok?: boolean; storeName?: string; version?: string; error?: string; }
 
@@ -771,16 +772,23 @@ const TABS = [
 
 function ConfiguracionContent() {
   const searchParams = useSearchParams();
-  const initial = searchParams.get("tab") ?? "empresa";
-  const [tab, setTab] = useState(TABS.some(t => t.id === initial) ? initial : "empresa");
   const { brand } = useBrand();
+  const { user } = useAuth();
+
+  // Conexiones e IA: solo superadmin. Empresa: admin+superadmin.
+  const superadmin = user?.rol === "SUPERADMIN";
+  const soloSuper = new Set(["ia", "canales", "marketing", "woocommerce", "falabella", "mercadolibre", "wp_users"]);
+  const tabsVisibles = TABS.filter(t => superadmin || !soloSuper.has(t.id));
+
+  const initial = searchParams.get("tab") ?? "empresa";
+  const [tab, setTab] = useState(tabsVisibles.some(t => t.id === initial) ? initial : "empresa");
   return (
     <>
       <Topbar title="Configuración" />
       <div className="flex-1 overflow-y-auto page-bg">
         <div className="bg-white dark:bg-slate-900 px-6 overflow-x-auto" style={{ borderBottom: "1px solid var(--border)" }}>
           <div className="flex gap-0.5 min-w-max">
-            {TABS.map(t => {
+            {tabsVisibles.map(t => {
               const Icon = t.icon;
               const active = tab === t.id;
               return (
