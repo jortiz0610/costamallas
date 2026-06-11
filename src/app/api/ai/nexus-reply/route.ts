@@ -25,11 +25,31 @@ export async function POST(req: NextRequest) {
   let objetivo = "Atender al cliente de forma amable y profesional, resolver dudas de producto y ayudar a cotizar.";
   let transferirSiComplejo = true;
   try {
+    interface FNodo { tipo: string; config: Record<string, unknown> }
+    interface FFlujo { disparador: string[]; objetivo: string; activo: boolean; transferirSiComplejo: boolean; nodos?: FNodo[] }
     const flujosRow = await prisma.configuracion.findUnique({ where: { clave: "nexus_flujos" } });
-    const flujos: { disparador: string[]; objetivo: string; activo: boolean; transferirSiComplejo: boolean }[] = flujosRow ? JSON.parse(flujosRow.valor) : [];
+    const flujos: FFlujo[] = flujosRow ? JSON.parse(flujosRow.valor) : [];
     const textoCliente = conv.mensajes.filter(m => m.origen === "contacto").map(m => m.contenido.toLowerCase()).join(" ");
-    const match = flujos.find(f => f.activo && f.disparador.some(d => textoCliente.includes(d.toLowerCase())));
-    if (match) { objetivo = match.objetivo; transferirSiComplejo = match.transferirSiComplejo; }
+    const match = flujos.find(f => {
+      const disp = (f.disparador ?? []).concat(
+        (f.nodos ?? []).filter(n => n.tipo === "trigger").flatMap(n => String(n.config.disparador ?? "").split(",").map(s => s.trim()))
+      );
+      return f.activo && disp.some(d => d && textoCliente.includes(d.toLowerCase()));
+    });
+    if (match) {
+      transferirSiComplejo = match.transferirSiComplejo;
+      // Construye el objetivo desde los nodos de IA (contexto + tareas) si existen
+      const iaNodos = (match.nodos ?? []).filter(n => n.tipo === "ia");
+      if (iaNodos.length) {
+        objetivo = iaNodos.map(n => {
+          const tareas = Array.isArray(n.config.tareas) ? (n.config.tareas as string[]).filter(Boolean) : [];
+          return `Contexto: ${n.config.contexto ?? ""}${tareas.length ? `\nTareas: ${tareas.map(t => `- ${t}`).join("\n")}` : ""}`;
+        }).join("\n");
+        if ((match.nodos ?? []).some(n => n.tipo === "transferir")) transferirSiComplejo = true;
+      } else if (match.objetivo) {
+        objetivo = match.objetivo;
+      }
+    }
   } catch { /* usa el objetivo por defecto */ }
 
   // Productos publicados (contexto breve para responder consultas)

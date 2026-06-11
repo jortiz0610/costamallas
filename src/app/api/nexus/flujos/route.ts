@@ -4,6 +4,12 @@ import { getUserFromRequest } from "@/lib/auth";
 
 const CLAVE = "nexus_flujos";
 
+export interface NodoFlujo {
+  id: string;
+  tipo: string;                  // trigger, mensaje, pregunta, condicion, ia, espera, etiqueta, crm, cotizar, transferir, webhook
+  config: Record<string, unknown>;
+}
+
 export interface Flujo {
   id: string;
   nombre: string;
@@ -13,6 +19,7 @@ export interface Flujo {
   transferirSiComplejo: boolean;
   canal: string;                 // todos, whatsapp, instagram...
   activo: boolean;
+  nodos?: NodoFlujo[];           // bloques del constructor visual
   createdAt: string;
 }
 
@@ -27,6 +34,11 @@ const DEFAULTS: Flujo[] = [
     canal: "todos",
     activo: true,
     createdAt: new Date().toISOString(),
+    nodos: [
+      { id: "n1", tipo: "trigger", config: { disparador: "precio, producto, medidas, catálogo" } },
+      { id: "n2", tipo: "mensaje", config: { texto: "¡Hola! 👋 Con gusto te ayudo con la información del producto." } },
+      { id: "n3", tipo: "ia", config: { contexto: "Catálogo de mallas de Costamallas (tipos, medidas, precios por m²).", tareas: ["Identificar qué producto consulta", "Dar características y precio aproximado", "Sugerir productos relacionados"] } },
+    ],
   },
   {
     id: "flujo_cotizar",
@@ -38,6 +50,14 @@ const DEFAULTS: Flujo[] = [
     canal: "todos",
     activo: true,
     createdAt: new Date().toISOString(),
+    nodos: [
+      { id: "n1", tipo: "trigger", config: { disparador: "cotizar, cotización, presupuesto, comprar" } },
+      { id: "n2", tipo: "pregunta", config: { texto: "¿Qué tipo de malla necesitas y para qué uso?", variable: "necesidad" } },
+      { id: "n3", tipo: "pregunta", config: { texto: "¿Qué medidas (largo x ancho) y cantidad?", variable: "medidas" } },
+      { id: "n4", tipo: "ia", config: { contexto: "El cliente quiere cotizar. Recoge tipo, medidas, ciudad e instalación.", tareas: ["Entender la necesidad", "Pedir datos faltantes de forma ordenada", "Calcular m² y dar estimado", "Si se complica, transferir a un asesor"] } },
+      { id: "n5", tipo: "crm", config: { estado: "INTERESADO" } },
+      { id: "n6", tipo: "transferir", config: { motivo: "Cotización compleja" } },
+    ],
   },
 ];
 
@@ -77,6 +97,7 @@ export async function POST(req: NextRequest) {
     transferirSiComplejo: !!b.transferirSiComplejo,
     canal: b.canal ?? "todos",
     activo: b.activo ?? true,
+    nodos: Array.isArray(b.nodos) ? b.nodos : [{ id: "n1", tipo: "trigger", config: { disparador: "" } }],
     createdAt: new Date().toISOString(),
   };
   flujos.unshift(nuevo);

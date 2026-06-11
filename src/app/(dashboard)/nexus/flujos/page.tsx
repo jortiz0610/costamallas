@@ -1,193 +1,288 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
 import {
-  Zap, MessageSquare, GitBranch, Bot, Plus, X, Loader2, Trash2, Pencil,
-  Sparkles, UserPlus, ArrowRightLeft, Tag, Hash,
+  Zap, MessageSquare, GitBranch, Bot, Plus, X, Loader2, Trash2, Save,
+  Sparkles, UserPlus, ArrowRightLeft, Tag, Clock, HelpCircle, Webhook,
+  FileText, ArrowDown, GripVertical, Power,
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 
-const NEXUS_COLOR = "#7c3aed";
+const NEXUS = "#7c3aed";
 
-const ACCIONES = [
-  { v: "responder_ia", l: "Responder con IA", Icon: Bot, c: "#7c3aed" },
-  { v: "transferir", l: "Transferir a asesor", Icon: ArrowRightLeft, c: "#d97706" },
-  { v: "etiquetar", l: "Etiquetar contacto", Icon: Tag, c: "#0891b2" },
-  { v: "saludo", l: "Mensaje de saludo", Icon: MessageSquare, c: "#16a34a" },
+interface Nodo { id: string; tipo: string; config: Record<string, unknown>; }
+interface Flujo { id: string; nombre: string; disparador: string[]; objetivo: string; activo: boolean; nodos?: Nodo[]; }
+
+// Catálogo de bloques disponibles
+const BLOQUES = [
+  { tipo: "trigger",    l: "Disparador",          Icon: Zap,           c: "#16a34a", desc: "Inicia el flujo por palabras clave" },
+  { tipo: "mensaje",    l: "Enviar mensaje",      Icon: MessageSquare, c: "#185FA5", desc: "Responde con texto" },
+  { tipo: "pregunta",   l: "Pregunta",            Icon: HelpCircle,    c: "#0891b2", desc: "Captura un dato del cliente" },
+  { tipo: "ia",         l: "Respuesta IA",        Icon: Bot,           c: "#7c3aed", desc: "IA con contexto y tareas" },
+  { tipo: "condicion",  l: "Condición",           Icon: GitBranch,     c: "#d97706", desc: "Ramifica según la respuesta" },
+  { tipo: "espera",     l: "Esperar",             Icon: Clock,         c: "#0e7490", desc: "Pausa el flujo" },
+  { tipo: "etiqueta",   l: "Etiquetar",           Icon: Tag,           c: "#db2777", desc: "Añade una etiqueta al contacto" },
+  { tipo: "crm",        l: "Guardar en CRM",      Icon: UserPlus,      c: "#BA7517", desc: "Crea/actualiza el cliente" },
+  { tipo: "cotizar",    l: "Cotización",          Icon: FileText,      c: "#185FA5", desc: "Inicia un cotizador" },
+  { tipo: "transferir", l: "Transferir a asesor", Icon: ArrowRightLeft,c: "#ea580c", desc: "Pasa a un humano" },
+  { tipo: "webhook",    l: "Webhook",             Icon: Webhook,       c: "#64748b", desc: "Conecta con un sistema externo" },
 ];
+const meta = (tipo: string) => BLOQUES.find(b => b.tipo === tipo) ?? BLOQUES[0];
 
-interface Flujo {
-  id: string; nombre: string; disparador: string[]; objetivo: string;
-  accion: string; transferirSiComplejo: boolean; canal: string; activo: boolean;
+function defaultConfig(tipo: string): Record<string, unknown> {
+  switch (tipo) {
+    case "trigger": return { disparador: "" };
+    case "mensaje": return { texto: "" };
+    case "pregunta": return { texto: "", variable: "" };
+    case "ia": return { contexto: "", tareas: [] };
+    case "condicion": return { ramas: [{ si: "", etiqueta: "" }] };
+    case "espera": return { minutos: 5 };
+    case "etiqueta": return { etiqueta: "" };
+    case "crm": return { estado: "INTERESADO" };
+    case "cotizar": return {};
+    case "transferir": return { motivo: "" };
+    case "webhook": return { url: "" };
+    default: return {};
+  }
 }
 
-function ModalFlujo({ flujo, onClose, onSaved }: { flujo?: Flujo; onClose: () => void; onSaved: () => void }) {
-  const editar = !!flujo;
-  const [f, setF] = useState({
-    nombre: flujo?.nombre ?? "", disparador: (flujo?.disparador ?? []).join(", "),
-    objetivo: flujo?.objetivo ?? "", accion: flujo?.accion ?? "responder_ia",
-    transferirSiComplejo: flujo?.transferirSiComplejo ?? false, canal: flujo?.canal ?? "todos",
-  });
-  const [saving, setSaving] = useState(false);
-  const u = (k: string, v: unknown) => setF(p => ({ ...p, [k]: v }));
+// Editor de configuración por tipo de bloque
+function NodoEditor({ nodo, onChange }: { nodo: Nodo; onChange: (config: Record<string, unknown>) => void }) {
+  const c = nodo.config;
+  const set = (k: string, v: unknown) => onChange({ ...c, [k]: v });
+  const inputCls = "input py-1.5 text-sm";
 
-  const save = async () => {
-    if (!f.nombre.trim()) return toast.error("Nombre requerido");
-    setSaving(true);
-    try {
-      const body = { ...(editar ? { id: flujo!.id } : {}), ...f, disparador: f.disparador.split(",").map(s => s.trim()).filter(Boolean) };
-      const res = await fetch("/api/nexus/flujos", { method: editar ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const json = await res.json();
-      if (!res.ok || !json.success) return toast.error(json.error ?? "Error");
-      toast.success(editar ? "Flujo actualizado" : "Flujo creado");
-      onSaved();
-    } catch { toast.error("Error"); } finally { setSaving(false); }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto">
-      <div className="card w-full max-w-lg my-4 animate-fade-up">
-        <div className="card-header">
-          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2"><Zap size={16} style={{ color: NEXUS_COLOR }} /> {editar ? "Editar" : "Nuevo"} flujo</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg surface-2 flex items-center justify-center text-muted"><X size={15} /></button>
-        </div>
-        <div className="p-5 space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Nombre del flujo *</label>
-            <input className="input" value={f.nombre} onChange={e => u("nombre", e.target.value)} placeholder="Ej: Consulta de producto" autoFocus />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Palabras que lo activan</label>
-            <input className="input" value={f.disparador} onChange={e => u("disparador", e.target.value)} placeholder="precio, cotizar, medidas (separadas por coma)" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Objetivo del agente</label>
-            <textarea className="input resize-none" rows={3} value={f.objetivo} onChange={e => u("objetivo", e.target.value)} placeholder="Describe qué debe lograr el agente en este flujo…" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Acción</label>
-            <div className="grid grid-cols-2 gap-2">
-              {ACCIONES.map(a => {
-                const Icon = a.Icon; const sel = f.accion === a.v;
-                return (
-                  <button key={a.v} type="button" onClick={() => u("accion", a.v)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all"
-                    style={sel ? { borderColor: a.c, backgroundColor: a.c + "12" } : { borderColor: "var(--border)" }}>
-                    <Icon size={14} style={{ color: sel ? a.c : "var(--text-muted)" }} />
-                    <span className="text-xs font-semibold" style={{ color: sel ? a.c : "var(--text-soft)" }}>{a.l}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <button type="button" onClick={() => u("transferirSiComplejo", !f.transferirSiComplejo)} className="flex items-center gap-3">
-            <span className="w-10 h-5 rounded-full relative transition-all" style={{ backgroundColor: f.transferirSiComplejo ? NEXUS_COLOR : "var(--surface-3)" }}>
-              <span className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform" style={{ transform: f.transferirSiComplejo ? "translateX(22px)" : "translateX(2px)" }} />
-            </span>
-            <span className="text-sm text-soft">Transferir a un asesor humano si se complica</span>
-          </button>
-        </div>
-        <div className="p-5 pt-0 flex gap-3">
-          <button onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
-          <button onClick={save} disabled={saving} className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50" style={{ backgroundColor: NEXUS_COLOR }}>
-            {saving && <Loader2 size={13} className="animate-spin" />} {editar ? "Guardar" : "Crear flujo"}
-          </button>
-        </div>
-      </div>
+  if (nodo.tipo === "trigger") return <input className={inputCls} placeholder="Palabras clave (coma): precio, cotizar…" value={String(c.disparador ?? "")} onChange={e => set("disparador", e.target.value)} />;
+  if (nodo.tipo === "mensaje") return <textarea className={`${inputCls} resize-none`} rows={2} placeholder="Texto del mensaje. Usa {nombre}…" value={String(c.texto ?? "")} onChange={e => set("texto", e.target.value)} />;
+  if (nodo.tipo === "pregunta") return (
+    <div className="space-y-2">
+      <input className={inputCls} placeholder="Pregunta al cliente" value={String(c.texto ?? "")} onChange={e => set("texto", e.target.value)} />
+      <input className={inputCls} placeholder="Guardar respuesta en (variable): medidas" value={String(c.variable ?? "")} onChange={e => set("variable", e.target.value)} />
     </div>
   );
+  if (nodo.tipo === "ia") {
+    const tareas: string[] = Array.isArray(c.tareas) ? c.tareas as string[] : [];
+    return (
+      <div className="space-y-2">
+        <textarea className={`${inputCls} resize-none`} rows={2} placeholder="Contexto: qué información debe usar la IA…" value={String(c.contexto ?? "")} onChange={e => set("contexto", e.target.value)} />
+        <div>
+          <p className="text-[10px] font-semibold text-muted uppercase mb-1">Tareas del agente</p>
+          {tareas.map((t, i) => (
+            <div key={i} className="flex gap-1.5 mb-1.5">
+              <input className={inputCls} value={t} onChange={e => set("tareas", tareas.map((x, j) => j === i ? e.target.value : x))} placeholder="Ej: Identificar el producto" />
+              <button onClick={() => set("tareas", tareas.filter((_, j) => j !== i))} className="text-muted hover:text-red-500"><X size={13} /></button>
+            </div>
+          ))}
+          <button onClick={() => set("tareas", [...tareas, ""])} className="text-[11px] font-semibold flex items-center gap-1" style={{ color: NEXUS }}><Plus size={11} /> Agregar tarea</button>
+        </div>
+      </div>
+    );
+  }
+  if (nodo.tipo === "condicion") {
+    const ramas: { si: string; etiqueta: string }[] = Array.isArray(c.ramas) ? c.ramas as { si: string; etiqueta: string }[] : [];
+    return (
+      <div className="space-y-1.5">
+        {ramas.map((r, i) => (
+          <div key={i} className="flex gap-1.5">
+            <input className={inputCls} placeholder="Si contiene…" value={r.si} onChange={e => set("ramas", ramas.map((x, j) => j === i ? { ...x, si: e.target.value } : x))} />
+            <input className={inputCls} placeholder="→ etiqueta/rama" value={r.etiqueta} onChange={e => set("ramas", ramas.map((x, j) => j === i ? { ...x, etiqueta: e.target.value } : x))} />
+            <button onClick={() => set("ramas", ramas.filter((_, j) => j !== i))} className="text-muted hover:text-red-500"><X size={13} /></button>
+          </div>
+        ))}
+        <button onClick={() => set("ramas", [...ramas, { si: "", etiqueta: "" }])} className="text-[11px] font-semibold flex items-center gap-1" style={{ color: NEXUS }}><Plus size={11} /> Agregar rama</button>
+      </div>
+    );
+  }
+  if (nodo.tipo === "espera") return <input type="number" className={inputCls} placeholder="Minutos" value={Number(c.minutos ?? 5)} onChange={e => set("minutos", parseInt(e.target.value) || 0)} />;
+  if (nodo.tipo === "etiqueta") return <input className={inputCls} placeholder="Etiqueta a aplicar" value={String(c.etiqueta ?? "")} onChange={e => set("etiqueta", e.target.value)} />;
+  if (nodo.tipo === "crm") return (
+    <select className={inputCls} value={String(c.estado ?? "INTERESADO")} onChange={e => set("estado", e.target.value)}>
+      {["PROSPECTO", "INTERESADO", "CALIFICADO", "CLIENTE_ACTIVO"].map(s => <option key={s} value={s}>{s}</option>)}
+    </select>
+  );
+  if (nodo.tipo === "transferir") return <input className={inputCls} placeholder="Motivo de la transferencia" value={String(c.motivo ?? "")} onChange={e => set("motivo", e.target.value)} />;
+  if (nodo.tipo === "webhook") return <input className={inputCls} placeholder="https://…" value={String(c.url ?? "")} onChange={e => set("url", e.target.value)} />;
+  return <p className="text-xs text-muted">Sin configuración.</p>;
 }
 
 function FlujosContent() {
   const qc = useQueryClient();
-  const [modal, setModal] = useState<{ open: boolean; flujo?: Flujo }>({ open: false });
-
   const { data: flujos = [], isLoading } = useQuery<Flujo[]>({
     queryKey: ["nexus-flujos"],
     queryFn: async () => (await (await fetch("/api/nexus/flujos")).json()).data ?? [],
   });
 
-  const toggle = async (fl: Flujo) => {
-    await fetch("/api/nexus/flujos", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: fl.id, activo: !fl.activo }) });
-    qc.invalidateQueries({ queryKey: ["nexus-flujos"] });
+  const [selId, setSelId] = useState<string | null>(null);
+  const [nombre, setNombre] = useState("");
+  const [activo, setActivo] = useState(true);
+  const [nodos, setNodos] = useState<Nodo[]>([]);
+  const [abierto, setAbierto] = useState<string | null>(null);
+  const [dragTipo, setDragTipo] = useState<string | null>(null);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overCanvas, setOverCanvas] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const sel = flujos.find(f => f.id === selId) ?? null;
+  useEffect(() => {
+    if (!selId && flujos.length) setSelId(flujos[0].id);
+  }, [flujos, selId]);
+  useEffect(() => {
+    if (sel) {
+      setNombre(sel.nombre); setActivo(sel.activo);
+      // Deriva nodos si el flujo guardado no tiene
+      const ns = sel.nodos && sel.nodos.length ? sel.nodos : [
+        { id: "n1", tipo: "trigger", config: { disparador: sel.disparador.join(", ") } },
+        ...(sel.objetivo ? [{ id: "n2", tipo: "ia", config: { contexto: sel.objetivo, tareas: [] } }] : []),
+      ];
+      setNodos(ns);
+    }
+  }, [sel?.id]); // eslint-disable-line
+
+  const addNodo = (tipo: string, at?: number) => {
+    const nuevo: Nodo = { id: `n_${Date.now()}`, tipo, config: defaultConfig(tipo) };
+    setNodos(p => { const n = [...p]; n.splice(at ?? n.length, 0, nuevo); return n; });
+    setAbierto(nuevo.id);
   };
-  const eliminar = async (id: string) => {
-    if (!confirm("¿Eliminar este flujo?")) return;
-    await fetch(`/api/nexus/flujos?id=${id}`, { method: "DELETE" });
-    toast.success("Flujo eliminado");
+  const delNodo = (id: string) => setNodos(p => p.filter(n => n.id !== id));
+  const updNodo = (id: string, config: Record<string, unknown>) => setNodos(p => p.map(n => n.id === id ? { ...n, config } : n));
+  const moverNodo = (from: number, to: number) => setNodos(p => { const n = [...p]; const [x] = n.splice(from, 1); n.splice(to, 0, x); return n; });
+
+  const guardar = async () => {
+    if (!sel) return;
+    setSaving(true);
+    const res = await fetch("/api/nexus/flujos", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: sel.id, nombre, activo, nodos }) });
+    setSaving(false);
+    if ((await res.json()).success) { toast.success("Flujo guardado"); qc.invalidateQueries({ queryKey: ["nexus-flujos"] }); }
+    else toast.error("Error al guardar");
+  };
+
+  const nuevoFlujo = async () => {
+    const res = await fetch("/api/nexus/flujos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nombre: "Nuevo flujo", nodos: [{ id: "n1", tipo: "trigger", config: { disparador: "" } }] }) });
+    const json = await res.json();
+    if (json.success) { await qc.invalidateQueries({ queryKey: ["nexus-flujos"] }); setSelId(json.data.id); }
+  };
+  const eliminarFlujo = async () => {
+    if (!sel || !confirm("¿Eliminar este flujo?")) return;
+    await fetch(`/api/nexus/flujos?id=${sel.id}`, { method: "DELETE" });
+    setSelId(null);
     qc.invalidateQueries({ queryKey: ["nexus-flujos"] });
   };
 
   return (
     <>
       <Topbar title="Flujos & Automatización" actions={
-        <button onClick={() => setModal({ open: true })} className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: NEXUS_COLOR }}>
-          <Plus size={13} /> Nuevo flujo
-        </button>
-      } />
-      <div className="flex-1 overflow-y-auto page-bg p-4 sm:p-6 space-y-5">
-
-        {/* Hero */}
-        <div className="card p-5 flex items-center gap-4" style={{ background: `linear-gradient(135deg, ${NEXUS_COLOR}12, transparent)` }}>
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: NEXUS_COLOR }}><Sparkles size={22} className="text-white" /></div>
-          <div className="flex-1">
-            <p className="text-sm font-bold text-gray-800 dark:text-gray-100">Automatiza la atención al cliente</p>
-            <p className="text-xs text-muted mt-0.5">Define flujos que el agente IA usa para responder. Necesitan la IA configurada en <Link href="/configuracion?tab=ia" className="font-semibold underline" style={{ color: NEXUS_COLOR }}>Configuración → IA</Link> y los canales conectados.</p>
-          </div>
+        <div className="flex items-center gap-2">
+          <button onClick={nuevoFlujo} className="btn-secondary btn-sm"><Plus size={13} /> Nuevo</button>
+          {sel && <button onClick={guardar} disabled={saving} className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: NEXUS }}>{saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} Guardar</button>}
         </div>
+      } />
+      <div className="flex-1 overflow-hidden flex page-bg">
 
-        {/* Lista de flujos */}
-        {isLoading ? (
-          <div className="card p-10 text-center"><Loader2 size={18} className="animate-spin mx-auto" style={{ color: NEXUS_COLOR }} /></div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {flujos.map(fl => {
-              const acc = ACCIONES.find(a => a.v === fl.accion) ?? ACCIONES[0];
-              const AccIcon = acc.Icon;
+        {/* Paleta de bloques */}
+        <div className="w-60 flex-shrink-0 border-r divider surface flex flex-col">
+          <div className="p-3 border-b divider"><p className="text-xs font-bold uppercase tracking-wider text-muted">Bloques</p><p className="text-[10px] text-muted mt-0.5">Arrástralos al lienzo</p></div>
+          <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+            {BLOQUES.map(b => {
+              const Icon = b.Icon;
               return (
-                <div key={fl.id} className="card p-5 group">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: acc.c + "18" }}><AccIcon size={18} style={{ color: acc.c }} /></div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{fl.nombre}</p>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: acc.c + "18", color: acc.c }}>{acc.l}</span>
-                    </div>
-                    <button onClick={() => toggle(fl)} title={fl.activo ? "Activo" : "Inactivo"}
-                      className="w-10 h-5 rounded-full relative transition-all flex-shrink-0" style={{ backgroundColor: fl.activo ? "#16a34a" : "var(--surface-3)" }}>
-                      <span className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform" style={{ transform: fl.activo ? "translateX(22px)" : "translateX(2px)" }} />
-                    </button>
-                  </div>
-                  {fl.objetivo && <p className="text-xs text-muted mt-3 line-clamp-2">{fl.objetivo}</p>}
-                  {fl.disparador.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-3">
-                      {fl.disparador.slice(0, 5).map(d => <span key={d} className="text-[10px] font-medium px-2 py-0.5 rounded-full surface-3 text-muted flex items-center gap-0.5"><Hash size={8} />{d}</span>)}
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t divider">
-                    {fl.transferirSiComplejo
-                      ? <span className="text-[10px] text-amber-600 flex items-center gap-1"><ArrowRightLeft size={10} /> Transfiere a humano si se complica</span>
-                      : <span />}
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => setModal({ open: true, flujo: fl })} className="text-muted hover:text-blue-500"><Pencil size={13} /></button>
-                      <button onClick={() => eliminar(fl.id)} className="text-muted hover:text-red-500"><Trash2 size={13} /></button>
-                    </div>
-                  </div>
+                <div key={b.tipo} draggable onDragStart={() => setDragTipo(b.tipo)} onDragEnd={() => setDragTipo(null)}
+                  onClick={() => sel && addNodo(b.tipo)}
+                  className="card p-2.5 flex items-start gap-2.5 cursor-grab hover:shadow-md transition-all">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: b.c + "18" }}><Icon size={15} style={{ color: b.c }} /></div>
+                  <div className="min-w-0"><p className="text-xs font-bold text-gray-800 dark:text-gray-100">{b.l}</p><p className="text-[10px] text-muted leading-tight">{b.desc}</p></div>
                 </div>
               );
             })}
-            {/* Crear */}
-            <button onClick={() => setModal({ open: true })} className="card p-5 border-2 border-dashed divider flex flex-col items-center justify-center gap-2 text-muted hover:surface-2 transition-colors min-h-[140px]">
-              <Plus size={22} /> <span className="text-sm font-semibold">Crear nuevo flujo</span>
-            </button>
           </div>
-        )}
+        </div>
+
+        {/* Lienzo */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Selector de flujo */}
+          <div className="px-4 py-2.5 border-b divider surface flex items-center gap-2 overflow-x-auto flex-shrink-0">
+            {isLoading ? <Loader2 size={14} className="animate-spin" /> : flujos.map(f => (
+              <button key={f.id} onClick={() => setSelId(f.id)} className="pill flex-shrink-0" style={selId === f.id ? { backgroundColor: NEXUS, color: "white" } : {}}>
+                {!f.activo && <Power size={10} />} {f.nombre}
+              </button>
+            ))}
+          </div>
+
+          {!sel ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-muted gap-3">
+              <Sparkles size={30} /><p className="text-sm">Crea un flujo para empezar a construir.</p>
+              <button onClick={nuevoFlujo} className="btn-primary btn-sm"><Plus size={13} /> Nuevo flujo</button>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto"
+              onDragOver={e => { e.preventDefault(); setOverCanvas(true); }}
+              onDragLeave={() => setOverCanvas(false)}
+              onDrop={() => { if (dragTipo) addNodo(dragTipo); setDragTipo(null); setOverCanvas(false); }}>
+              {/* Encabezado del flujo */}
+              <div className="p-4 flex items-center gap-3 max-w-2xl mx-auto w-full">
+                <input value={nombre} onChange={e => setNombre(e.target.value)} className="input font-bold flex-1" placeholder="Nombre del flujo" />
+                <button onClick={() => setActivo(v => !v)} className="flex items-center gap-2" title="Activo/Inactivo">
+                  <span className="w-10 h-5 rounded-full relative transition-all" style={{ backgroundColor: activo ? "#16a34a" : "var(--surface-3)" }}><span className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform" style={{ transform: activo ? "translateX(22px)" : "translateX(2px)" }} /></span>
+                </button>
+                <button onClick={eliminarFlujo} className="text-muted hover:text-red-500"><Trash2 size={15} /></button>
+              </div>
+
+              {/* Nodos */}
+              <div className="px-4 pb-10 flex flex-col items-center" style={{ backgroundImage: "radial-gradient(var(--border) 1px, transparent 1px)", backgroundSize: "20px 20px" }}>
+                {nodos.length === 0 && <div className={`w-80 card p-6 border-2 border-dashed text-center text-sm text-muted ${overCanvas ? "border-violet-400" : "divider"}`}>Arrastra bloques aquí</div>}
+                {nodos.map((n, i) => {
+                  const m = meta(n.tipo); const Icon = m.Icon; const open = abierto === n.id;
+                  return (
+                    <div key={n.id} className="flex flex-col items-center w-full max-w-md">
+                      <div draggable onDragStart={() => setDragIdx(i)} onDragEnd={() => setDragIdx(null)}
+                        onDragOver={e => { e.preventDefault(); }}
+                        onDrop={e => { e.stopPropagation(); if (dragIdx !== null && dragIdx !== i) moverNodo(dragIdx, i); setDragIdx(null); if (dragTipo) { addNodo(dragTipo, i); setDragTipo(null); } }}
+                        className={`card w-full transition-all ${dragIdx === i ? "opacity-40" : ""}`} style={{ borderTop: `3px solid ${m.c}` }}>
+                        <div className="flex items-center gap-2 p-3 cursor-pointer" onClick={() => setAbierto(open ? null : n.id)}>
+                          <GripVertical size={14} className="text-muted cursor-grab" />
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: m.c + "18" }}><Icon size={15} style={{ color: m.c }} /></div>
+                          <div className="flex-1 min-w-0"><p className="text-sm font-bold text-gray-800 dark:text-gray-100">{m.l}</p><p className="text-[10px] text-muted truncate">{resumen(n)}</p></div>
+                          <button onClick={e => { e.stopPropagation(); delNodo(n.id); }} className="text-muted hover:text-red-500"><Trash2 size={13} /></button>
+                        </div>
+                        {open && <div className="px-3 pb-3 border-t divider pt-3"><NodoEditor nodo={n} onChange={c => updNodo(n.id, c)} /></div>}
+                      </div>
+                      {i < nodos.length - 1 && (
+                        <div className="flex flex-col items-center py-1"><div className="w-0.5 h-3" style={{ backgroundColor: "var(--border-strong)" }} /><ArrowDown size={13} className="text-muted -my-0.5" /><div className="w-0.5 h-3" style={{ backgroundColor: "var(--border-strong)" }} /></div>
+                      )}
+                    </div>
+                  );
+                })}
+                {/* Drop final */}
+                {nodos.length > 0 && (
+                  <div className="flex flex-col items-center py-1"><div className="w-0.5 h-3" style={{ backgroundColor: "var(--border-strong)" }} /><ArrowDown size={13} className="text-muted -my-0.5" /></div>
+                )}
+                <button onClick={() => sel && addNodo("mensaje")} className="w-full max-w-md card p-3 border-2 border-dashed divider flex items-center justify-center gap-2 text-muted hover:surface-2 transition-colors text-sm font-semibold"><Plus size={15} /> Agregar bloque</button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-      {modal.open && <ModalFlujo flujo={modal.flujo} onClose={() => setModal({ open: false })} onSaved={() => { setModal({ open: false }); qc.invalidateQueries({ queryKey: ["nexus-flujos"] }); }} />}
     </>
   );
+}
+
+function resumen(n: Nodo): string {
+  const c = n.config;
+  switch (n.tipo) {
+    case "trigger": return String(c.disparador || "sin palabras clave");
+    case "mensaje": return String(c.texto || "sin texto");
+    case "pregunta": return String(c.texto || "pregunta");
+    case "ia": return `${(Array.isArray(c.tareas) ? c.tareas.length : 0)} tareas · ${String(c.contexto || "").slice(0, 40)}`;
+    case "condicion": return `${Array.isArray(c.ramas) ? c.ramas.length : 0} ramas`;
+    case "espera": return `${c.minutos} min`;
+    case "etiqueta": return String(c.etiqueta || "");
+    case "crm": return String(c.estado || "");
+    case "transferir": return String(c.motivo || "a un asesor");
+    case "webhook": return String(c.url || "");
+    default: return "";
+  }
 }
 
 export default function FlujosPage() { return <Suspense><FlujosContent /></Suspense>; }
