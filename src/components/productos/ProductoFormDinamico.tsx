@@ -318,6 +318,45 @@ function FichaTecnicaUploader({ productoId, urlInicial, nombreInicial, set }: { 
   );
 }
 
+interface CampoDef { key: string; label: string; tipo: string; }
+function CamposDinamicos({ categorias, d, s }: { categorias: string[]; d: Record<string, unknown>; s: (k: string, v: unknown) => void }) {
+  const { data: mapa = {} } = useQuery<Record<string, CampoDef[]>>({
+    queryKey: ["campos-categoria-all"],
+    queryFn: async () => (await (await fetch("/api/categorias/campos")).json()).data ?? {},
+  });
+  // Campos de todas las categorías del producto (sin duplicar por key)
+  const campos: CampoDef[] = [];
+  const vistos = new Set<string>();
+  for (const cat of categorias) for (const c of (mapa[cat] ?? [])) { if (!vistos.has(c.key)) { vistos.add(c.key); campos.push(c); } }
+
+  if (categorias.length === 0) return <div className="card p-6 text-center text-sm text-muted">Selecciona una categoría en la pestaña Producto para ver sus campos.</div>;
+  if (campos.length === 0) return <div className="card p-6 text-center text-sm text-muted">Esta categoría no tiene campos personalizados. Un administrador puede crearlos en <b>Catálogos</b>.</div>;
+
+  return (
+    <div className="card p-5 space-y-4">
+      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Campos de la categoría</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {campos.map(c => (
+          <div key={c.key}>
+            <Label>{c.label}</Label>
+            {c.tipo === "booleano" ? (
+              <button type="button" onClick={() => s(c.key, !d[c.key])} className="flex items-center gap-2 mt-1">
+                <span className="w-10 h-5 rounded-full relative transition-all" style={{ backgroundColor: d[c.key] ? "var(--brand-color)" : "var(--surface-3)" }}>
+                  <span className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform" style={{ transform: d[c.key] ? "translateX(22px)" : "translateX(2px)" }} />
+                </span>
+                <span className="text-sm text-soft">{d[c.key] ? "Sí" : "No"}</span>
+              </button>
+            ) : (
+              <input type={c.tipo === "numero" ? "number" : "text"} className="input"
+                value={String(d[c.key] ?? "")} onChange={e => s(c.key, c.tipo === "numero" ? (parseFloat(e.target.value) || 0) : e.target.value)} />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SeoTab({ form, set, productoId }: { form: Record<string, unknown>; set: (k: string, v: unknown) => void; productoId?: string }) {
   const [cargando, setCargando] = useState(false);
   const nombre = String(form.nombre ?? "");
@@ -1031,7 +1070,9 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
 
         {/* PESTAÑA: FICHA TÉCNICA */}
         {tab === "ficha" && (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl mx-auto space-y-5">
+            {/* Campos personalizados por categoría (definidos por admin en Catálogos) */}
+            <CamposDinamicos categorias={Array.isArray(form.categorias) ? form.categorias as string[] : []} d={(form.acfExtra as FD) ?? {}} s={setX} />
             {fichasActivas.length > 0 ? (
               <>
                 {/* Sub-tabs si hay más de una ficha */}

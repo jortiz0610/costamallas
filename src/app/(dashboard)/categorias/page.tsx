@@ -3,8 +3,76 @@
 import { useState, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { Tag, Plus, Trash2, Loader2, Pencil, Check, X, Package, Palette, Ruler, FileText, Truck, Zap, BookOpen } from "lucide-react";
+import { Tag, Plus, Trash2, Loader2, Pencil, Check, X, Package, Palette, Ruler, FileText, Truck, Zap, BookOpen, SlidersHorizontal } from "lucide-react";
 import toast from "react-hot-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { esAdmin } from "@/lib/permisos";
+
+interface CampoDef { key: string; label: string; tipo: "texto" | "numero" | "booleano" | "lista"; unidad?: string; }
+
+function GestionarCampos({ categoria, label, onClose }: { categoria: string; label: string; onClose: () => void }) {
+  const [campos, setCampos] = useState<CampoDef[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useQuery({
+    queryKey: ["campos-cat", categoria],
+    queryFn: async () => {
+      const j = await (await fetch("/api/categorias/campos")).json();
+      setCampos((j.data?.[categoria] as CampoDef[]) ?? []);
+      setCargando(false);
+      return j;
+    },
+  });
+
+  const add = () => setCampos(p => [...p, { key: `campo_${Date.now()}`, label: "", tipo: "texto" }]);
+  const upd = (i: number, k: keyof CampoDef, v: string) => setCampos(p => { const n = [...p]; n[i] = { ...n[i], [k]: v }; return n; });
+  const del = (i: number) => setCampos(p => p.filter((_, j) => j !== i));
+
+  const guardar = async () => {
+    const validos = campos.filter(c => c.label.trim());
+    setSaving(true);
+    const res = await fetch("/api/categorias/campos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ categoria, campos: validos }) });
+    setSaving(false);
+    if ((await res.json()).success) { toast.success("Campos guardados"); onClose(); }
+    else toast.error("Error al guardar");
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto">
+      <div className="card w-full max-w-lg my-4 animate-fade-up">
+        <div className="card-header">
+          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2"><SlidersHorizontal size={16} style={{ color: "#185FA5" }} /> Campos de ficha · {label}</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg surface-2 flex items-center justify-center text-muted"><X size={15} /></button>
+        </div>
+        <div className="p-5 space-y-3">
+          <p className="text-xs text-muted">Estos campos aparecerán en la ficha técnica de los productos de esta categoría.</p>
+          {cargando ? (
+            <div className="py-6 text-center"><Loader2 size={18} className="animate-spin mx-auto" /></div>
+          ) : campos.length === 0 ? (
+            <p className="text-sm text-muted text-center py-4">Sin campos. Agrega el primero.</p>
+          ) : campos.map((c, i) => (
+            <div key={i} className="grid grid-cols-12 gap-2 items-center">
+              <input className="input col-span-6 py-1.5 text-sm" placeholder="Etiqueta (ej: Calibre)" value={c.label} onChange={e => upd(i, "label", e.target.value)} />
+              <select className="input col-span-4 py-1.5 text-sm" value={c.tipo} onChange={e => upd(i, "tipo", e.target.value)}>
+                <option value="texto">Texto</option>
+                <option value="numero">Número</option>
+                <option value="booleano">Sí/No</option>
+                <option value="lista">Lista</option>
+              </select>
+              <button onClick={() => del(i)} className="text-muted hover:text-red-500 col-span-2 flex justify-center"><Trash2 size={14} /></button>
+            </div>
+          ))}
+          <button onClick={add} className="text-xs font-semibold flex items-center gap-1" style={{ color: "#185FA5" }}><Plus size={12} /> Agregar campo</button>
+        </div>
+        <div className="p-5 pt-0 flex gap-3">
+          <button onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
+          <button onClick={guardar} disabled={saving} className="btn-primary flex-1 justify-center">{saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Guardar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface Catalogo {
   id: string;
@@ -33,6 +101,8 @@ async function fetchCatalogos(tipo: string): Promise<Catalogo[]> {
 
 function CategoriasContent() {
   const [tipo, setTipo] = useState("CATEGORIA");
+  const { user } = useAuth();
+  const [camposModal, setCamposModal] = useState<{ categoria: string; label: string } | null>(null);
   const [newValor, setNewValor] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [adding, setAdding] = useState(false);
@@ -218,6 +288,15 @@ function CategoriasContent() {
                     <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">{item.label}</span>
                   )}
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {tipo === "CATEGORIA" && esAdmin(user?.rol) && (
+                      <button
+                        onClick={() => setCamposModal({ categoria: item.valor, label: item.label })}
+                        title="Campos de ficha técnica"
+                        className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-400 hover:text-blue-600"
+                      >
+                        <SlidersHorizontal size={12} />
+                      </button>
+                    )}
                     <button
                       onClick={() => { setEditId(item.id); setEditLabel(item.label); }}
                       className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
@@ -237,6 +316,7 @@ function CategoriasContent() {
           </div>
         </div>
       </div>
+      {camposModal && <GestionarCampos categoria={camposModal.categoria} label={camposModal.label} onClose={() => setCamposModal(null)} />}
     </>
   );
 }
