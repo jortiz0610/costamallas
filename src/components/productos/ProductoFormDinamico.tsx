@@ -207,11 +207,35 @@ function TagInput({ label, value, onChange, hint, placeholder, suggestions }: {
   );
 }
 
-function FichaTecnicaUploader({ productoId, urlInicial, nombreInicial }: { productoId?: string; urlInicial?: string; nombreInicial?: string }) {
+function FichaTecnicaUploader({ productoId, urlInicial, nombreInicial, set }: { productoId?: string; urlInicial?: string; nombreInicial?: string; set?: (k: string, v: unknown) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState(urlInicial ?? "");
   const [nombre, setNombre] = useState(nombreInicial ?? "");
   const [subiendo, setSubiendo] = useState(false);
+  const [analizando, setAnalizando] = useState(false);
+  const [sug, setSug] = useState<Record<string, unknown> | null>(null);
+
+  const analizar = async () => {
+    setAnalizando(true); setSug(null);
+    try {
+      const res = await fetch("/api/ai/ficha", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ productoId }) });
+      const json = await res.json();
+      if (!json.success) return toast.error(json.error ?? "Error al analizar");
+      setSug(json.data);
+      toast.success("Ficha analizada ✓ revisa las sugerencias");
+    } catch { toast.error("Error al analizar"); } finally { setAnalizando(false); }
+  };
+
+  const aplicar = () => {
+    if (!sug || !set) return;
+    if (sug.descripcionLarga) set("descripcion", sug.descripcionLarga);
+    if (sug.pesoKg != null) set("pesoKg", Number(sug.pesoKg));
+    if (sug.garantiaAnos != null) set("acfGarantiaAnos", Number(sug.garantiaAnos));
+    if (Array.isArray(sug.normas)) set("acfNormas", sug.normas);
+    if (Array.isArray(sug.certificaciones)) set("acfCertificaciones", sug.certificaciones);
+    toast.success("Campos aplicados. Revisa y guarda el producto.");
+    setSug(null);
+  };
 
   if (!productoId) {
     return (
@@ -253,6 +277,9 @@ function FichaTecnicaUploader({ productoId, urlInicial, nombreInicial }: { produ
             <a href={url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-soft hover:underline truncate block">{nombre || "ficha-tecnica.pdf"}</a>
             <p className="text-[10px] text-muted truncate">{url}</p>
           </div>
+          <button type="button" onClick={analizar} disabled={analizando} className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: "var(--brand-color)" }}>
+            {analizando ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} Analizar con IA
+          </button>
           <button type="button" onClick={() => fileRef.current?.click()} disabled={subiendo} className="btn-secondary btn-sm">Reemplazar</button>
           <button type="button" onClick={eliminar} className="text-muted hover:text-red-500"><Trash2 size={15} /></button>
         </div>
@@ -263,6 +290,29 @@ function FichaTecnicaUploader({ productoId, urlInicial, nombreInicial }: { produ
           <span className="text-sm font-semibold text-soft">{subiendo ? "Subiendo…" : "Subir ficha técnica (PDF)"}</span>
           <span className="text-[11px] text-muted">Se guarda en el servidor de Costamallas (carpeta fichas-tecnicas)</span>
         </button>
+      )}
+
+      {/* Sugerencias de IA */}
+      {sug && (
+        <div className="mt-3 card p-4 animate-fade-up">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2"><Sparkles size={14} style={{ color: "var(--brand-color)" }} /> Sugerencias de la ficha</p>
+            <button type="button" onClick={() => setSug(null)} className="text-muted hover:text-red-500"><X size={14} /></button>
+          </div>
+          <div className="space-y-1.5 text-xs">
+            {Object.entries(sug).map(([k, v]) => (
+              <div key={k} className="flex gap-2">
+                <span className="font-semibold text-muted capitalize w-28 flex-shrink-0">{k}:</span>
+                <span className="text-soft">{Array.isArray(v) ? v.join(", ") : String(v)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 mt-3 pt-3 border-t divider">
+            <button type="button" onClick={() => setSug(null)} className="btn-secondary btn-sm flex-1 justify-center">Descartar</button>
+            <button type="button" onClick={aplicar} className="btn-primary btn-sm flex-1 justify-center"><Check size={13} /> Aplicar a los campos</button>
+          </div>
+          <p className="text-[10px] text-muted mt-2">Revisa y confirma. Los cambios se guardan al pulsar "Guardar producto".</p>
+        </div>
       )}
     </div>
   );
@@ -971,6 +1021,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
               <Divider label="" />
               <FichaTecnicaUploader
                 productoId={productoId}
+                set={set}
                 urlInicial={(form.acfExtra as Record<string, unknown> | undefined)?.fichaTecnicaUrl as string | undefined}
                 nombreInicial={(form.acfExtra as Record<string, unknown> | undefined)?.fichaTecnicaNombre as string | undefined}
               />
