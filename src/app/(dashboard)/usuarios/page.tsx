@@ -18,40 +18,21 @@ interface Usuario {
 
 function Modal2FA({ usuario, onClose, onSaved }: { usuario: Usuario; onClose: () => void; onSaved: () => void }) {
   const { brand } = useBrand();
-  const [paso, setPaso] = useState<"cargando" | "qr" | "ok">("cargando");
-  const [qr, setQr] = useState("");
-  const [codigo, setCodigo] = useState("");
+  const [estado, setEstado] = useState<"cargando" | "activo" | "requerido" | "inactivo">("cargando");
   const [busy, setBusy] = useState(false);
 
-  const yaActivo = usuario.twoFactor;
+  useEffect(() => {
+    fetch(`/api/usuarios/${usuario.id}/2fa`).then(r => r.json()).then(j => {
+      if (j.success) setEstado(j.data.enabled ? "activo" : j.data.requerido ? "requerido" : "inactivo");
+      else setEstado("inactivo");
+    }).catch(() => setEstado("inactivo"));
+  }, [usuario.id]);
 
-  const generar = async () => {
-    setPaso("cargando");
-    const res = await fetch(`/api/usuarios/${usuario.id}/2fa`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "generate" }) });
-    const json = await res.json();
-    if (json.success) { setQr(json.data.qr); setPaso("qr"); }
-    else { toast.error(json.error ?? "Error"); onClose(); }
-  };
-
-  // Si no está activo, generar el QR al abrir
-  useEffect(() => { if (!yaActivo) generar(); /* eslint-disable-next-line */ }, []);
-
-  const activar = async () => {
-    if (codigo.length < 6) return toast.error("Ingresa el código de 6 dígitos");
+  const accion = async (action: string, okMsg: string) => {
     setBusy(true);
-    const res = await fetch(`/api/usuarios/${usuario.id}/2fa`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "activate", code: codigo }) });
-    const json = await res.json();
+    const res = await fetch(`/api/usuarios/${usuario.id}/2fa`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
     setBusy(false);
-    if (json.success) { toast.success("2FA activado ✓"); onSaved(); }
-    else toast.error(json.error ?? "Código incorrecto");
-  };
-
-  const desactivar = async () => {
-    if (!confirm(`¿Desactivar la doble autenticación de ${usuario.nombre}?`)) return;
-    setBusy(true);
-    const res = await fetch(`/api/usuarios/${usuario.id}/2fa`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "disable" }) });
-    setBusy(false);
-    if ((await res.json()).success) { toast.success("2FA desactivado"); onSaved(); }
+    if ((await res.json()).success) { toast.success(okMsg); onSaved(); }
     else toast.error("Error");
   };
 
@@ -63,29 +44,35 @@ function Modal2FA({ usuario, onClose, onSaved }: { usuario: Usuario; onClose: ()
           <button onClick={onClose} className="w-8 h-8 rounded-lg surface-2 flex items-center justify-center text-muted"><X size={15} /></button>
         </div>
 
-        {yaActivo ? (
+        {estado === "cargando" ? (
+          <div className="p-10 text-center"><Loader2 size={22} className="animate-spin mx-auto" style={{ color: brand.brandColor }} /></div>
+        ) : estado === "activo" ? (
           <div className="p-6 text-center space-y-4">
             <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-500/15 flex items-center justify-center mx-auto"><ShieldCheck size={28} className="text-emerald-600" /></div>
             <div>
               <p className="text-sm font-bold text-gray-800 dark:text-gray-100">2FA activo</p>
-              <p className="text-xs text-muted mt-1">Este usuario debe ingresar un código de su app de autenticación al iniciar sesión.</p>
+              <p className="text-xs text-muted mt-1">El usuario ingresa un código de su app al iniciar sesión en dispositivos nuevos.</p>
             </div>
-            <button onClick={desactivar} disabled={busy} className="btn-danger w-full justify-center">{busy ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />} Desactivar 2FA</button>
+            <button onClick={() => { if (confirm("¿Desactivar 2FA de este usuario?")) accion("disable", "2FA desactivado"); }} disabled={busy} className="btn-danger w-full justify-center">{busy ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />} Desactivar 2FA</button>
           </div>
-        ) : paso === "cargando" ? (
-          <div className="p-10 text-center"><Loader2 size={22} className="animate-spin mx-auto" style={{ color: brand.brandColor }} /></div>
+        ) : estado === "requerido" ? (
+          <div className="p-6 text-center space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-500/15 flex items-center justify-center mx-auto"><ShieldCheck size={28} className="text-amber-600" /></div>
+            <div>
+              <p className="text-sm font-bold text-gray-800 dark:text-gray-100">Pendiente de configuración</p>
+              <p className="text-xs text-muted mt-1">El usuario configurará su 2FA (escaneará el QR) en su próximo inicio de sesión.</p>
+            </div>
+            <button onClick={() => { if (confirm("¿Cancelar el requerimiento de 2FA?")) accion("disable", "Requerimiento cancelado"); }} disabled={busy} className="btn-secondary w-full justify-center">Cancelar requerimiento</button>
+          </div>
         ) : (
-          <div className="p-6 space-y-4">
-            <ol className="text-xs text-soft space-y-1.5 list-decimal list-inside">
-              <li>Abre <b>Google Authenticator</b> (o Authy/Microsoft Authenticator) en tu teléfono.</li>
-              <li>Toca <b>+</b> → <b>Escanear código QR</b> y apunta a la imagen.</li>
-              <li>Ingresa el código de 6 dígitos que aparece para confirmar.</li>
-            </ol>
-            {qr && <div className="flex justify-center"><Image src={qr} alt="QR 2FA" width={200} height={200} className="rounded-xl border divider bg-white p-2" unoptimized /></div>}
-            <input value={codigo} onChange={e => setCodigo(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              className="input text-center text-lg tracking-[0.3em] font-mono" placeholder="000000" inputMode="numeric" />
-            <button onClick={activar} disabled={busy} className="w-full py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50" style={{ backgroundColor: brand.brandColor }}>
-              {busy ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />} Activar 2FA
+          <div className="p-6 text-center space-y-4">
+            <div className="w-14 h-14 rounded-2xl surface-2 flex items-center justify-center mx-auto"><ShieldCheck size={28} className="text-muted" /></div>
+            <div>
+              <p className="text-sm font-bold text-gray-800 dark:text-gray-100">Exigir doble autenticación</p>
+              <p className="text-xs text-muted mt-1">El usuario deberá configurar Google Authenticator por sí mismo en su próximo acceso. Tú no necesitas escanear nada.</p>
+            </div>
+            <button onClick={() => accion("require", "2FA exigido al usuario")} disabled={busy} className="w-full py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50" style={{ backgroundColor: brand.brandColor }}>
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />} Requerir 2FA
             </button>
           </div>
         )}

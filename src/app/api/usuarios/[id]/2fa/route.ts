@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import QRCode from "qrcode";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { generar2FA, activar2FA, desactivar2FA, is2FAEnabled } from "@/lib/twofa";
+import { generar2FA, activar2FA, desactivar2FA, is2FAEnabled, is2FARequerido, requerir2FA } from "@/lib/twofa";
 
 type P = { params: Promise<{ id: string }> };
 
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest, { params }: P) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
   if (!puedeGestionar(user, id)) return NextResponse.json({ success: false, error: "Sin permisos" }, { status: 403 });
-  return NextResponse.json({ success: true, data: { enabled: await is2FAEnabled(id) } });
+  return NextResponse.json({ success: true, data: { enabled: await is2FAEnabled(id), requerido: await is2FARequerido(id) } });
 }
 
 export async function POST(req: NextRequest, { params }: P) {
@@ -28,6 +28,12 @@ export async function POST(req: NextRequest, { params }: P) {
   const { action, code } = await req.json();
   const target = await prisma.usuario.findUnique({ where: { id }, select: { email: true, nombre: true } });
   if (!target) return NextResponse.json({ success: false, error: "Usuario no encontrado" }, { status: 404 });
+
+  if (action === "require") {
+    await requerir2FA(id);
+    await prisma.log.create({ data: { usuarioId: user.sub, accion: "AUTH_2FA_REQ", detalle: `2FA exigido a ${target.email}`, resultado: "OK" } }).catch(() => {});
+    return NextResponse.json({ success: true });
+  }
 
   if (action === "generate") {
     const { otpauth } = await generar2FA(id, target.email);
