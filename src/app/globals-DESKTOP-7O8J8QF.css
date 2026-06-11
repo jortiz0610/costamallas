@@ -1,0 +1,267 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ════════════════════════════════════════════════════════════
+   COSTAMALLAS — SISTEMA DE DISEÑO
+   Modo claro: limpio con acentos de color
+   Modo oscuro: profundo, elegante, detalles minimalistas
+   ════════════════════════════════════════════════════════════ */
+
+@keyframes slide-in-right {
+  from { transform: translateX(110%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.animate-slide-in-right { animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+@keyframes refresh-success {
+  0%   { background-color: inherit; color: inherit; border-color: inherit; }
+  15%  { background-color: #16a34a; color: white; border-color: #16a34a; }
+  75%  { background-color: #16a34a; color: white; border-color: #16a34a; }
+  100% { background-color: inherit; color: inherit; border-color: inherit; }
+}
+.animate-refresh-success { animation: refresh-success 2.2s ease-in-out forwards; }
+
+@keyframes spin-once { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.animate-spin-once { animation: spin-once 0.5s ease-in-out; }
+
+@keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.animate-fade-up { animation: fade-up 0.25s ease-out; }
+
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+/* ── Design tokens — FUERA de @layer para que Tailwind no los purgue ── */
+:root {
+  /* Marca */
+  --brand-color: #185FA5;
+  --brand-color-10: #185FA51a;
+  --brand-color-20: #185FA533;
+  --erp-color: #185FA5;
+  --crm-color: #BA7517;
+  --nexus-color: #7c3aed;
+
+  /* ── LIGHT MODE tokens ── */
+  --bg:            #eef2f9;   /* fondo de página */
+  --surface:       #ffffff;   /* tarjetas */
+  --surface-2:     #f7f9fc;   /* superficie secundaria / hover */
+  --surface-3:     #eef2f8;   /* chips neutrales */
+  --border:        #e3e9f2;   /* bordes suaves */
+  --border-strong: #d4dce8;
+  --text:          #1e293b;   /* texto principal */
+  --text-soft:     #475569;   /* texto secundario */
+  --text-muted:    #8696ac;   /* texto terciario */
+  --shadow:        0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.06);
+  --shadow-lg:     0 10px 30px -10px rgba(16,24,40,0.18);
+}
+
+html.dark {
+  /* ── DARK MODE tokens — profundo y elegante ── */
+  --bg:            #0a0e16;
+  --surface:       #141b27;
+  --surface-2:     #1b2433;
+  --surface-3:     #232f42;
+  --border:        #243044;
+  --border-strong: #324056;
+  --text:          #e7eef8;
+  --text-soft:     #b3c0d4;
+  --text-muted:    #7689a3;
+  --shadow:        0 1px 2px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-lg:     0 16px 40px -12px rgba(0,0,0,0.6);
+}
+
+@layer base {
+  * { box-sizing: border-box; }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply font-sans transition-colors duration-200;
+    background-color: var(--bg);
+    color: var(--text);
+  }
+
+  h1, h2, h3, h4 { color: var(--text); }
+  p { color: var(--text-soft); }
+  label { color: var(--text-soft); }
+
+  /* Tailwind text utilities → tokens (claro y oscuro coherentes) */
+  .text-gray-900, .text-slate-900 { color: var(--text) !important; }
+  .text-gray-800, .text-slate-800 { color: var(--text) !important; }
+  .text-gray-700, .text-slate-700 { color: var(--text-soft) !important; }
+  .text-gray-600, .text-slate-600 { color: var(--text-soft) !important; }
+  .text-gray-500, .text-slate-500 { color: var(--text-muted) !important; }
+  .text-gray-400, .text-slate-400 { color: var(--text-muted) !important; }
+
+  /* Neutral surfaces → tokens en dark (sin tocar colores de marca inline) */
+  .dark .bg-white       { background-color: var(--surface) !important; }
+  .dark .bg-gray-50,
+  .dark .bg-slate-50    { background-color: var(--surface-2) !important; }
+  .dark .bg-gray-100,
+  .dark .bg-slate-100   { background-color: var(--surface-3) !important; }
+  .dark .border-gray-100, .dark .border-gray-200,
+  .dark .border-slate-100, .dark .border-slate-200 { border-color: var(--border) !important; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+  ::selection { background: var(--brand-color-20); }
+}
+
+@layer components {
+  /* ── Brand utilities ── */
+  .brand-bg    { background-color: var(--brand-color) !important; }
+  .brand-text  { color: var(--brand-color) !important; }
+  .brand-border{ border-color: var(--brand-color) !important; }
+  .brand-bg-10 { background-color: var(--brand-color-10) !important; }
+
+  /* ── Superficies semánticas ── */
+  .surface   { background-color: var(--surface); }
+  .surface-2 { background-color: var(--surface-2); }
+  .surface-3 { background-color: var(--surface-3); }
+  .text-soft  { color: var(--text-soft); }
+  .text-muted { color: var(--text-muted); }
+
+  /* ── Botones ── */
+  .btn {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
+           transition-all duration-150 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary { background-color: var(--brand-color); @apply btn text-white; }
+  .btn-primary:hover { filter: brightness(1.08); box-shadow: 0 4px 14px -4px var(--brand-color); }
+
+  .btn-secondary {
+    @apply btn;
+    background-color: var(--surface);
+    color: var(--text-soft);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background-color: var(--surface-2); border-color: var(--border-strong); }
+
+  .btn-danger { @apply btn bg-red-600 text-white hover:bg-red-700; }
+
+  .btn-ghost { @apply btn bg-transparent; color: var(--text-soft); }
+  .btn-ghost:hover { background-color: var(--surface-2); }
+
+  .btn-sm { @apply px-3 py-1.5 text-xs; }
+
+  /* ── Inputs ── */
+  .input {
+    @apply w-full px-3 py-2 text-sm rounded-lg transition-all duration-150
+           focus:outline-none focus:ring-2;
+    background-color: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    --tw-ring-color: var(--brand-color-20);
+  }
+  .input::placeholder { color: var(--text-muted); }
+  .input:focus { border-color: var(--brand-color); }
+  .input-error { border-color: #f87171 !important; }
+
+  select.input option { background-color: var(--surface); color: var(--text); }
+
+  /* ── Cards ── */
+  .card {
+    @apply rounded-2xl;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+  }
+  .card-hover { transition: all 0.18s ease; }
+  .card-hover:hover { border-color: var(--border-strong); box-shadow: var(--shadow-lg); transform: translateY(-1px); }
+
+  .card-header {
+    @apply flex items-center justify-between p-5;
+    border-bottom: 1px solid var(--border);
+  }
+  .card-body { @apply p-5; }
+
+  /* ── Pills neutrales (reemplaza #f1f5f9 inline) ── */
+  .pill {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer;
+    background-color: var(--surface-3);
+    color: var(--text-soft);
+  }
+  .pill:hover { background-color: var(--border); }
+  .pill-active { color: #fff !important; }
+
+  /* ── Badges ── */
+  .badge { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium; }
+  .badge-green  { @apply badge bg-emerald-100 text-emerald-800; }
+  .badge-yellow { @apply badge bg-amber-100 text-amber-800; }
+  .badge-red    { @apply badge bg-red-100 text-red-700; }
+  .badge-gray   { @apply badge bg-slate-100 text-slate-600; }
+  .badge-blue   { @apply badge bg-blue-100 text-blue-800; }
+  .badge-orange { @apply badge bg-orange-100 text-orange-800; }
+
+  .dark .badge-green  { @apply bg-emerald-500/15 text-emerald-300; }
+  .dark .badge-yellow { @apply bg-amber-500/15 text-amber-300; }
+  .dark .badge-red    { @apply bg-red-500/15 text-red-300; }
+  .dark .badge-gray   { @apply bg-slate-500/15 text-slate-300; }
+  .dark .badge-blue   { @apply bg-blue-500/15 text-blue-300; }
+  .dark .badge-orange { @apply bg-orange-500/15 text-orange-300; }
+
+  /* ── Tabla ── */
+  .table-wrapper { @apply overflow-x-auto rounded-2xl; border: 1px solid var(--border); }
+  .table { @apply w-full text-sm; }
+  .table thead tr { background-color: var(--surface-2); border-bottom: 1px solid var(--border); }
+  .table th { @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide; color: var(--text-muted); }
+  .table td { @apply px-4 py-3; color: var(--text-soft); }
+  .table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.12s; }
+  .table tbody tr:hover { background-color: var(--surface-2); }
+  .table tbody tr:last-child { border-bottom: none; }
+
+  /* ── SKU tag ── */
+  .sku-tag {
+    background-color: var(--brand-color-10);
+    color: var(--brand-color);
+    @apply inline-block px-2 py-0.5 text-xs font-semibold rounded;
+  }
+
+  /* ── Page background ── */
+  .page-bg { background-color: var(--bg); }
+
+  /* ── Sidebar / Topbar ── */
+  .sidebar-bg { background-color: var(--surface); border-right: 1px solid var(--border); }
+  .topbar-bg  { background-color: var(--surface); border-bottom: 1px solid var(--border); }
+
+  /* ── Dividers ── */
+  .divider { border-color: var(--border); }
+
+  /* ── Section title ── */
+  .section-title { @apply text-xs font-bold uppercase tracking-widest; color: var(--text-muted); }
+
+  /* ── Skeleton loader ── */
+  .skeleton {
+    background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+    border-radius: 8px;
+  }
+
+  /* ── Glow sutil para dark mode (detalle minimalista) ── */
+  .dark .glow-brand { box-shadow: 0 0 0 1px var(--brand-color-20), 0 8px 30px -12px var(--brand-color); }
+
+  /* ── PDF / impresión: imprime SOLO el área marcada ── */
+  @media print {
+    .no-print { display: none !important; }
+    body { background: white !important; color: black !important; }
+    /* Oculta todo… */
+    body * { visibility: hidden !important; }
+    /* …menos el área de impresión y su contenido */
+    .print-area, .print-area * { visibility: visible !important; }
+    .print-area {
+      position: absolute !important;
+      left: 0 !important; top: 0 !important;
+      width: 100% !important; margin: 0 !important; padding: 0 !important;
+    }
+    .print-area .card, .print-area .shadow-lg { box-shadow: none !important; }
+    @page { margin: 12mm; }
+  }
+}
