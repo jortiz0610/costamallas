@@ -7,7 +7,7 @@ import {
   MessageSquare, Settings2, Search, Send, RefreshCw,
   Globe, Smartphone, Instagram, CheckCheck,
   X, Mail, MessageSquareText,
-  Inbox, PlugZap, Facebook,
+  Inbox, PlugZap, Facebook, Sparkles, Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import { useBrand } from "@/contexts/BrandContext";
@@ -108,7 +108,19 @@ function ChatView({ conv, onMarcarResuelta }: { conv: Conversacion; onMarcarResu
   const { brand } = useBrand();
   const qc = useQueryClient();
   const [texto, setTexto] = useState("");
+  const [sugiriendo, setSugiriendo] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const sugerirIA = async () => {
+    setSugiriendo(true);
+    try {
+      const res = await fetch("/api/ai/nexus-reply", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversacionId: conv.id }) });
+      const json = await res.json();
+      if (!json.success) { toast.error(json.sinClave ? "Configura la IA en Configuración → IA" : (json.error ?? "Error")); return; }
+      setTexto(json.data.respuesta);
+      if (json.data.transferir) toast("La IA sugiere transferir a un asesor humano", { icon: "🤝" });
+    } catch { toast.error("Error al sugerir"); } finally { setSugiriendo(false); }
+  };
 
   const { data: mensajes = [], isLoading } = useQuery<NexusMensaje[]>({
     queryKey: ["nexus-mensajes", conv.id],
@@ -208,7 +220,11 @@ function ChatView({ conv, onMarcarResuelta }: { conv: Conversacion; onMarcarResu
 
       {/* Input de respuesta */}
       {conv.estado === "ABIERTA" ? (
-        <div className="flex items-center gap-3 px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
+        <div className="flex items-center gap-2 px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
+          <button onClick={sugerirIA} disabled={sugiriendo} title="Sugerir respuesta con IA"
+            className="w-10 h-10 rounded-xl flex items-center justify-center border divider text-muted hover:surface-2 transition-all disabled:opacity-50 flex-shrink-0">
+            {sugiriendo ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} style={{ color: brand.brandColor }} />}
+          </button>
           <input
             value={texto}
             onChange={e => setTexto(e.target.value)}
@@ -217,7 +233,7 @@ function ChatView({ conv, onMarcarResuelta }: { conv: Conversacion; onMarcarResu
             placeholder="Escribe una respuesta… (Enter para enviar)"
           />
           <button onClick={handleSend} disabled={!texto.trim() || sendMutation.isPending}
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all disabled:opacity-50"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all disabled:opacity-50 flex-shrink-0"
             style={{ backgroundColor: brand.brandColor }}>
             <Send size={16} />
           </button>
