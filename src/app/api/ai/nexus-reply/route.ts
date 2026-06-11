@@ -21,9 +21,16 @@ export async function POST(req: NextRequest) {
   }).catch(() => null);
   if (!conv) return NextResponse.json({ success: false, error: "Conversación no encontrada" }, { status: 404 });
 
-  // Objetivo configurable del agente
-  const objetivoRow = await prisma.configuracion.findUnique({ where: { clave: "nexus_ia_objetivo" } });
-  const objetivo = objetivoRow?.valor || "Atender al cliente de forma amable y profesional, resolver dudas de producto y ayudar a cotizar.";
+  // Determinar el objetivo según los flujos activos (coincidencia por palabras clave)
+  let objetivo = "Atender al cliente de forma amable y profesional, resolver dudas de producto y ayudar a cotizar.";
+  let transferirSiComplejo = true;
+  try {
+    const flujosRow = await prisma.configuracion.findUnique({ where: { clave: "nexus_flujos" } });
+    const flujos: { disparador: string[]; objetivo: string; activo: boolean; transferirSiComplejo: boolean }[] = flujosRow ? JSON.parse(flujosRow.valor) : [];
+    const textoCliente = conv.mensajes.filter(m => m.origen === "contacto").map(m => m.contenido.toLowerCase()).join(" ");
+    const match = flujos.find(f => f.activo && f.disparador.some(d => textoCliente.includes(d.toLowerCase())));
+    if (match) { objetivo = match.objetivo; transferirSiComplejo = match.transferirSiComplejo; }
+  } catch { /* usa el objetivo por defecto */ }
 
   // Productos publicados (contexto breve para responder consultas)
   const productos = await prisma.producto.findMany({
@@ -41,7 +48,7 @@ export async function POST(req: NextRequest) {
     "Reglas de los 2 flujos:",
     "1) CONSULTA DE PRODUCTO: responde con la información disponible del catálogo (abajo). Sé claro y útil.",
     "2) COTIZACIÓN: ayuda amablemente a entender qué necesita (tipo de malla, medidas largo×ancho, cantidad, ciudad, si requiere instalación). Pregunta de forma ordenada, una o dos cosas a la vez.",
-    "Si la conversación se vuelve compleja, técnica o el cliente lo pide, ofrece transferir a un asesor humano (responde incluyendo la etiqueta [TRANSFERIR] al final).",
+    transferirSiComplejo ? "Si la conversación se vuelve compleja, técnica o el cliente lo pide, ofrece transferir a un asesor humano (responde incluyendo la etiqueta [TRANSFERIR] al final)." : "Resuelve la consulta tú mismo de forma completa.",
     "Responde en español, breve, cordial y profesional. Devuelve SOLO el texto de la respuesta sugerida para enviar al cliente.",
     "",
     "Catálogo disponible:",

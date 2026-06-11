@@ -177,7 +177,7 @@ function PedidosContent() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {cols.map(col => {
             const count = base.filter(p => col.estados.includes(p.estado)).length;
             const Icon = col.Icon;

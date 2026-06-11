@@ -96,7 +96,7 @@ function ClientesContent() {
       />
       <div className="flex-1 overflow-y-auto page-bg p-5 space-y-4">
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: "Total clientes",  val: clientes.length, color: CRM_COLOR,   Icon: Users },
             { label: "Empresas",        val: clientes.filter(c => c.tipo === "empresa").length, color: "#185FA5", Icon: Building2 },

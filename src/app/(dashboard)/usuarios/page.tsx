@@ -300,7 +300,7 @@ function UsuariosContent() {
       <Topbar title="Usuarios y Roles" />
       <div className="flex-1 overflow-y-auto page-bg p-6 space-y-5">
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { l: "Total",        v: usuarios.length,             c: brand.brandColor },
             { l: "Activos",      v: activos,                     c: "#16a34a" },

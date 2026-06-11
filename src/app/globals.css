@@ -248,6 +248,11 @@ html.dark {
   /* ── Glow sutil para dark mode (detalle minimalista) ── */
   .dark .glow-brand { box-shadow: 0 0 0 1px var(--brand-color-20), 0 8px 30px -12px var(--brand-color); }
 
+  /* ── Móvil/táctil: revela acciones que normalmente aparecen al hover ── */
+  @media (hover: none) and (pointer: coarse) {
+    .group .opacity-0 { opacity: 1 !important; }
+  }
+
   /* ── PDF / impresión: imprime SOLO el área marcada ── */
   @media print {
     .no-print { display: none !important; }

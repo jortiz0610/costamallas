@@ -78,7 +78,7 @@ export default function ReportesPage() {
       <div className="flex-1 overflow-y-auto page-bg p-5 space-y-4">
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: "Eventos mostrados", val: logs.length, color: brand.brandColor, icon: Activity },
             { label: "Exitosos", val: exitosos, color: "#16a34a", icon: CheckCircle2 },
