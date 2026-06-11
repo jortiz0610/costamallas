@@ -20,11 +20,18 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
-  if (user.rol !== "SUPERADMIN") return NextResponse.json({ success: false, error: "Solo SuperAdmin" }, { status: 403 });
+  if (!["SUPERADMIN", "ADMIN"].includes(user.rol)) return NextResponse.json({ success: false, error: "Sin permisos" }, { status: 403 });
 
   const body = await req.json();
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ success: false, error: parsed.error.errors[0]?.message }, { status: 400 });
+
+  // Reglas de jerarquía: los admins no pueden tocar al superadmin ni asignar el rol SUPERADMIN
+  const objetivo = await prisma.usuario.findUnique({ where: { id }, select: { rol: true } });
+  if (user.rol !== "SUPERADMIN") {
+    if (objetivo?.rol === "SUPERADMIN") return NextResponse.json({ success: false, error: "No puedes editar a un superadministrador" }, { status: 403 });
+    if (parsed.data.rol === "SUPERADMIN") return NextResponse.json({ success: false, error: "Solo el superadministrador puede asignar ese rol" }, { status: 403 });
+  }
 
   const data: Record<string, unknown> = {};
   if (parsed.data.nombre) data.nombre = parsed.data.nombre;
@@ -45,8 +52,13 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
-  if (user.rol !== "SUPERADMIN") return NextResponse.json({ success: false, error: "Solo SuperAdmin" }, { status: 403 });
+  if (!["SUPERADMIN", "ADMIN"].includes(user.rol)) return NextResponse.json({ success: false, error: "Sin permisos" }, { status: 403 });
   if (user.sub === id) return NextResponse.json({ success: false, error: "No puedes desactivarte a ti mismo" }, { status: 400 });
+
+  const objetivo = await prisma.usuario.findUnique({ where: { id }, select: { rol: true } });
+  if (objetivo?.rol === "SUPERADMIN" && user.rol !== "SUPERADMIN") {
+    return NextResponse.json({ success: false, error: "No puedes desactivar a un superadministrador" }, { status: 403 });
+  }
 
   await prisma.usuario.update({ where: { id }, data: { activo: false } });
   return NextResponse.json({ success: true });

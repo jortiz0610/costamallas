@@ -41,13 +41,18 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
-  if (user.rol !== "SUPERADMIN") return NextResponse.json({ success: false, error: "Solo SuperAdmin puede crear usuarios" }, { status: 403 });
+  if (!["SUPERADMIN", "ADMIN"].includes(user.rol)) return NextResponse.json({ success: false, error: "Sin permisos para crear usuarios" }, { status: 403 });
 
   const body = await req.json();
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ success: false, error: parsed.error.errors[0]?.message }, { status: 400 });
 
   const { nombre, email, password, rol, activo } = parsed.data;
+
+  // Solo el superadmin puede crear/asignar el rol SUPERADMIN
+  if (rol === "SUPERADMIN" && user.rol !== "SUPERADMIN") {
+    return NextResponse.json({ success: false, error: "Solo el superadministrador puede crear otros superadministradores" }, { status: 403 });
+  }
 
   const existe = await prisma.usuario.findUnique({ where: { email } });
   if (existe) return NextResponse.json({ success: false, error: "Ya existe un usuario con ese email" }, { status: 409 });

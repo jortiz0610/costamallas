@@ -118,6 +118,9 @@ function ModalUsuario({ usuario, onClose, onSaved }: {
   usuario?: Usuario; onClose: () => void; onSaved: () => void;
 }) {
   const { brand } = useBrand();
+  const { user: actual } = useAuth();
+  const soySuper = actual?.rol === "SUPERADMIN";
+  const rolesDisponibles = ROLES.filter(r => r.v !== "SUPERADMIN" || soySuper);
   const esNuevo = !usuario;
   const [form, setForm] = useState({
     nombre: usuario?.nombre ?? "",
@@ -214,7 +217,7 @@ function ModalUsuario({ usuario, onClose, onSaved }: {
           <div>
             <label className="text-xs font-semibold text-gray-400 dark:text-slate-400 uppercase tracking-wider block mb-2">Rol *</label>
             <div className="space-y-1.5">
-              {ROLES.map(r => (
+              {rolesDisponibles.map(r => (
                 <button
                   type="button"
                   key={r.v}
