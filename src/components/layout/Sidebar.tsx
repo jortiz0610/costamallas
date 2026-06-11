@@ -6,7 +6,7 @@ import {
   AlertTriangle, Settings, LogOut, Users, UserCircle, ClipboardList,
   ShoppingCart, Wrench, Kanban, ChevronDown, ShieldCheck, BarChart2,
   MessageSquare, Truck, CheckSquare, MessageSquareText, Zap, Ruler,
-  Megaphone, Target, TrendingUp, Radio,
+  Megaphone, Target, TrendingUp, Radio, Receipt,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -38,6 +38,7 @@ const ERP_ITEMS = [
   { section: "Operaciones" },
   { href: "/stock", label: "Stock", icon: Archive, alertKey: "stock" },
   { href: "/compras", label: "Compras", icon: Truck },
+  { href: "/facturacion", label: "Facturación", icon: Receipt },
   { href: "/importar", label: "Importar WC", icon: FileInput },
   { href: "/exportar", label: "Exportar WC", icon: FileOutput },
   { href: "/errores", label: "Errores", icon: AlertTriangle, alertKey: "errores" },

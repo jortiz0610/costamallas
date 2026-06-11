@@ -777,9 +777,63 @@ function TabIA() {
   );
 }
 
+function TabFacturacion() {
+  const [f, setF] = useState({ proveedor: "manual", apiUrl: "", apiKey: "", prefijo: "FE", numeroResolucion: "", rangoDesde: "1", rangoHasta: "1000", consecutivoActual: "1", ivaPorDefecto: "19", tieneApiKey: false });
+  const [saving, setSaving] = useState(false);
+  const u = (k: string, v: string) => setF(p => ({ ...p, [k]: v }));
+  useQuery({ queryKey: ["fact-config"], queryFn: async () => {
+    const j = await (await fetch("/api/facturacion/config")).json();
+    if (j.success) setF(p => ({ ...p, ...j.data, rangoDesde: String(j.data.rangoDesde), rangoHasta: String(j.data.rangoHasta), consecutivoActual: String(j.data.consecutivoActual), ivaPorDefecto: String(j.data.ivaPorDefecto), apiKey: "" }));
+    return j;
+  } });
+  const guardar = async () => {
+    setSaving(true);
+    const res = await fetch("/api/facturacion/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...f, apiKey: f.apiKey || undefined }) });
+    setSaving(false);
+    if ((await res.json()).success) toast.success("Configuración de facturación guardada");
+    else toast.error("Error al guardar");
+  };
+  return (
+    <div className="space-y-4 max-w-2xl">
+      <div className="card p-5 flex items-center gap-4" style={{ background: "linear-gradient(135deg, var(--brand-color-10), transparent)" }}>
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--brand-color)" }}><Building2 size={22} className="text-white" /></div>
+        <div><h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Facturación electrónica (DIAN)</h2><p className="text-xs text-muted mt-0.5">Configura el proveedor tercero y los datos de la resolución DIAN.</p></div>
+      </div>
+      <div className="card p-5 space-y-4">
+        <div>
+          <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Proveedor</label>
+          <select className="input" value={f.proveedor} onChange={e => u("proveedor", e.target.value)}>
+            <option value="manual">Manual (sin DIAN)</option>
+            <option value="factus">Factus</option>
+            <option value="siigo">Siigo</option>
+            <option value="alegra">Alegra</option>
+          </select>
+        </div>
+        {f.proveedor !== "manual" && (
+          <div className="grid grid-cols-2 gap-4">
+            <div><label className="block text-xs font-semibold text-muted uppercase mb-1.5">API URL</label><input className="input font-mono text-xs" value={f.apiUrl} onChange={e => u("apiUrl", e.target.value)} placeholder="https://api.proveedor.com" /></div>
+            <div><label className="block text-xs font-semibold text-muted uppercase mb-1.5">API Key {f.tieneApiKey && <span className="text-emerald-500 normal-case">(guardada)</span>}</label><input type="password" className="input font-mono text-xs" value={f.apiKey} onChange={e => u("apiKey", e.target.value)} placeholder="••••••••" /></div>
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-4">
+          <div><label className="block text-xs font-semibold text-muted uppercase mb-1.5">Prefijo</label><input className="input" value={f.prefijo} onChange={e => u("prefijo", e.target.value)} placeholder="FE" /></div>
+          <div><label className="block text-xs font-semibold text-muted uppercase mb-1.5">N° Resolución DIAN</label><input className="input" value={f.numeroResolucion} onChange={e => u("numeroResolucion", e.target.value)} placeholder="18760000001" /></div>
+          <div><label className="block text-xs font-semibold text-muted uppercase mb-1.5">Rango desde</label><input type="number" className="input" value={f.rangoDesde} onChange={e => u("rangoDesde", e.target.value)} /></div>
+          <div><label className="block text-xs font-semibold text-muted uppercase mb-1.5">Rango hasta</label><input type="number" className="input" value={f.rangoHasta} onChange={e => u("rangoHasta", e.target.value)} /></div>
+          <div><label className="block text-xs font-semibold text-muted uppercase mb-1.5">Consecutivo actual</label><input type="number" className="input" value={f.consecutivoActual} onChange={e => u("consecutivoActual", e.target.value)} /></div>
+          <div><label className="block text-xs font-semibold text-muted uppercase mb-1.5">IVA por defecto (%)</label><input type="number" className="input" value={f.ivaPorDefecto} onChange={e => u("ivaPorDefecto", e.target.value)} /></div>
+        </div>
+        <button onClick={guardar} disabled={saving} className="btn-primary w-full justify-center">{saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Guardar</button>
+      </div>
+      <p className="text-[11px] text-muted">En modo "Manual" las facturas se generan sin enviar a la DIAN. Al elegir un proveedor (Factus/Siigo/Alegra) y guardar sus credenciales, el botón "Emitir" enviará la factura electrónica.</p>
+    </div>
+  );
+}
+
 const TABS = [
   { id: "empresa",      label: "Empresa",       icon: Building2   },
   { id: "ia",           label: "IA",            icon: Sparkles    },
+  { id: "facturacion",  label: "Facturación",   icon: Building2   },
   { id: "canales",      label: "Canales & Redes", icon: Radio     },
   { id: "marketing",    label: "Conexiones Ads", icon: Radio      },
   { id: "woocommerce",  label: "WooCommerce",   icon: Link2       },
@@ -795,7 +849,7 @@ function ConfiguracionContent() {
 
   // Conexiones e IA: solo superadmin. Empresa: admin+superadmin.
   const superadmin = user?.rol === "SUPERADMIN";
-  const soloSuper = new Set(["ia", "canales", "marketing", "woocommerce", "falabella", "mercadolibre", "wp_users"]);
+  const soloSuper = new Set(["ia", "facturacion", "canales", "marketing", "woocommerce", "falabella", "mercadolibre", "wp_users"]);
   const tabsVisibles = TABS.filter(t => superadmin || !soloSuper.has(t.id));
 
   const initial = searchParams.get("tab") ?? "empresa";
@@ -822,6 +876,7 @@ function ConfiguracionContent() {
         <div className="p-6">
           {tab === "empresa"      && <TabEmpresa />}
           {tab === "ia"           && <TabIA />}
+          {tab === "facturacion"  && <TabFacturacion />}
           {tab === "canales"      && <TabCanales />}
           {tab === "marketing"    && <TabMarketingAds />}
           {tab === "woocommerce"  && <TabWooCommerce />}
