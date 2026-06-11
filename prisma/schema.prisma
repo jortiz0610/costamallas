@@ -749,6 +749,7 @@ model NexusConexion {
   config      Json     @default("{}")
   activo      Boolean  @default(true)
   webhookUrl  String?
+  asignadoId  String?  // usuario que atiende esta línea/canal (asignado por admin)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -757,6 +758,7 @@ model NexusConexion {
   @@map("nexus_conexiones")
   @@index([canal])
   @@index([activo])
+  @@index([asignadoId])
 }
 
 model NexusConversacion {
@@ -770,6 +772,7 @@ model NexusConversacion {
   asunto      String?
   estado      String        @default("ABIERTA")
   prioridad   String        @default("NORMAL")
+  asignadoId  String?       // usuario asignado (heredado de la línea o transferido)
   leida       Boolean       @default(false)
   metadata    Json?
   createdAt   DateTime      @default(now())
@@ -781,6 +784,7 @@ model NexusConversacion {
   @@index([conexionId])
   @@index([estado])
   @@index([leida])
+  @@index([asignadoId])
   @@index([createdAt])
 }
 

@@ -33,12 +33,17 @@ export async function PATCH(req: NextRequest) {
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
 
   const body = await req.json();
-  const { id, activo, config, nombre } = body;
+  const { id, activo, config, nombre, asignadoId } = body;
   if (!id) return NextResponse.json({ success: false, error: "ID requerido" }, { status: 400 });
 
   const updated = await prisma.nexusConexion.update({
     where: { id },
-    data: { ...(activo !== undefined && { activo }), ...(config && { config }), ...(nombre && { nombre }) },
+    data: {
+      ...(activo !== undefined && { activo }),
+      ...(config && { config }),
+      ...(nombre && { nombre }),
+      ...(asignadoId !== undefined && { asignadoId: asignadoId || null }),
+    },
   });
   return NextResponse.json({ success: true, data: updated });
 }

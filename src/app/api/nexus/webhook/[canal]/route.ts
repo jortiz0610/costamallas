@@ -69,6 +69,7 @@ export async function POST(req: NextRequest, { params }: P) {
       telRemit: telRemit || undefined,
       asunto,
       estado: "ABIERTA",
+      asignadoId: conexion.asignadoId ?? undefined, // hereda el usuario asignado a la línea
       leida: false,
       metadata,
       mensajes: {

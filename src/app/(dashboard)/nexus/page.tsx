@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useBrand } from "@/contexts/BrandContext";
+import { useAuth } from "@/hooks/useAuth";
+import { esAdmin } from "@/lib/permisos";
 import { timeAgoCO } from "@/lib/timezone";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
@@ -30,11 +32,13 @@ interface NexusMensaje {
 interface Conversacion {
   id: string; canal: string; remitente: string; emailRemit?: string;
   telRemit?: string; asunto?: string; estado: string; prioridad: string;
+  asignadoId?: string | null;
   leida: boolean; createdAt: string; updatedAt: string;
   conexion: { nombre: string; canal: string };
   mensajes: NexusMensaje[];
   _count: { mensajes: number };
 }
+interface UsuarioLista { id: string; nombre: string; rol: string; }
 
 // ── Helpers de canal ─────────────────────────────────────────────
 
@@ -106,10 +110,27 @@ function ConversacionItem({ conv, activa, onClick }: { conv: Conversacion; activ
 
 function ChatView({ conv, onMarcarResuelta }: { conv: Conversacion; onMarcarResuelta: () => void }) {
   const { brand } = useBrand();
+  const { user } = useAuth();
   const qc = useQueryClient();
   const [texto, setTexto] = useState("");
   const [sugiriendo, setSugiriendo] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const admin = esAdmin(user?.rol);
+  const puedeTransferir = admin || conv.asignadoId === user?.id;
+  const { data: usuarios = [] } = useQuery<UsuarioLista[]>({
+    queryKey: ["usuarios-lista"],
+    queryFn: async () => (await (await fetch("/api/usuarios/lista")).json()).data ?? [],
+    enabled: puedeTransferir,
+  });
+  const asignado = usuarios.find(u => u.id === conv.asignadoId);
+
+  const transferir = async (asignadoId: string) => {
+    const res = await fetch("/api/nexus/conversaciones", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: conv.id, asignadoId }) });
+    const json = await res.json();
+    if (json.success) { toast.success("Conversación transferida"); qc.invalidateQueries({ queryKey: ["nexus-conversaciones"] }); }
+    else toast.error(json.error ?? "Error");
+  };
 
   const sugerirIA = async () => {
     setSugiriendo(true);
@@ -166,6 +187,15 @@ function ChatView({ conv, onMarcarResuelta }: { conv: Conversacion; onMarcarResu
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {puedeTransferir && (
+            <select value={conv.asignadoId ?? ""} onChange={e => transferir(e.target.value)}
+              title="Asignar / transferir a"
+              className="input py-1 text-xs w-36 hidden sm:block">
+              <option value="">Sin asignar</option>
+              {usuarios.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+            </select>
+          )}
+          {!puedeTransferir && asignado && <span className="text-[10px] text-muted hidden sm:inline">Asignado: {asignado.nombre}</span>}
           {conv.estado === "ABIERTA" && (
             <button onClick={onMarcarResuelta}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors"
@@ -255,13 +285,60 @@ const ESTADOS_CONV = [
   { v: "ARCHIVADA", l: "Archivadas",c: "#64748b", Icon: X },
 ];
 
+function AsignarLineas({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const { data: conexiones = [] } = useQuery<{ id: string; nombre: string; canal: string; asignadoId?: string | null }[]>({
+    queryKey: ["nexus-conexiones-lineas"],
+    queryFn: async () => (await (await fetch("/api/nexus/conexiones")).json()).data ?? [],
+  });
+  const { data: usuarios = [] } = useQuery<UsuarioLista[]>({
+    queryKey: ["usuarios-lista"],
+    queryFn: async () => (await (await fetch("/api/usuarios/lista")).json()).data ?? [],
+  });
+  const asignar = async (id: string, asignadoId: string) => {
+    await fetch("/api/nexus/conexiones", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, asignadoId }) });
+    toast.success("Línea asignada");
+    qc.invalidateQueries({ queryKey: ["nexus-conexiones-lineas"] });
+  };
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="card w-full max-w-lg my-4 animate-fade-up" onClick={e => e.stopPropagation()}>
+        <div className="card-header">
+          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2"><Settings2 size={16} /> Asignar líneas a usuarios</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg surface-2 flex items-center justify-center text-muted"><X size={15} /></button>
+        </div>
+        <div className="p-5 space-y-3">
+          <p className="text-xs text-muted">Cada línea/canal se atiende por el usuario asignado. Las conversaciones nuevas de esa línea le llegan automáticamente.</p>
+          {conexiones.length === 0 ? (
+            <p className="text-sm text-muted text-center py-4">No hay líneas conectadas. Conéctalas en Configuración → Canales.</p>
+          ) : conexiones.map(c => (
+            <div key={c.id} className="flex items-center gap-3 rounded-xl p-3 surface-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-soft truncate">{c.nombre}</p>
+                <p className="text-[10px] text-muted">{c.canal}</p>
+              </div>
+              <select value={c.asignadoId ?? ""} onChange={e => asignar(c.id, e.target.value)} className="input py-1.5 text-xs w-40">
+                <option value="">Sin asignar</option>
+                {usuarios.map(u => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+              </select>
+            </div>
+          ))}
+        </div>
+        <div className="p-5 pt-0"><button onClick={onClose} className="btn-secondary w-full justify-center">Cerrar</button></div>
+      </div>
+    </div>
+  );
+}
+
 function NexusContent() {
   const { brand } = useBrand();
+  const { user } = useAuth();
   const qc = useQueryClient();
   const [convActiva, setConvActiva] = useState<Conversacion | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("ABIERTA");
   const [filtroCanal, setFiltroCanal] = useState("");
+  const [showLineas, setShowLineas] = useState(false);
 
   const { data: result, isLoading, refetch } = useQuery({
     queryKey: ["nexus-conversaciones", filtroEstado, filtroCanal],
@@ -304,6 +381,11 @@ function NexusContent() {
           <Link href="/nexus/plantillas" className="btn-secondary btn-sm">
             <MessageSquareText size={13} /> Plantillas
           </Link>
+          {esAdmin(user?.rol) && (
+            <button onClick={() => setShowLineas(true)} className="btn-secondary btn-sm">
+              <Settings2 size={13} /> Líneas
+            </button>
+          )}
           <Link href="/configuracion?tab=canales" className="btn-secondary btn-sm">
             <Settings2 size={13} /> Conexiones
           </Link>
@@ -399,6 +481,7 @@ function NexusContent() {
           )}
         </div>
       </div>
+      {showLineas && <AsignarLineas onClose={() => setShowLineas(false)} />}
     </>
   );
 }
