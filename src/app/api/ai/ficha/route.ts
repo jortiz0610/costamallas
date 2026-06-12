@@ -25,8 +25,8 @@ export async function POST(req: NextRequest) {
     const pdfRes = await fetch(url);
     if (!pdfRes.ok) throw new Error("No se pudo descargar el PDF");
     const buffer = Buffer.from(await pdfRes.arrayBuffer());
-    // @ts-expect-error sin tipos para el subpath
-    const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default as (b: Buffer) => Promise<{ text: string }>;
+    // @ts-expect-error pdf-parse no trae tipos
+    const pdfParse = (await import("pdf-parse")).default as (b: Buffer) => Promise<{ text: string }>;
     const parsed = await pdfParse(buffer);
     texto = (parsed.text || "").slice(0, 8000);
   } catch (e) {

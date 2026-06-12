@@ -42,14 +42,14 @@ function checkToken(token: string, secret: string): boolean {
   catch { return false; }
 }
 
-interface TwoFAState { secret: string; enabled: boolean; }
+interface TwoFAState { secret: string; enabled: boolean; required: boolean; }
 
 export async function get2FA(userId: string): Promise<TwoFAState | null> {
   const row = await prisma.configuracion.findUnique({ where: { clave: claveDe(userId) } });
   if (!row) return null;
   try {
-    const parsed = JSON.parse(row.valor) as { secretEnc: string; enabled: boolean };
-    return { secret: decrypt(parsed.secretEnc), enabled: parsed.enabled };
+    const parsed = JSON.parse(row.valor) as { secretEnc: string; enabled: boolean; required?: boolean };
+    return { secret: decrypt(parsed.secretEnc), enabled: parsed.enabled, required: !!parsed.required };
   } catch { return null; }
 }
 
@@ -58,8 +58,14 @@ export async function is2FAEnabled(userId: string): Promise<boolean> {
   return !!s?.enabled;
 }
 
+/** 2FA exigido por un admin pero aún no configurado por el usuario. */
+export async function is2FARequerido(userId: string): Promise<boolean> {
+  const s = await get2FA(userId);
+  return !!s?.required && !s?.enabled;
+}
+
 async function save2FA(userId: string, state: TwoFAState) {
-  const valor = JSON.stringify({ secretEnc: encrypt(state.secret), enabled: state.enabled });
+  const valor = JSON.stringify({ secretEnc: encrypt(state.secret), enabled: state.enabled, required: state.required });
   await prisma.configuracion.upsert({
     where: { clave: claveDe(userId) },
     create: { clave: claveDe(userId), valor, encrypted: true, descripcion: "Estado 2FA del usuario" },
@@ -67,10 +73,25 @@ async function save2FA(userId: string, state: TwoFAState) {
   });
 }
 
+/** Un admin EXIGE 2FA: genera el secreto (pendiente). El usuario lo configura en su próximo acceso. */
+export async function requerir2FA(userId: string): Promise<void> {
+  const s = await get2FA(userId);
+  if (s?.enabled) return;
+  const secret = s?.secret ?? generateSecret();
+  await save2FA(userId, { secret, enabled: false, required: true });
+}
+
+/** otpauth URL para que el usuario escanee el QR en el setup. */
+export async function otpauthDe(userId: string, email: string): Promise<string | null> {
+  const s = await get2FA(userId);
+  if (!s) return null;
+  return generateURI({ strategy: "totp", issuer: ISSUER, label: email, secret: s.secret });
+}
+
 /** Genera un secreto nuevo (pendiente de confirmación) y devuelve el otpauth URL para el QR. */
 export async function generar2FA(userId: string, email: string): Promise<{ secret: string; otpauth: string }> {
   const secret = generateSecret();
-  await save2FA(userId, { secret, enabled: false });
+  await save2FA(userId, { secret, enabled: false, required: true });
   const otpauth = generateURI({ strategy: "totp", issuer: ISSUER, label: email, secret });
   return { secret, otpauth };
 }
@@ -87,7 +108,7 @@ export async function activar2FA(userId: string, codigo: string): Promise<boolea
   const s = await get2FA(userId);
   if (!s) return false;
   const ok = checkToken(codigo.replace(/\s/g, ""), s.secret);
-  if (ok) await save2FA(userId, { secret: s.secret, enabled: true });
+  if (ok) await save2FA(userId, { secret: s.secret, enabled: true, required: s.required });
   return ok;
 }
 
