@@ -317,7 +317,7 @@ function ClientePerfilContent() {
               {editando && (
                 <div className="pt-4 border-t border-gray-100 dark:border-slate-700/50">
                   <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Estado del cliente</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-4 gap-2">
                     {ESTADOS_CLIENTE.map(e => {
                       const sel = estado === e.v;
                       return (
