@@ -246,6 +246,24 @@ export function Sidebar({
           </button>
         </div>
       </div>
+
+      {/* Sembla — marca discreta (by ESEK) */}
+      <a
+        href="https://sembla.co"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Hecho con Sembla · by ESEK"
+        className="flex items-center justify-center gap-1.5 py-2 text-[10px] text-gray-300 hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-400 transition-colors"
+        style={{ borderTop: "1px solid rgba(100,116,139,0.12)" }}
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="2" y="2" width="9" height="9" rx="2" fill="currentColor" />
+          <rect x="13" y="2" width="9" height="9" rx="2" fill="currentColor" />
+          <rect x="2" y="13" width="9" height="9" rx="2" fill="currentColor" />
+          <rect x="13" y="13" width="9" height="9" rx="2" fill="#6366F1" />
+        </svg>
+        <span>Sembla · by ESEK</span>
+      </a>
     </aside>
   );
 }

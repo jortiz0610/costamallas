@@ -156,5 +156,18 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
-  return <Suspense><LoginForm /></Suspense>;
+  return (
+    <Suspense>
+      <LoginForm />
+      <p className="mt-6 flex items-center justify-center gap-1.5 text-[10px] text-white/30">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="2" y="2" width="9" height="9" rx="2" fill="currentColor" />
+          <rect x="13" y="2" width="9" height="9" rx="2" fill="currentColor" />
+          <rect x="2" y="13" width="9" height="9" rx="2" fill="currentColor" />
+          <rect x="13" y="13" width="9" height="9" rx="2" fill="#6366F1" />
+        </svg>
+        Sembla · by ESEK
+      </p>
+    </Suspense>
+  );
 }
