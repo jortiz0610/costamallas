@@ -1042,9 +1042,9 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
             </div>
             <div className="card p-5 space-y-4">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Aplicaciones y Colores</p>
-              <Repeater label="Aplicaciones / Usos del producto" value={(form.acfAplicaciones as FD[]) ?? []} onChange={v => set("acfAplicaciones", v)} cols={[{k:"aplicacion_item",l:"Describe el uso o aplicación"}]} />
+              <TagInput label="Aplicaciones / Usos del producto" value={Array.isArray(form.acfAplicaciones) ? form.acfAplicaciones as string[] : []} onChange={v => set("acfAplicaciones", v)} placeholder="Describe el uso o aplicación…" hint="Enter o coma para agregar cada aplicación" />
               <Divider label="" />
-              <Repeater label="Colores disponibles" value={(form.acfColores as FD[]) ?? []} onChange={v => set("acfColores", v)} cols={[{k:"color_item",l:"Nombre del color"}]} />
+              <TagInput label="Colores disponibles" value={Array.isArray(form.acfColores) ? form.acfColores as string[] : []} onChange={v => set("acfColores", v)} placeholder="Nombre del color…" hint="Enter o coma para agregar cada color" />
             </div>
           </div>
         )}
