@@ -174,6 +174,54 @@ escribe** (usa `acfExtra`). Revisar si siguen en uso antes de basarse en ellas.
 
 ---
 
+## Comparación con el ACF real de WordPress (export 2026-07-10)
+
+Fuente: `acf-export-2026-07-10.json`. Grupos de producto encontrados en WP:
+Campos Generales (`product`), y por `product_cat`: metálicas, balcones, nylon,
+**construcción/anticaída**, plásticas, seguridad-perimetral. (Además grupos de
+página del tema: mosaico de categorías y hero de video — no son de producto.)
+
+### ✅ Coincidencias (nombres)
+- **11/11** campos generales (A) existen en ACF.
+- **80/80** campos de ficha por categoría (B) existen en ACF, con ubicación por
+  `product_cat` = slug correcto. Excelente cobertura de nombres.
+
+### ⚠️ Desajustes de TIPO a corregir (afectan cuando se sincronicen)
+| Campo | ACF en WP | El CRM envía | Problema |
+|---|---|---|---|
+| `aplicaciones` | **repeater** (sub: `aplicacion_item`) | texto `a \| b \| c` | Un repeater NO lee un string plano; ACF lo guarda como filas. **Incompatible.** |
+| `colores_disponibles` | **repeater** (sub: `color_item`, `color_muestra` imagen) | texto `a \| b` | Igual que arriba. Además `color_muestra` no existe en el CRM. |
+| `ficha_tecnica_pdf` | **file** (espera ID de adjunto) | URL (string) | El campo file no resuelve una URL suelta. Usar `url`/`text` o subir a mediateca. |
+| `normas_calidad` | text | texto `a \| b` | Funciona como string; ideal `textarea`. |
+| `certificaciones` | textarea | texto `a \| b` | OK. |
+| `unidad_venta` | select (m2/ml/und/rollo/panel/kit/par) | slug | ✓ coincide. |
+
+**Recomendación (rápida):** en WP cambiar `aplicaciones` y `colores_disponibles`
+de *repeater* → *textarea*, y `ficha_tecnica_pdf` de *file* → *url*. Así el sync
+actual del CRM funciona sin tocar código. (Alternativa "nativa": adaptar el sync
+para enviar formato repeater y subir PDF/imágenes a la mediateca — más trabajo.)
+
+### 🟡 Campos ACF sin contraparte en el CRM (quedarán vacíos)
+- `descripcion_corta` (general): el CRM manda la descripción corta por el campo
+  **nativo** de WooCommerce (short_description), no como meta ACF.
+- `ny_peso_fibra_g_m2`: campo extra de nylon que el CRM no tiene.
+- **Grupo completo `co_*` (Construcción/Anticaída)** — 17 campos ACF
+  (`co_tipo_sistema`, `co_norma`, `co_clase_energia`, `co_certificado`,
+  `co_material`, `co_calibre_hilo_mm`, `co_cuadro_malla`, `co_diametro_cuerda_mm`,
+  `co_energia_absorcion_j`, `co_ancho_m`, `co_largo_m`, `co_fabricacion_medida`,
+  `co_colores`, `co_disponibilidad`, `co_aplicacion`, `co_notas_instalacion`):
+  el CRM **no tiene ficha** para `mallas-para-construccion`. Para llenarla desde
+  el CRM habría que crear ese componente de ficha en el formulario.
+
+### 🔴 Gap funcional principal
+Los **80 campos de ficha por categoría (B) hoy NO se envían** a WooCommerce (viven
+en `productos.acfExtra`, no en el `meta_data` del sync). Los grupos ACF existen y
+están bien, pero quedarán **vacíos en la web** hasta implementar el envío de
+`acfExtra` → meta en `productoToWC()` (src/lib/woocommerce.ts).
+
+> Nota: el import `docs/acf-costamallas-productos.json` (11 generales) quedó
+> **superado** por el ACF real de WP, que es más completo. Ya no hace falta importarlo.
+
 ## Pendientes conocidos
 - Sincronizar B/C/D a WooCommerce (hoy solo van los 11 de A). Requiere: enviar `acfExtra` como
   meta y crear grupos ACF en WordPress con regla de ubicación por categoría de producto.
