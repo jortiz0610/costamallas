@@ -17,12 +17,14 @@ const CATS = [
   { v: "mallas-nylon",         l: "Nylon / Deportivas",     c: "bg-emerald-600 text-white", dot: "#059669" },
   { v: "mallas-plasticas",     l: "Mallas Plásticas",       c: "bg-teal-600 text-white",    dot: "#0d9488" },
   { v: "seguridad-perimetral", l: "Seguridad Perimetral",   c: "bg-red-600 text-white",     dot: "#dc2626" },
+  { v: "mallas-para-construccion", l: "Construcción / Anticaída", c: "bg-orange-600 text-white", dot: "#ea580c" },
   { v: "mallas-sombra",        l: "Mallas de Sombra",       c: "bg-amber-500 text-white",   dot: "#f59e0b" },
   { v: "mallas-agricolas",     l: "Mallas Agrícolas",       c: "bg-lime-600 text-white",    dot: "#65a30d" },
 ];
 const ACF_KEY: Record<string, string> = {
   "mallas-metalicas": "mm", "mallas-para-balcones": "bh",
   "mallas-nylon": "ny", "mallas-plasticas": "pl", "seguridad-perimetral": "sp",
+  "mallas-para-construccion": "co",
 };
 
 // ─── Sugerencias SEO ──────────────────────────────────────────
@@ -700,8 +702,46 @@ function FichaSeguridad({ d, s }: { d: FD; s: (k: string, v: unknown) => void })
   );
 }
 
+function FichaConstruccion({ d, s }: { d: FD; s: (k: string, v: unknown) => void }) {
+  const g = (k: string) => String(d[k] ?? "");
+  return (
+    <div className="space-y-4">
+      <FSection title="Tipo y Norma">
+        <div className="grid grid-cols-3 gap-4">
+          <SSelect label="Tipo de Sistema (UNE-EN 1263-1)" value={g("co_tipo_sistema")} onChange={v => s("co_tipo_sistema", v)} opts={[["s","Tipo S — Red horizontal con cuerda perimetral"],["t","Tipo T — Red en bandeja / consola"],["u","Tipo U — Red vertical (barandilla)"],["v","Tipo V — Red vertical con horca"],["sistema","Sistema de redes"]]} />
+          <SSelect label="Norma / Certificación" value={g("co_norma")} onChange={v => s("co_norma", v)} opts={[["une_en_1263_1","UNE-EN 1263-1"],["une_en_1263_2","UNE-EN 1263-2"],["ansi_a10_11","ANSI A10.11"],["sin_norma","Sin norma"]]} />
+          <SSelect label="Clase de Energía de Absorción" value={g("co_clase_energia")} onChange={v => s("co_clase_energia", v)} opts={[["a1","A1 (2,3 kJ)"],["a2","A2 (2,3 kJ)"],["b1","B1 (4,4 kJ)"],["b2","B2 (4,4 kJ)"]]} />
+        </div>
+        <SToggle label="Producto Certificado" checked={Boolean(d["co_certificado"])} onChange={v => s("co_certificado", v)} />
+      </FSection>
+      <FSection title="Material y Cuerda">
+        <div className="grid grid-cols-2 gap-4">
+          <SSelect label="Material de la Red" value={g("co_material")} onChange={v => s("co_material", v)} opts={[["polipropileno","Polipropileno"],["poliamida","Poliamida / Nylon"],["poliester","Poliéster"],["polietileno","Polietileno"]]} />
+          <SInput label="Calibre del Hilo (mm)" value={g("co_calibre_hilo_mm")} onChange={v => s("co_calibre_hilo_mm", v)} type="number" step="0.01" />
+          <SInput label="Tamaño del Cuadro / Malla" value={g("co_cuadro_malla")} onChange={v => s("co_cuadro_malla", v)} />
+          <SInput label="Diámetro Cuerda Perimetral (mm)" value={g("co_diametro_cuerda_mm")} onChange={v => s("co_diametro_cuerda_mm", v)} type="number" step="0.1" />
+          <SInput label="Energía de Absorción (J)" value={g("co_energia_absorcion_j")} onChange={v => s("co_energia_absorcion_j", v)} type="number" />
+        </div>
+      </FSection>
+      <FSection title="Dimensiones y Colores">
+        <div className="grid grid-cols-3 gap-4">
+          <SInput label="Ancho (m)" value={g("co_ancho_m")} onChange={v => s("co_ancho_m", v)} type="number" step="0.01" />
+          <SInput label="Largo (m)" value={g("co_largo_m")} onChange={v => s("co_largo_m", v)} type="number" step="0.01" />
+          <SInput label="Disponibilidad / Tiempo de Entrega" value={g("co_disponibilidad")} onChange={v => s("co_disponibilidad", v)} />
+        </div>
+        <SToggle label="Fabricación Sobre Medida" checked={Boolean(d["co_fabricacion_medida"])} onChange={v => s("co_fabricacion_medida", v)} />
+        <PillGroup label="Colores Disponibles" opts={[["roja","Roja"],["naranja","Naranja"],["negra","Negra"],["blanca","Blanca"],["verde","Verde"]]} value={(d["co_colores"] as string[]) ?? []} onChange={v => s("co_colores", v)} />
+      </FSection>
+      <FSection title="Aplicación e Instalación">
+        <PillGroup label="Aplicaciones" opts={[["edificacion","Edificación"],["fachadas","Fachadas"],["huecos","Huecos / vacíos"],["cubiertas","Cubiertas"],["andamios","Andamios"],["puentes","Puentes"]]} value={(d["co_aplicacion"] as string[]) ?? []} onChange={v => s("co_aplicacion", v)} />
+        <STextarea label="Notas de Instalación" value={g("co_notas_instalacion")} onChange={v => s("co_notas_instalacion", v)} rows={3} />
+      </FSection>
+    </div>
+  );
+}
+
 const FICHAS: Record<string, React.ComponentType<{ d: FD; s: (k: string, v: unknown) => void }>> = {
-  mm: FichaMetalicas, bh: FichaBalcones, ny: FichaNylon, pl: FichaPlasticas, sp: FichaSeguridad,
+  mm: FichaMetalicas, bh: FichaBalcones, ny: FichaNylon, pl: FichaPlasticas, sp: FichaSeguridad, co: FichaConstruccion,
 };
 
 // ─── Formulario principal ─────────────────────────────────────

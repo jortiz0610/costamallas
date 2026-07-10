@@ -144,8 +144,7 @@ export function productoToWC(producto: ProductoDetalle): WCProduct {
     { key: "fabricacion_medida", value: producto.acfFabricacionMedida },
     { key: "instalacion_disponible", value: producto.acfInstalacion },
     { key: "garantia_anos", value: producto.acfGarantiaAnos ?? 0 },
-    { key: "aplicaciones", value: producto.acfAplicaciones.join(" | ") },
-    { key: "colores_disponibles", value: producto.acfColores.join(" | ") },
+    // aplicaciones y colores_disponibles se emiten como repeater ACF en fichasMetaData()
     { key: "normas_calidad", value: producto.acfNormas.join(" | ") },
     { key: "certificaciones", value: producto.acfCertificaciones.join(" | ") },
     { key: "ficha_tecnica_pdf", value: producto.acfFichaTecnicaPdf ?? "" },
@@ -280,17 +279,57 @@ export async function diagnosticarWC(creds: WCCredentials, limite = 8): Promise<
 //     y objetos sueltos → se OMITEN (ACF los guarda en formato de filas; requieren
 //     un mapeo especial que no hacemos aquí para no corromper el dato).
 
-export function acfExtraToMeta(acfExtra: unknown): WCProduct["meta_data"] {
-  const out: WCProduct["meta_data"] = [];
-  if (!acfExtra || typeof acfExtra !== "object") return out;
-  for (const [key, v] of Object.entries(acfExtra as Record<string, unknown>)) {
-    if (v === null || v === undefined || v === "") continue;
-    if (typeof v === "boolean") out.push({ key, value: v ? 1 : 0 });
-    else if (typeof v === "string" || typeof v === "number") out.push({ key, value: v });
-    else if (Array.isArray(v) && v.every((x) => typeof x === "string" || typeof x === "number")) {
-      out.push({ key, value: v as (string | number)[] });
+// Repeaters ACF conocidos (nombre → field_key y sub-campos). Los field_key vienen
+// del export de ACF (acf-export-2026-07-10.json). Si se recrea el grupo ACF, revisar.
+const ACF_REPEATERS: Record<string, { key: string; subs: Record<string, string> }> = {
+  aplicaciones:            { key: "field_cm_aplicaciones",         subs: { aplicacion_item: "field_cm_aplicacion_item" } },
+  colores_disponibles:     { key: "field_cm_colores_disponibles",  subs: { color_item: "field_cm_color_item" } },
+  mm_tabla_variantes:      { key: "field_mm_tabla_variantes",      subs: { var_hueco: "field_mm_var_hueco", var_calibre: "field_mm_var_calibre", var_unidad: "field_mm_var_unidad", var_peso: "field_mm_var_peso" } },
+  bh_accesorios_incluidos: { key: "field_bh_accesorios_incluidos", subs: { accesorio_item: "field_bh_accesorio_item", accesorio_qty: "field_bh_accesorio_qty" } },
+};
+
+// Emite un repeater en el formato que espera ACF: contador + referencia de campo
+// + una entrada por fila/sub-campo (valor y referencia `_`).
+function pushRepeater(out: WCProduct["meta_data"], name: string, rows: Record<string, unknown>[]) {
+  const cfg = ACF_REPEATERS[name];
+  if (!cfg) return;
+  out.push({ key: name, value: rows.length });
+  out.push({ key: `_${name}`, value: cfg.key });
+  rows.forEach((row, i) => {
+    for (const [sub, subKey] of Object.entries(cfg.subs)) {
+      const raw = row[sub];
+      const val = typeof raw === "boolean" ? (raw ? 1 : 0) : (raw ?? "") as string | number;
+      out.push({ key: `${name}_${i}_${sub}`, value: val });
+      out.push({ key: `_${name}_${i}_${sub}`, value: subKey });
     }
-    // arrays de objetos / objetos → omitidos (ver nota arriba)
+  });
+}
+
+// Genera TODA la meta_data de fichas: aplicaciones/colores (repeater) + acfExtra
+// (fichas por categoría). Los nombres coinciden con los campos ACF de WordPress.
+export function fichasMetaData(producto: {
+  acfAplicaciones?: string[]; acfColores?: string[]; acfExtra?: unknown;
+}): WCProduct["meta_data"] {
+  const out: WCProduct["meta_data"] = [];
+
+  // Repeaters generales (desde columnas del producto)
+  pushRepeater(out, "aplicaciones", (producto.acfAplicaciones ?? []).map((v) => ({ aplicacion_item: v })));
+  pushRepeater(out, "colores_disponibles", (producto.acfColores ?? []).map((v) => ({ color_item: v })));
+
+  // Fichas por categoría (acfExtra)
+  const extra = producto.acfExtra && typeof producto.acfExtra === "object" ? (producto.acfExtra as Record<string, unknown>) : {};
+  for (const [key, v] of Object.entries(extra)) {
+    if (v === null || v === undefined || v === "") continue;
+    if (ACF_REPEATERS[key] && Array.isArray(v)) {
+      pushRepeater(out, key, v as Record<string, unknown>[]); // repeater de objetos (mm_tabla_variantes, bh_accesorios_incluidos)
+    } else if (typeof v === "boolean") {
+      out.push({ key, value: v ? 1 : 0 });
+    } else if (typeof v === "string" || typeof v === "number") {
+      out.push({ key, value: v });
+    } else if (Array.isArray(v) && v.every((x) => typeof x === "string" || typeof x === "number")) {
+      out.push({ key, value: v as (string | number)[] }); // checkbox (bh_espacios_aplicacion, co_colores, co_aplicacion)
+    }
+    // objetos sueltos → omitidos
   }
   return out;
 }
@@ -340,9 +379,8 @@ export async function syncProductosToWC(
         delete (wcData as Partial<WCProduct>).images;
       }
 
-      // Fichas técnicas por categoría (acfExtra) → meta_data para ACF.
-      // Los nombres de campo ACF coinciden con las claves de acfExtra (mm_/bh_/ny_/pl_/sp_...).
-      wcData.meta_data.push(...acfExtraToMeta(producto.acfExtra));
+      // Fichas técnicas (aplicaciones/colores + acfExtra por categoría) → meta_data ACF.
+      wcData.meta_data.push(...fichasMetaData(producto));
 
       if (producto.wcId) {
         // Actualizar
