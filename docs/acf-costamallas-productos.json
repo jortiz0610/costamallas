@@ -1,0 +1,135 @@
+[
+  {
+    "key": "group_erp_costamallas_producto",
+    "title": "Ficha de Producto (ERP Costamallas)",
+    "fields": [
+      {
+        "key": "field_erp_sku_interno",
+        "label": "SKU Interno",
+        "name": "sku_interno",
+        "type": "text",
+        "instructions": "Referencia interna. Se sincroniza desde el ERP.",
+        "required": 0,
+        "default_value": "",
+        "wrapper": { "width": "50", "class": "", "id": "" }
+      },
+      {
+        "key": "field_erp_marca_fabricante",
+        "label": "Marca / Fabricante",
+        "name": "marca_fabricante",
+        "type": "text",
+        "required": 0,
+        "default_value": "",
+        "wrapper": { "width": "50", "class": "", "id": "" }
+      },
+      {
+        "key": "field_erp_unidad_venta",
+        "label": "Unidad de venta",
+        "name": "unidad_venta",
+        "type": "text",
+        "instructions": "Ej.: m2, ml, und, rollo, panel, kit, par.",
+        "required": 0,
+        "default_value": "",
+        "wrapper": { "width": "50", "class": "", "id": "" }
+      },
+      {
+        "key": "field_erp_garantia_anos",
+        "label": "Garantía (años)",
+        "name": "garantia_anos",
+        "type": "number",
+        "required": 0,
+        "default_value": "",
+        "min": 0,
+        "wrapper": { "width": "50", "class": "", "id": "" }
+      },
+      {
+        "key": "field_erp_fabricacion_medida",
+        "label": "Fabricación a medida",
+        "name": "fabricacion_medida",
+        "type": "true_false",
+        "message": "Se puede fabricar según especificaciones del cliente",
+        "default_value": 0,
+        "ui": 1,
+        "wrapper": { "width": "50", "class": "", "id": "" }
+      },
+      {
+        "key": "field_erp_instalacion_disponible",
+        "label": "Instalación disponible",
+        "name": "instalacion_disponible",
+        "type": "true_false",
+        "message": "Costamallas ofrece instalación para este producto",
+        "default_value": 0,
+        "ui": 1,
+        "wrapper": { "width": "50", "class": "", "id": "" }
+      },
+      {
+        "key": "field_erp_aplicaciones",
+        "label": "Aplicaciones / Usos",
+        "name": "aplicaciones",
+        "type": "textarea",
+        "instructions": "Llega desde el ERP separado por ' | '.",
+        "required": 0,
+        "rows": 3,
+        "new_lines": "",
+        "wrapper": { "width": "100", "class": "", "id": "" }
+      },
+      {
+        "key": "field_erp_colores_disponibles",
+        "label": "Colores disponibles",
+        "name": "colores_disponibles",
+        "type": "textarea",
+        "instructions": "Llega desde el ERP separado por ' | '.",
+        "required": 0,
+        "rows": 2,
+        "new_lines": "",
+        "wrapper": { "width": "100", "class": "", "id": "" }
+      },
+      {
+        "key": "field_erp_normas_calidad",
+        "label": "Normas de calidad",
+        "name": "normas_calidad",
+        "type": "textarea",
+        "instructions": "Llega desde el ERP separado por ' | '.",
+        "required": 0,
+        "rows": 2,
+        "new_lines": "",
+        "wrapper": { "width": "50", "class": "", "id": "" }
+      },
+      {
+        "key": "field_erp_certificaciones",
+        "label": "Certificaciones",
+        "name": "certificaciones",
+        "type": "textarea",
+        "instructions": "Llega desde el ERP separado por ' | '.",
+        "required": 0,
+        "rows": 2,
+        "new_lines": "",
+        "wrapper": { "width": "50", "class": "", "id": "" }
+      },
+      {
+        "key": "field_erp_ficha_tecnica_pdf",
+        "label": "Ficha técnica (PDF)",
+        "name": "ficha_tecnica_pdf",
+        "type": "url",
+        "instructions": "URL del PDF de ficha técnica.",
+        "required": 0,
+        "default_value": "",
+        "wrapper": { "width": "100", "class": "", "id": "" }
+      }
+    ],
+    "location": [
+      [
+        { "param": "post_type", "operator": "==", "value": "product" }
+      ]
+    ],
+    "menu_order": 0,
+    "position": "normal",
+    "style": "default",
+    "label_placement": "top",
+    "instruction_placement": "label",
+    "hide_on_screen": "",
+    "active": true,
+    "description": "Campos generales del producto sincronizados desde el ERP de Costamallas. Los nombres (name) coinciden con las meta_data que envía el ERP.",
+    "show_in_rest": 1
+  }
+]

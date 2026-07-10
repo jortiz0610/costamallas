@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
 import {
   FileInput, FileOutput, Wifi, WifiOff, Loader2, RefreshCw, Download,
-  ShoppingCart, ArrowRight, CheckCircle2,
+  ShoppingCart, ArrowRight, CheckCircle2, Stethoscope, ImageOff, AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -16,6 +16,36 @@ function WooContent() {
   const [probando, setProbando] = useState(false);
   const [estado, setEstado] = useState<{ ok: boolean; mensaje: string } | null>(null);
   const [importandoPedidos, setImportandoPedidos] = useState(false);
+  const [diagnosticando, setDiagnosticando] = useState(false);
+  const [limpiando, setLimpiando] = useState(false);
+  const [diag, setDiag] = useState<{ conProblemas: number; items: { sku: string; nombre: string; ok: boolean; problemas: string[] }[] } | null>(null);
+
+  const diagnosticar = async () => {
+    setDiagnosticando(true); setDiag(null);
+    try {
+      const res = await fetch("/api/woocommerce/diagnostico");
+      const json = await res.json();
+      if (!json.success) return toast.error(json.error ?? "Error");
+      setDiag({ conProblemas: json.resumen.conProblemas, items: json.data.items });
+      if (json.resumen.conProblemas === 0) toast.success("Todo sincroniza correctamente ✓");
+      else toast(`${json.resumen.conProblemas} producto(s) con problemas — ver detalle abajo`, { icon: "⚠️" });
+    } catch { toast.error("Error en diagnóstico"); } finally { setDiagnosticando(false); }
+  };
+
+  const limpiarRotas = async () => {
+    setLimpiando(true);
+    try {
+      // 1) Dry-run: contar cuántas están rotas
+      const prev = await (await fetch("/api/imagenes/limpiar-rotas", { method: "POST" })).json();
+      if (!prev.success) return toast.error(prev.error ?? "Error");
+      if (!prev.rotas.length) return toast.success("No hay imágenes rotas ✓");
+      if (!confirm(`Se encontraron ${prev.rotas.length} imágenes rotas (404). ¿Eliminar esas referencias del catálogo?`)) return;
+      // 2) Aplicar
+      const res = await (await fetch("/api/imagenes/limpiar-rotas?aplicar=1", { method: "POST" })).json();
+      if (!res.success) return toast.error(res.error ?? "Error");
+      toast.success(`${res.eliminadas} imágenes rotas eliminadas del catálogo`);
+    } catch { toast.error("Error al limpiar"); } finally { setLimpiando(false); }
+  };
 
   const probar = async () => {
     setProbando(true);
@@ -84,6 +114,40 @@ function WooContent() {
           <button onClick={importarPedidos} disabled={importandoPedidos} className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: WC }}>
             {importandoPedidos ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} Importar
           </button>
+        </div>
+
+        {/* Mantenimiento y diagnóstico */}
+        <div className="card p-5 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: WC + "18" }}><Stethoscope size={20} style={{ color: WC }} /></div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-gray-800 dark:text-gray-100">Diagnóstico y mantenimiento</p>
+              <p className="text-xs text-muted mt-0.5">Revisa por qué un producto no sincroniza y limpia imágenes rotas (404) del catálogo.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={diagnosticar} disabled={diagnosticando} className="btn-secondary btn-sm">
+              {diagnosticando ? <Loader2 size={12} className="animate-spin" /> : <Stethoscope size={12} />} Diagnóstico de sincronización
+            </button>
+            <button onClick={limpiarRotas} disabled={limpiando} className="btn-secondary btn-sm">
+              {limpiando ? <Loader2 size={12} className="animate-spin" /> : <ImageOff size={12} />} Limpiar imágenes rotas
+            </button>
+          </div>
+
+          {diag && (
+            <div className="rounded-xl border divider overflow-hidden">
+              {diag.items.filter(i => !i.ok).length === 0 ? (
+                <div className="p-3 text-xs text-emerald-600 flex items-center gap-2"><CheckCircle2 size={14} /> Todos los productos revisados sincronizan correctamente.</div>
+              ) : diag.items.filter(i => !i.ok).map(i => (
+                <div key={i.sku} className="p-3 surface-2 border-b divider last:border-0">
+                  <p className="text-xs font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5"><AlertTriangle size={12} className="text-amber-500" /> [{i.sku}] {i.nombre}</p>
+                  <ul className="mt-1 ml-5 list-disc text-[11px] text-muted space-y-0.5">
+                    {i.problemas.map((p, k) => <li key={k}>{p}</li>)}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="card p-4 flex items-center gap-3">
