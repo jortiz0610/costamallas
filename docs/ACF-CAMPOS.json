@@ -1,0 +1,1196 @@
+{
+  "generado": "2026-07-10",
+  "fuente_acf": "acf-export-2026-07-10.json",
+  "resumen": {
+    "total": 118,
+    "en_ambos": 115,
+    "solo_acf": [
+      "color_muestra",
+      "descripcion_corta",
+      "ny_peso_fibra_g_m2"
+    ],
+    "solo_crm": []
+  },
+  "campos": [
+    {
+      "name": "accesorio_item",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "text",
+      "sub_campo": true,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "sub-campo repeater",
+      "estado": "OK"
+    },
+    {
+      "name": "accesorio_qty",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "number",
+      "sub_campo": true,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "sub-campo repeater",
+      "estado": "OK"
+    },
+    {
+      "name": "aplicacion_item",
+      "categoria_acf": "product (general)",
+      "tipo_acf": "text",
+      "sub_campo": true,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "sub-campo repeater",
+      "estado": "OK"
+    },
+    {
+      "name": "aplicaciones",
+      "categoria_acf": "product (general)",
+      "tipo_acf": "repeater",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "general (columna producto)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_accesorios_incluidos",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "repeater",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_ancho_estandar_m",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_carga_kg_m2",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_denier",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_diametro_hilo_mm",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_elongacion_pct",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_espacios_aplicacion",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "checkbox",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_estabilidad_dimensional_pct",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_estabilizador_uv",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_kit_autoinstalable",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "true_false",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_largo_estandar_m",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_material_filamento",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_norma_certificacion",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "text",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_resistencia_impacto_j",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_resistencia_traccion_kgf",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_tamano_abertura",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "text",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_temp_max_uso_c",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_tenacidad_g_denier",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "bh_titulo_hilo",
+      "categoria_acf": "mallas-para-balcones",
+      "tipo_acf": "text",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "certificaciones",
+      "categoria_acf": "product (general)",
+      "tipo_acf": "textarea",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "general (columna producto)",
+      "estado": "OK"
+    },
+    {
+      "name": "co_ancho_m",
+      "categoria_acf": "mallas-para-construccion",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "co_aplicacion",
+      "categoria_acf": "mallas-para-construccion",
+      "tipo_acf": "checkbox",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "co_calibre_hilo_mm",
+      "categoria_acf": "mallas-para-construccion",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "co_certificado",
+      "categoria_acf": "mallas-para-construccion",
+      "tipo_acf": "true_false",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "co_clase_energia",
+      "categoria_acf": "mallas-para-construccion",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "co_colores",
+      "categoria_acf": "mallas-para-construccion",
+      "tipo_acf": "checkbox",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "co_cuadro_malla",
+      "categoria_acf": "mallas-para-construccion",
+      "tipo_acf": "text",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "co_diametro_cuerda_mm",
+      "categoria_acf": "mallas-para-construccion",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "co_disponibilidad",
+      "categoria_acf": "mallas-para-construccion",
+      "tipo_acf": "text",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "co_energia_absorcion_j",
+      "categoria_acf": "mallas-para-construccion",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "co_fabricacion_medida",
+      "categoria_acf": "mallas-para-construccion",
+      "tipo_acf": "true_false",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "co_largo_m",
+      "categoria_acf": "mallas-para-construccion",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "co_material",
+      "categoria_acf": "mallas-para-construccion",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "co_norma",
+      "categoria_acf": "mallas-para-construccion",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "co_notas_instalacion",
+      "categoria_acf": "mallas-para-construccion",
+      "tipo_acf": "textarea",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "co_tipo_sistema",
+      "categoria_acf": "mallas-para-construccion",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "color_item",
+      "categoria_acf": "product (general)",
+      "tipo_acf": "text",
+      "sub_campo": true,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "sub-campo repeater",
+      "estado": "OK"
+    },
+    {
+      "name": "color_muestra",
+      "categoria_acf": "product (general)",
+      "tipo_acf": "image",
+      "sub_campo": true,
+      "en_acf": true,
+      "en_crm": false,
+      "fuente_crm": null,
+      "estado": "SOLO_ACF"
+    },
+    {
+      "name": "colores_disponibles",
+      "categoria_acf": "product (general)",
+      "tipo_acf": "repeater",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "general (columna producto)",
+      "estado": "OK"
+    },
+    {
+      "name": "descripcion_corta",
+      "categoria_acf": "product (general)",
+      "tipo_acf": "textarea",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": false,
+      "fuente_crm": null,
+      "estado": "SOLO_ACF"
+    },
+    {
+      "name": "fabricacion_medida",
+      "categoria_acf": "product (general)",
+      "tipo_acf": "true_false",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "general (columna producto)",
+      "estado": "OK"
+    },
+    {
+      "name": "ficha_tecnica_pdf",
+      "categoria_acf": "product (general)",
+      "tipo_acf": "file",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "general (columna producto)",
+      "estado": "OK"
+    },
+    {
+      "name": "garantia_anos",
+      "categoria_acf": "product (general)",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "general (columna producto)",
+      "estado": "OK"
+    },
+    {
+      "name": "instalacion_disponible",
+      "categoria_acf": "product (general)",
+      "tipo_acf": "true_false",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "general (columna producto)",
+      "estado": "OK"
+    },
+    {
+      "name": "marca_fabricante",
+      "categoria_acf": "product (general)",
+      "tipo_acf": "text",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "general (columna producto)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_acabado_exterior",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_alto_m",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_ancho_m",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_calibre_ext_bwg",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "text",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_calibre_ext_mm",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_calibre_int_bwg",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "text",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_calibre_int_mm",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_certificacion_leed",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "true_false",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_compatibilidad_quimica",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "textarea",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_dureza_shore_a",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_horas_camara_salina",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_incluye_abrazaderas",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "true_false",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_longitud_rollo_m",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_peso_kg",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_resistencia_tension_mpa",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_resistencia_traccion_kn",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_tabla_variantes",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "repeater",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_tamano_ojo",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "text",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_tipo_acero",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "mm_zinc_gr_m2",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "normas_calidad",
+      "categoria_acf": "product (general)",
+      "tipo_acf": "text",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "general (columna producto)",
+      "estado": "OK"
+    },
+    {
+      "name": "ny_alto_reglamentario_m",
+      "categoria_acf": "mallas-nylon",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "ny_altura_fibra_mm",
+      "categoria_acf": "mallas-nylon",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "ny_ancho_reglamentario_m",
+      "categoria_acf": "mallas-nylon",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "ny_base_primaria",
+      "categoria_acf": "mallas-nylon",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "ny_base_secundaria",
+      "categoria_acf": "mallas-nylon",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "ny_calibre_mm",
+      "categoria_acf": "mallas-nylon",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "ny_galga",
+      "categoria_acf": "mallas-nylon",
+      "tipo_acf": "text",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "ny_incluye_lona",
+      "categoria_acf": "mallas-nylon",
+      "tipo_acf": "true_false",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "ny_norma_anticaida",
+      "categoria_acf": "mallas-nylon",
+      "tipo_acf": "text",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "ny_peso_fibra_g_m2",
+      "categoria_acf": "mallas-nylon",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": false,
+      "fuente_crm": null,
+      "estado": "SOLO_ACF"
+    },
+    {
+      "name": "ny_prof_inferior_m",
+      "categoria_acf": "mallas-nylon",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "ny_prof_superior_m",
+      "categoria_acf": "mallas-nylon",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "ny_ref_dicitex",
+      "categoria_acf": "mallas-nylon",
+      "tipo_acf": "text",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "ny_tamano_cuadro",
+      "categoria_acf": "mallas-nylon",
+      "tipo_acf": "text",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "ny_tasa_puntadas_m2",
+      "categoria_acf": "mallas-nylon",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "ny_tiene_alma",
+      "categoria_acf": "mallas-nylon",
+      "tipo_acf": "true_false",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "ny_tipo_tejido",
+      "categoria_acf": "mallas-nylon",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "ny_uso_deportivo",
+      "categoria_acf": "mallas-nylon",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "pl_aditivo_uv",
+      "categoria_acf": "mallas-plasticas",
+      "tipo_acf": "true_false",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "pl_alto_m",
+      "categoria_acf": "mallas-plasticas",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "pl_color_estandar",
+      "categoria_acf": "mallas-plasticas",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "pl_forma_hueco",
+      "categoria_acf": "mallas-plasticas",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "pl_largo_rollo_m",
+      "categoria_acf": "mallas-plasticas",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "pl_peso_kg_m2",
+      "categoria_acf": "mallas-plasticas",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "pl_polimero_base",
+      "categoria_acf": "mallas-plasticas",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "pl_porcentaje_sombra",
+      "categoria_acf": "mallas-plasticas",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "pl_subtipo",
+      "categoria_acf": "mallas-plasticas",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "pl_tamano_abertura",
+      "categoria_acf": "mallas-plasticas",
+      "tipo_acf": "text",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "sku_interno",
+      "categoria_acf": "product (general)",
+      "tipo_acf": "text",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "general (columna producto)",
+      "estado": "OK"
+    },
+    {
+      "name": "sp_calibre_bwg",
+      "categoria_acf": "seguridad-perimetral",
+      "tipo_acf": "text",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "sp_calibre_mm",
+      "categoria_acf": "seguridad-perimetral",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "sp_cobertura_ha",
+      "categoria_acf": "seguridad-perimetral",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "sp_cobertura_km",
+      "categoria_acf": "seguridad-perimetral",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "sp_control_remoto",
+      "categoria_acf": "seguridad-perimetral",
+      "tipo_acf": "true_false",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "sp_diametro_rollo_mm",
+      "categoria_acf": "seguridad-perimetral",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "sp_material_cuchillas",
+      "categoria_acf": "seguridad-perimetral",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "sp_notas_instalacion",
+      "categoria_acf": "seguridad-perimetral",
+      "tipo_acf": "textarea",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "sp_num_espirales",
+      "categoria_acf": "seguridad-perimetral",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "sp_peso_kg",
+      "categoria_acf": "seguridad-perimetral",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "sp_rendimiento_ml",
+      "categoria_acf": "seguridad-perimetral",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "sp_subtipo",
+      "categoria_acf": "seguridad-perimetral",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "sp_tipo_concertina",
+      "categoria_acf": "seguridad-perimetral",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "sp_voltaje_v",
+      "categoria_acf": "seguridad-perimetral",
+      "tipo_acf": "number",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "ficha por categoría (acfExtra)",
+      "estado": "OK"
+    },
+    {
+      "name": "unidad_venta",
+      "categoria_acf": "product (general)",
+      "tipo_acf": "select",
+      "sub_campo": false,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "general (columna producto)",
+      "estado": "OK"
+    },
+    {
+      "name": "var_calibre",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "text",
+      "sub_campo": true,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "sub-campo repeater",
+      "estado": "OK"
+    },
+    {
+      "name": "var_hueco",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "text",
+      "sub_campo": true,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "sub-campo repeater",
+      "estado": "OK"
+    },
+    {
+      "name": "var_peso",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "number",
+      "sub_campo": true,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "sub-campo repeater",
+      "estado": "OK"
+    },
+    {
+      "name": "var_unidad",
+      "categoria_acf": "mallas-metalicas",
+      "tipo_acf": "select",
+      "sub_campo": true,
+      "en_acf": true,
+      "en_crm": true,
+      "fuente_crm": "sub-campo repeater",
+      "estado": "OK"
+    }
+  ]
+}
