@@ -109,6 +109,31 @@ export async function testWCConnection(creds: WCCredentials): Promise<{
   return { ok: true, storeName: data.name, version: data.woocommerce_version };
 }
 
+// ── Verificar que una URL de imagen sea descargable por WooCommerce ──
+// WooCommerce rechaza TODO el producto si una imagen da 404/no responde.
+// Filtramos las imágenes rotas antes de enviar para que el sync no falle.
+
+async function urlAccesible(url: string): Promise<boolean> {
+  const intento = async (method: string, headers?: Record<string, string>) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const r = await fetch(url, { method, headers, signal: ctrl.signal });
+      return r;
+    } finally {
+      clearTimeout(t);
+    }
+  };
+  try {
+    let r = await intento("HEAD");
+    // Algunos servidores no soportan HEAD → probar GET parcial
+    if (r.status === 405 || r.status === 501) r = await intento("GET", { Range: "bytes=0-0" });
+    return r.ok || r.status === 206;
+  } catch {
+    return false;
+  }
+}
+
 // ── Convertir Producto a formato WooCommerce ──
 
 export function productoToWC(producto: ProductoDetalle): WCProduct {
@@ -276,7 +301,19 @@ export async function syncProductosToWC(
 
       // Necesitamos el tipo ProductoDetalle — mapeamos desde Prisma
       const detalleProducto = mapPrismaToDetalle(producto);
+
+      // Filtrar imágenes rotas (WooCommerce falla el producto entero si una da 404)
+      const teniaImagenes = detalleProducto.imagenes.length > 0;
+      const accesibles = await Promise.all(detalleProducto.imagenes.map((img) => urlAccesible(img.urlImagen)));
+      detalleProducto.imagenes = detalleProducto.imagenes.filter((_, idx) => accesibles[idx]);
+
       const wcData = productoToWC(detalleProducto);
+
+      // Si todas las imágenes están rotas pero el producto SÍ tenía imágenes,
+      // no enviamos el campo images para no borrar las que WC ya tenga.
+      if (teniaImagenes && detalleProducto.imagenes.length === 0) {
+        delete (wcData as Partial<WCProduct>).images;
+      }
 
       if (producto.wcId) {
         // Actualizar
