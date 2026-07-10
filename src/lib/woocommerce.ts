@@ -41,7 +41,7 @@ export interface WCProduct {
   categories: { slug: string }[];
   tags: { name: string }[];
   images: { src: string; name?: string; alt?: string }[];
-  meta_data: { key: string; value: string | boolean | number }[];
+  meta_data: { key: string; value: string | boolean | number | (string | number)[] }[];
 }
 
 // ── Obtener credenciales desde la BD ─────────
@@ -270,6 +270,31 @@ export async function diagnosticarWC(creds: WCCredentials, limite = 8): Promise<
   return out;
 }
 
+// ── Fichas por categoría (acfExtra JSON) → meta_data de ACF ────
+// Convierte las claves de acfExtra (mm_/bh_/ny_/pl_/sp_… y campos dinámicos)
+// en meta_data. Los nombres coinciden con los campos ACF de WordPress.
+//   • escalares (texto/número) → tal cual
+//   • booleanos → 1/0 (para campos ACF true_false)
+//   • arrays de escalares (checkbox) → se envían como array
+//   • arrays de objetos (repeaters: mm_tabla_variantes, bh_accesorios_incluidos)
+//     y objetos sueltos → se OMITEN (ACF los guarda en formato de filas; requieren
+//     un mapeo especial que no hacemos aquí para no corromper el dato).
+
+export function acfExtraToMeta(acfExtra: unknown): WCProduct["meta_data"] {
+  const out: WCProduct["meta_data"] = [];
+  if (!acfExtra || typeof acfExtra !== "object") return out;
+  for (const [key, v] of Object.entries(acfExtra as Record<string, unknown>)) {
+    if (v === null || v === undefined || v === "") continue;
+    if (typeof v === "boolean") out.push({ key, value: v ? 1 : 0 });
+    else if (typeof v === "string" || typeof v === "number") out.push({ key, value: v });
+    else if (Array.isArray(v) && v.every((x) => typeof x === "string" || typeof x === "number")) {
+      out.push({ key, value: v as (string | number)[] });
+    }
+    // arrays de objetos / objetos → omitidos (ver nota arriba)
+  }
+  return out;
+}
+
 // ── Exportar productos a WooCommerce ──────────
 
 export interface SyncResult {
@@ -314,6 +339,10 @@ export async function syncProductosToWC(
       if (teniaImagenes && detalleProducto.imagenes.length === 0) {
         delete (wcData as Partial<WCProduct>).images;
       }
+
+      // Fichas técnicas por categoría (acfExtra) → meta_data para ACF.
+      // Los nombres de campo ACF coinciden con las claves de acfExtra (mm_/bh_/ny_/pl_/sp_...).
+      wcData.meta_data.push(...acfExtraToMeta(producto.acfExtra));
 
       if (producto.wcId) {
         // Actualizar

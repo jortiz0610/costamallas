@@ -213,11 +213,14 @@ para enviar formato repeater y subir PDF/imágenes a la mediateca — más traba
   el CRM **no tiene ficha** para `mallas-para-construccion`. Para llenarla desde
   el CRM habría que crear ese componente de ficha en el formulario.
 
-### 🔴 Gap funcional principal
-Los **80 campos de ficha por categoría (B) hoy NO se envían** a WooCommerce (viven
-en `productos.acfExtra`, no en el `meta_data` del sync). Los grupos ACF existen y
-están bien, pero quedarán **vacíos en la web** hasta implementar el envío de
-`acfExtra` → meta en `productoToWC()` (src/lib/woocommerce.ts).
+### 🟢 Gap funcional principal — RESUELTO (2026-07-10)
+Antes, los 80 campos de ficha por categoría (B) NO se enviaban a WooCommerce.
+Ya se implementó `acfExtraToMeta()` en `src/lib/woocommerce.ts`: el sync vuelca
+las claves de `acfExtra` como `meta_data` (escalares tal cual, booleanos → 1/0,
+arrays de escalares/checkbox como array). **Pendiente:** los 2 repeaters de
+objetos (`mm_tabla_variantes`, `bh_accesorios_incluidos`) se **omiten** — ACF los
+guarda en formato de filas y requieren un mapeo especial (o cambiar esos campos
+ACF a otro tipo).
 
 > Nota: el import `docs/acf-costamallas-productos.json` (11 generales) quedó
 > **superado** por el ACF real de WP, que es más completo. Ya no hace falta importarlo.
