@@ -92,20 +92,25 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
     // Auto-sincronizar a WooCommerce si está publicado o ya existe en WC
     let wcSync: "ok" | "error" | "skip" = "skip";
+    let wcError: string | undefined;
     if (updated.publicado || updated.wcId) {
       try {
         const creds = await getWCCredentials();
         if (creds) {
           const r = await syncProductosToWC([id], creds);
           wcSync = r.failed > 0 ? "error" : "ok";
+          if (r.failed > 0) wcError = r.errors[0]?.error;
+        } else {
+          wcError = "WooCommerce no está configurado (Configuración → WooCommerce).";
         }
       } catch (e) {
         console.error("[WC auto-sync]", e);
         wcSync = "error";
+        wcError = e instanceof Error ? e.message : String(e);
       }
     }
 
-    return NextResponse.json({ success: true, data: updated, wcSync });
+    return NextResponse.json({ success: true, data: updated, wcSync, wcError });
   } catch (err) {
     console.error("[PUT /api/productos/id]", err);
     return NextResponse.json({ success: false, error: "Error al actualizar" }, { status: 500 });

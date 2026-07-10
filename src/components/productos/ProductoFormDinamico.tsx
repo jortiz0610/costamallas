@@ -891,7 +891,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
       if (!res.ok || !json.success) return toast.error(json.error ?? "Error al guardar");
       toast.success(modo === "crear" ? "Producto creado ✓" : "Producto actualizado ✓");
       if (json.wcSync === "ok") toast.success("Sincronizado con WooCommerce ✓", { icon: "🛒" });
-      else if (json.wcSync === "error") toast("Guardado, pero no se pudo sincronizar con WooCommerce", { icon: "⚠️" });
+      else if (json.wcSync === "error") toast(`Guardado, pero WooCommerce rechazó el cambio: ${json.wcError ?? "error desconocido"}`, { icon: "⚠️", duration: 9000 });
       if (modo === "crear") router.push(`/productos/${json.data.id}`);
     } catch { toast.error("Error de conexión"); }
     finally { setSaving(false); }

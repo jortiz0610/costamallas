@@ -167,6 +167,84 @@ export function productoToWC(producto: ProductoDetalle): WCProduct {
   };
 }
 
+// ── Diagnóstico de sincronización (SOLO LECTURA) ──────────────
+// Ejecuta las mismas comprobaciones que hace el sync pero sin escribir,
+// para detectar por qué falla: conexión, categorías inexistentes,
+// imágenes no accesibles, SKU duplicado / wcId desalineado.
+
+export interface WCDiagItem {
+  sku: string;
+  nombre: string;
+  wcId: number | null;
+  ok: boolean;
+  problemas: string[];
+}
+export interface WCDiagResult {
+  conexion: { ok: boolean; storeName?: string; version?: string; error?: string };
+  categoriasEnWC: string[];
+  items: WCDiagItem[];
+}
+
+export async function diagnosticarWC(creds: WCCredentials, limite = 8): Promise<WCDiagResult> {
+  const out: WCDiagResult = { conexion: { ok: false }, categoriasEnWC: [], items: [] };
+
+  // 1. Conexión
+  try {
+    const sys = await testWCConnection(creds);
+    out.conexion = { ok: true, storeName: sys.storeName, version: sys.version };
+  } catch (e) {
+    out.conexion = { ok: false, error: e instanceof Error ? e.message : String(e) };
+    return out; // sin conexión no tiene sentido seguir
+  }
+
+  // 2. Categorías existentes en WC (para detectar slugs inexistentes)
+  try {
+    const cats = await wcFetch<{ slug: string }[]>(creds, "products/categories?per_page=100", { method: "GET" });
+    out.categoriasEnWC = Array.isArray(cats) ? cats.map((c) => c.slug) : [];
+  } catch { /* no crítico */ }
+
+  // 3. Productos recientes
+  const productos = await prisma.producto.findMany({
+    orderBy: { updatedAt: "desc" },
+    take: limite,
+    include: { imagenes: true },
+  });
+
+  for (const p of productos) {
+    const problemas: string[] = [];
+
+    // Categorías inexistentes en WC
+    const catsFaltantes = p.categorias.filter((s) => !out.categoriasEnWC.includes(s));
+    if (catsFaltantes.length) problemas.push(`Categorías que no existen en WooCommerce: ${catsFaltantes.join(", ")}`);
+
+    // Imágenes no accesibles por WooCommerce
+    for (const img of p.imagenes) {
+      try {
+        const r = await fetch(img.urlImagen, { method: "HEAD" });
+        if (!r.ok) problemas.push(`Imagen no accesible (HTTP ${r.status}): ${img.urlImagen}`);
+      } catch (e) {
+        problemas.push(`Imagen inaccesible (${e instanceof Error ? e.message : "error"}): ${img.urlImagen}`);
+      }
+    }
+
+    // SKU duplicado / wcId desalineado
+    try {
+      const found = await wcFetch<{ id: number }[]>(creds, `products?sku=${encodeURIComponent(p.sku)}`, { method: "GET" });
+      const wcHit = Array.isArray(found) && found.length ? found[0] : null;
+      if (wcHit) {
+        if (!p.wcId) problemas.push(`El SKU ya existe en WC (id ${wcHit.id}) pero el CRM no tiene wcId → al sincronizar intenta CREAR y falla por SKU duplicado`);
+        else if (p.wcId !== wcHit.id) problemas.push(`wcId del CRM (${p.wcId}) no coincide con el de WC (${wcHit.id})`);
+      }
+    } catch (e) {
+      problemas.push(`No se pudo consultar el SKU en WC: ${e instanceof Error ? e.message : "error"}`);
+    }
+
+    out.items.push({ sku: p.sku, nombre: p.nombre, wcId: p.wcId, ok: problemas.length === 0, problemas });
+  }
+
+  return out;
+}
+
 // ── Exportar productos a WooCommerce ──────────
 
 export interface SyncResult {
