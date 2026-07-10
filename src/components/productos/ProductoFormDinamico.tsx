@@ -209,6 +209,73 @@ function TagInput({ label, value, onChange, hint, placeholder, suggestions }: {
   );
 }
 
+// ─── Campos conectados al Catálogo (sugieren + auto-guardan lo nuevo) ─────────
+interface CatItem { id: string; valor: string; label: string; }
+
+function useCatalogo(tipo: string) {
+  return useQuery<CatItem[]>({
+    queryKey: ["catalogo", tipo],
+    queryFn: async () => (await (await fetch(`/api/catalogos?tipo=${tipo}`)).json()).data ?? [],
+    staleTime: 60_000,
+  });
+}
+
+async function crearEnCatalogo(tipo: string, texto: string) {
+  const t = texto.trim();
+  if (!t) return false;
+  try {
+    const res = await fetch("/api/catalogos", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tipo, valor: t, label: t }),
+    });
+    return res.ok; // 409 (ya existe) → false, no pasa nada
+  } catch { return false; }
+}
+
+// Multi-valor (Colores, Normas, Aplicaciones): sugiere del catálogo y agrega lo nuevo.
+function CatalogoTagInput({ tipo, label, value, onChange, hint, placeholder }: {
+  tipo: string; label: string; value: string[]; onChange: (v: string[]) => void; hint?: string; placeholder?: string;
+}) {
+  const qc = useQueryClient();
+  const { data: items = [] } = useCatalogo(tipo);
+  const existentes = new Set(items.map(i => i.label.trim().toLowerCase()));
+
+  const handleChange = async (next: string[]) => {
+    onChange(next);
+    const nuevos = next.filter(v => !value.includes(v) && !existentes.has(v.trim().toLowerCase()));
+    let creado = false;
+    for (const v of nuevos) if (await crearEnCatalogo(tipo, v)) creado = true;
+    if (creado) qc.invalidateQueries({ queryKey: ["catalogo", tipo] });
+  };
+
+  return <TagInput label={label} value={value} onChange={handleChange} hint={hint} placeholder={placeholder} suggestions={items.map(i => i.label)} />;
+}
+
+// Un solo valor (Marca): input con lista desplegable del catálogo; guarda lo nuevo al salir.
+function CatalogoInput({ tipo, label, value, onChange, placeholder, hint }: {
+  tipo: string; label: string; value: string; onChange: (v: string) => void; placeholder?: string; hint?: string;
+}) {
+  const qc = useQueryClient();
+  const { data: items = [] } = useCatalogo(tipo);
+  const listId = `cat-${tipo.toLowerCase()}`;
+  const existentes = new Set(items.map(i => i.label.trim().toLowerCase()));
+
+  const onBlur = async () => {
+    const t = value.trim();
+    if (t && !existentes.has(t.toLowerCase()) && await crearEnCatalogo(tipo, t)) {
+      qc.invalidateQueries({ queryKey: ["catalogo", tipo] });
+    }
+  };
+
+  return (
+    <FieldWrap label={label} hint={hint}>
+      <input className="input" list={listId} value={value} placeholder={placeholder}
+        onChange={e => onChange(e.target.value)} onBlur={onBlur} />
+      <datalist id={listId}>{items.map(i => <option key={i.id} value={i.label} />)}</datalist>
+    </FieldWrap>
+  );
+}
+
 function FichaTecnicaUploader({ productoId, urlInicial, nombreInicial, set }: { productoId?: string; urlInicial?: string; nombreInicial?: string; set?: (k: string, v: unknown) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState(urlInicial ?? "");
@@ -983,7 +1050,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
                 </div>
                 <SInput label="Nombre del producto *" value={g("nombre")} onChange={v => set("nombre", v)} placeholder="Nombre completo tal como aparece en la tienda" />
                 <div className="grid grid-cols-2 gap-4">
-                  <SInput label="Marca / Fabricante" value={g("acfMarcaFabricante")} onChange={v => set("acfMarcaFabricante", v)} />
+                  <CatalogoInput tipo="MARCA" label="Marca / Fabricante" value={g("acfMarcaFabricante")} onChange={v => set("acfMarcaFabricante", v)} hint="Las nuevas se guardan en Catálogos" />
                   <SSelect label="Unidad de Venta" value={g("acfUnidadVenta")} onChange={v => set("acfUnidadVenta", v)} opts={[["m2","m²"],["ml","ml"],["und","Unidad"],["rollo","Rollo"],["panel","Panel"],["kit","Kit"],["par","Par"]]} />
                 </div>
               </div>
@@ -1082,9 +1149,9 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
             </div>
             <div className="card p-5 space-y-4">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Aplicaciones y Colores</p>
-              <TagInput label="Aplicaciones / Usos del producto" value={Array.isArray(form.acfAplicaciones) ? form.acfAplicaciones as string[] : []} onChange={v => set("acfAplicaciones", v)} placeholder="Describe el uso o aplicación…" hint="Enter o coma para agregar cada aplicación" />
+              <CatalogoTagInput tipo="APLICACION" label="Aplicaciones / Usos del producto" value={Array.isArray(form.acfAplicaciones) ? form.acfAplicaciones as string[] : []} onChange={v => set("acfAplicaciones", v)} placeholder="Describe el uso o aplicación…" hint="Enter o coma. Las nuevas se guardan en Catálogos" />
               <Divider label="" />
-              <TagInput label="Colores disponibles" value={Array.isArray(form.acfColores) ? form.acfColores as string[] : []} onChange={v => set("acfColores", v)} placeholder="Nombre del color…" hint="Enter o coma para agregar cada color" />
+              <CatalogoTagInput tipo="COLOR" label="Colores disponibles" value={Array.isArray(form.acfColores) ? form.acfColores as string[] : []} onChange={v => set("acfColores", v)} placeholder="Nombre del color…" hint="Enter o coma. Los nuevos se guardan en Catálogos" />
             </div>
           </div>
         )}
@@ -1094,7 +1161,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
           <div className="max-w-3xl mx-auto space-y-5">
             <div className="card p-5 space-y-5">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Calidad y Certificaciones</p>
-              <TagInput label="Normas de Calidad" value={Array.isArray(form.acfNormas) ? form.acfNormas as string[] : []} onChange={v => set("acfNormas", v)} placeholder="ISO 9001, ASTM A392…" hint="Enter para agregar cada norma" />
+              <CatalogoTagInput tipo="NORMA" label="Normas de Calidad" value={Array.isArray(form.acfNormas) ? form.acfNormas as string[] : []} onChange={v => set("acfNormas", v)} placeholder="ISO 9001, ASTM A392…" hint="Enter. Las nuevas se guardan en Catálogos" />
               <Divider label="" />
               <TagInput label="Certificaciones" value={Array.isArray(form.acfCertificaciones) ? form.acfCertificaciones as string[] : []} onChange={v => set("acfCertificaciones", v)} hint="Enter para agregar cada certificación" />
               <Divider label="" />
