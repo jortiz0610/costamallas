@@ -61,9 +61,12 @@ export default function ExportarPage() {
         return;
       }
 
-      const { created, updated, failed } = json.data;
+      const { created, updated, failed, avisos } = json.data;
       toast.success(`Exportación completa: ${created} creados, ${updated} actualizados`);
       if (failed > 0) toast.error(`${failed} productos fallaron`);
+      for (const a of (avisos ?? []).slice(0, 3) as { sku: string; aviso: string }[]) {
+        toast(`${a.sku}: ${a.aviso}`, { icon: "🖼️", duration: 12000 });
+      }
       refetch();
     } catch {
       toast.error("Error de conexión");

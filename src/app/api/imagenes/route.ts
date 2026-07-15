@@ -49,16 +49,45 @@ export async function PATCH(req: NextRequest) {
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
   if (!canWrite(user)) return NextResponse.json({ success: false, error: "Sin permisos" }, { status: 403 });
 
-  const { id, esPrincipal, altText, posicion } = await req.json();
+  const { id, esPrincipal, altText, posicion, productoId, orden } = await req.json();
+
+  // Reordenar la galería completa: orden = [ids en el nuevo orden].
+  // La posición 0 pasa a ser la principal (en WooCommerce la primera imagen es la destacada).
+  if (productoId && Array.isArray(orden)) {
+    const existentes = await prisma.acfImagen.findMany({ where: { productoId }, select: { id: true } });
+    const validas = new Set(existentes.map((i) => i.id));
+    const ids = (orden as string[]).filter((x) => validas.has(x));
+    if (ids.length !== existentes.length) {
+      return NextResponse.json({ success: false, error: "El orden no incluye todas las imágenes del producto" }, { status: 400 });
+    }
+    await prisma.$transaction(
+      ids.map((imgId, i) =>
+        prisma.acfImagen.update({ where: { id: imgId }, data: { posicion: i, esPrincipal: i === 0 } })
+      )
+    );
+    const data = await prisma.acfImagen.findMany({ where: { productoId }, orderBy: { posicion: "asc" } });
+    return NextResponse.json({ success: true, data });
+  }
+
   if (!id) return NextResponse.json({ success: false, error: "id requerido" }, { status: 400 });
 
+  // Marcar principal = moverla al frente y renumerar (posición 0 = destacada en Woo)
   if (esPrincipal) {
     const imagen = await prisma.acfImagen.findUnique({ where: { id } });
     if (imagen) {
-      await prisma.acfImagen.updateMany({
-        where: { productoId: imagen.productoId },
-        data: { esPrincipal: false },
+      const resto = await prisma.acfImagen.findMany({
+        where: { productoId: imagen.productoId, id: { not: id } },
+        orderBy: { posicion: "asc" },
+        select: { id: true },
       });
+      await prisma.$transaction([
+        prisma.acfImagen.update({ where: { id }, data: { esPrincipal: true, posicion: 0 } }),
+        ...resto.map((r, i) =>
+          prisma.acfImagen.update({ where: { id: r.id }, data: { esPrincipal: false, posicion: i + 1 } })
+        ),
+      ]);
+      const updated = await prisma.acfImagen.findUnique({ where: { id } });
+      return NextResponse.json({ success: true, data: updated });
     }
   }
 

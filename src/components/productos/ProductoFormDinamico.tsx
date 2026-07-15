@@ -829,11 +829,24 @@ function GaleriaProducto({ productoId }: { productoId: string }) {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [dragId, setDragId] = useState<string | null>(null);
 
   const { data: imagenes = [], isLoading } = useQuery<AcfImagen[]>({
     queryKey: ["imagenes", productoId],
     queryFn: async () => (await (await fetch(`/api/imagenes?productoId=${productoId}`)).json()).data ?? [],
   });
+
+  const reordenar = async (targetId: string) => {
+    if (!dragId || dragId === targetId) return;
+    const ids = imagenes.map(i => i.id);
+    const from = ids.indexOf(dragId), to = ids.indexOf(targetId);
+    if (from < 0 || to < 0) return;
+    ids.splice(to, 0, ...ids.splice(from, 1));
+    const res = await fetch("/api/imagenes", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ productoId, orden: ids }) });
+    const json = await res.json();
+    if (json.success) { toast.success("Orden actualizado — guarda el producto para reflejarlo en WooCommerce"); qc.invalidateQueries({ queryKey: ["imagenes", productoId] }); }
+    else toast.error(json.error ?? "Error al reordenar");
+  };
 
   const handleUpload = async (files: FileList | null) => {
     if (!files) return;
@@ -901,13 +914,19 @@ function GaleriaProducto({ productoId }: { productoId: string }) {
         <div>
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{imagenes.length} imagen{imagenes.length !== 1 ? "es" : ""}</p>
-            <p className="text-[11px] text-gray-400">Hover para ver opciones · ⭐ = Principal</p>
+            <p className="text-[11px] text-gray-400">Arrastra para reordenar · la 1ª es la principal en la tienda · ⭐ = Principal</p>
           </div>
           <div className="grid grid-cols-4 gap-3">
-            {imagenes.map(img => (
-              <div key={img.id} className="relative group rounded-xl overflow-hidden border-2 aspect-square"
+            {imagenes.map((img, idx) => (
+              <div key={img.id} draggable
+                onDragStart={() => setDragId(img.id)}
+                onDragEnd={() => setDragId(null)}
+                onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={e => { e.preventDefault(); e.stopPropagation(); reordenar(img.id); }}
+                className={`relative group rounded-xl overflow-hidden border-2 aspect-square cursor-grab active:cursor-grabbing ${dragId === img.id ? "opacity-40" : ""}`}
                 style={{ borderColor: img.esPrincipal ? "#FFCC00" : "transparent" }}>
                 <Image src={img.urlImagen} alt={img.altText ?? ""} fill className="object-cover" unoptimized />
+                <div className="absolute bottom-1.5 left-1.5 min-w-5 h-5 px-1 rounded-full bg-black/60 text-white text-[10px] font-bold flex items-center justify-center">{idx + 1}</div>
                 {img.esPrincipal && (
                   <div className="absolute top-1.5 left-1.5 w-6 h-6 rounded-full bg-yellow-400 flex items-center justify-center">
                     <Star size={12} className="text-white fill-white" />
@@ -999,6 +1018,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
       toast.success(modo === "crear" ? "Producto creado ✓" : "Producto actualizado ✓");
       if (json.wcSync === "ok") toast.success("Sincronizado con WooCommerce ✓", { icon: "🛒" });
       else if (json.wcSync === "error") toast(`Guardado, pero WooCommerce rechazó el cambio: ${json.wcError ?? "error desconocido"}`, { icon: "⚠️", duration: 9000 });
+      if (json.wcAviso) toast(`Aviso del sync: ${json.wcAviso}`, { icon: "🖼️", duration: 12000 });
       if (modo === "crear") router.push(`/productos/${json.data.id}`);
     } catch { toast.error("Error de conexión"); }
     finally { setSaving(false); }

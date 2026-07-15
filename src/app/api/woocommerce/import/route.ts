@@ -154,6 +154,36 @@ export async function POST(req: NextRequest) {
 
         if (existente) {
           await prisma.producto.update({ where: { wcId: p.id }, data });
+
+          // Alinear imágenes con el orden de WooCommerce (posición 0 = destacada).
+          // Actualiza las que coinciden por URL, crea las que falten y deja al final
+          // las locales que WC no tiene (sin tocar su URL).
+          if (p.images?.length) {
+            const locales = await prisma.acfImagen.findMany({ where: { productoId: existente.id } });
+            const porUrl = new Map(locales.map((l) => [l.urlImagen, l]));
+            for (let i = 0; i < p.images.length; i++) {
+              const img = p.images[i];
+              const local = porUrl.get(img.src);
+              if (local) {
+                await prisma.acfImagen.update({ where: { id: local.id }, data: { posicion: i, esPrincipal: i === 0 } });
+              } else {
+                await prisma.acfImagen.create({
+                  data: {
+                    productoId: existente.id, posicion: i, urlImagen: img.src,
+                    altText: img.alt || null, titulo: img.name || null, esPrincipal: i === 0,
+                  },
+                });
+              }
+            }
+            const enWC = new Set(p.images.map((img) => img.src));
+            const restantes = locales.filter((l) => !enWC.has(l.urlImagen)).sort((a, b) => a.posicion - b.posicion);
+            for (let j = 0; j < restantes.length; j++) {
+              await prisma.acfImagen.update({
+                where: { id: restantes[j].id },
+                data: { posicion: p.images.length + j, esPrincipal: false },
+              });
+            }
+          }
           actualizados++;
         } else {
           const created = await prisma.producto.create({ data });

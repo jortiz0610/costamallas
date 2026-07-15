@@ -35,6 +35,7 @@ function PanelProducto({ producto }: { producto: ProductoConImagenes }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [dragImgId, setDragImgId] = useState<string | null>(null);
 
   const { data: imagenes = [], isLoading } = useQuery({
     queryKey: ["imagenes", producto.id],
@@ -71,6 +72,17 @@ function PanelProducto({ producto }: { producto: ProductoConImagenes }) {
   };
   const principal = async (id: string) => {
     if ((await (await fetch("/api/imagenes", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, esPrincipal: true }) })).json()).success) { toast.success("Principal actualizada"); refresh(); }
+  };
+
+  const reordenar = async (targetId: string) => {
+    if (!dragImgId || dragImgId === targetId) return;
+    const ids = imagenes.map(i => i.id);
+    const from = ids.indexOf(dragImgId), to = ids.indexOf(targetId);
+    if (from < 0 || to < 0) return;
+    ids.splice(to, 0, ...ids.splice(from, 1));
+    const json = await (await fetch("/api/imagenes", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ productoId: producto.id, orden: ids }) })).json();
+    if (json.success) { toast.success("Orden actualizado"); refresh(); }
+    else toast.error(json.error ?? "Error al reordenar");
   };
 
   return (
@@ -118,10 +130,16 @@ function PanelProducto({ producto }: { producto: ProductoConImagenes }) {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 p-3">
-              {imagenes.map(img => (
-                <div key={img.id} className="relative group aspect-square rounded-xl overflow-hidden border-2"
+              {imagenes.map((img, idx) => (
+                <div key={img.id} draggable
+                  onDragStart={() => setDragImgId(img.id)}
+                  onDragEnd={() => setDragImgId(null)}
+                  onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                  onDrop={e => { e.preventDefault(); e.stopPropagation(); setDragOver(false); reordenar(img.id); }}
+                  className={`relative group aspect-square rounded-xl overflow-hidden border-2 cursor-grab active:cursor-grabbing ${dragImgId === img.id ? "opacity-40" : ""}`}
                   style={{ borderColor: img.esPrincipal ? "#FFCC00" : "var(--border)" }}>
                   <Image src={img.urlImagen} alt={img.altText ?? ""} fill className="object-cover" unoptimized />
+                  <div className="absolute bottom-2 left-2 min-w-5 h-5 px-1 rounded-full bg-black/60 text-white text-[10px] font-bold flex items-center justify-center">{idx + 1}</div>
                   {img.esPrincipal && (
                     <div className="absolute top-2 left-2 flex items-center gap-1 bg-yellow-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                       <Star size={9} className="fill-white" /> Principal
@@ -144,7 +162,7 @@ function PanelProducto({ producto }: { producto: ProductoConImagenes }) {
             </div>
           )}
         </div>
-        <p className="text-[11px] text-muted mt-3 text-center">La imagen marcada como <span className="font-semibold text-yellow-500">Principal ⭐</span> es la que se muestra en la tienda y los listados.</p>
+        <p className="text-[11px] text-muted mt-3 text-center">Arrastra las miniaturas para cambiar el orden (así aparecerán en WooCommerce). La <span className="font-semibold text-yellow-500">Principal ⭐</span> siempre es la primera y es la que se muestra en la tienda y los listados.</p>
       </div>
     </div>
   );

@@ -180,8 +180,9 @@ export function productoToWC(producto: ProductoDetalle): WCProduct {
     purchase_note: producto.notaCompra ?? "",
     categories: producto.categorias.map((slug) => ({ slug })),
     tags: producto.etiquetas.map((name) => ({ name })),
-    images: producto.imagenes
-      .sort((a, b) => a.posicion - b.posicion)
+    // WooCommerce toma la primera imagen como destacada → la principal va primero
+    images: [...producto.imagenes]
+      .sort((a, b) => (b.esPrincipal ? 1 : 0) - (a.esPrincipal ? 1 : 0) || a.posicion - b.posicion)
       .map((img) => ({
         src: img.urlImagen,
         name: img.titulo ?? undefined,
@@ -342,6 +343,7 @@ export interface SyncResult {
   updated: number;
   failed: number;
   errors: { sku: string; error: string }[];
+  avisos: { sku: string; aviso: string }[];
 }
 
 export async function syncProductosToWC(
@@ -349,7 +351,7 @@ export async function syncProductosToWC(
   creds: WCCredentials,
   onProgress?: (done: number, total: number) => void
 ): Promise<SyncResult> {
-  const result: SyncResult = { total: productIds.length, created: 0, updated: 0, failed: 0, errors: [] };
+  const result: SyncResult = { total: productIds.length, created: 0, updated: 0, failed: 0, errors: [], avisos: [] };
 
   for (let i = 0; i < productIds.length; i++) {
     const id = productIds[i];
@@ -369,7 +371,14 @@ export async function syncProductosToWC(
       // Filtrar imágenes rotas (WooCommerce falla el producto entero si una da 404)
       const teniaImagenes = detalleProducto.imagenes.length > 0;
       const accesibles = await Promise.all(detalleProducto.imagenes.map((img) => urlAccesible(img.urlImagen)));
+      const rotas = detalleProducto.imagenes.filter((_, idx) => !accesibles[idx]);
       detalleProducto.imagenes = detalleProducto.imagenes.filter((_, idx) => accesibles[idx]);
+      if (rotas.length > 0) {
+        result.avisos.push({
+          sku: producto.sku,
+          aviso: `${rotas.length} imagen(es) no accesibles (404) fueron OMITIDAS del sync${rotas.some((r) => r.esPrincipal) ? " — incluida la PRINCIPAL" : ""}: ${rotas.map((r) => r.urlImagen).join(", ")}`,
+        });
+      }
 
       const wcData = productoToWC(detalleProducto);
 
