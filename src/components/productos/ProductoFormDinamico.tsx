@@ -276,7 +276,7 @@ function CatalogoInput({ tipo, label, value, onChange, placeholder, hint }: {
   );
 }
 
-function FichaTecnicaUploader({ productoId, urlInicial, nombreInicial, set }: { productoId?: string; urlInicial?: string; nombreInicial?: string; set?: (k: string, v: unknown) => void }) {
+function FichaTecnicaUploader({ productoId, urlInicial, nombreInicial, set, setExtra }: { productoId?: string; urlInicial?: string; nombreInicial?: string; set?: (k: string, v: unknown) => void; setExtra?: (k: string, v: unknown) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState(urlInicial ?? "");
   const [nombre, setNombre] = useState(nombreInicial ?? "");
@@ -326,13 +326,17 @@ function FichaTecnicaUploader({ productoId, urlInicial, nombreInicial, set }: { 
       const json = await res.json();
       if (!res.ok || !json.success) return toast.error(json.error ?? "Error al subir");
       setUrl(json.data.url); setNombre(json.data.nombre);
+      // Reflejar en el estado del formulario: si no, el próximo "Guardar" sobrescribe
+      // acfExtra sin la ficha y la referencia se pierde (pasó el 2026-07-14).
+      setExtra?.("fichaTecnicaUrl", json.data.url);
+      setExtra?.("fichaTecnicaNombre", json.data.nombre);
       toast.success("Ficha técnica subida ✓");
     } catch { toast.error("Error al subir"); } finally { setSubiendo(false); }
   };
   const eliminar = async () => {
     if (!confirm("¿Eliminar la ficha técnica?")) return;
     const res = await fetch(`/api/productos/${productoId}/ficha`, { method: "DELETE" });
-    if ((await res.json()).success) { setUrl(""); setNombre(""); toast.success("Ficha eliminada"); }
+    if ((await res.json()).success) { setUrl(""); setNombre(""); setExtra?.("fichaTecnicaUrl", undefined); setExtra?.("fichaTecnicaNombre", undefined); toast.success("Ficha eliminada"); }
   };
 
   return (
@@ -1188,6 +1192,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
               <FichaTecnicaUploader
                 productoId={productoId}
                 set={set}
+                setExtra={setX}
                 urlInicial={(form.acfExtra as Record<string, unknown> | undefined)?.fichaTecnicaUrl as string | undefined}
                 nombreInicial={(form.acfExtra as Record<string, unknown> | undefined)?.fichaTecnicaNombre as string | undefined}
               />

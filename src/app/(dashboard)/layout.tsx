@@ -120,8 +120,12 @@ function SupportButton() {
 }
 
 function ShellInner({ children }: { children: React.ReactNode }) {
-  const { sidebarOpen, setSidebarOpen } = useBrand();
+  const { sidebarOpen, setSidebarOpen, refreshBrand } = useBrand();
   const { data } = useQuery({ queryKey: ["dashboard", "kpis"], queryFn: fetchKPIs, staleTime: 60_000 });
+
+  // Recargar la config de empresa desde la BD al entrar al panel: al montarse la app
+  // en /login ese fetch devuelve 401, y sin esto el usuario veía los datos por defecto.
+  useEffect(() => { refreshBrand(); }, [refreshBrand]);
 
   const { data: nexusData } = useQuery({
     queryKey: ["nexus-noleidas"],

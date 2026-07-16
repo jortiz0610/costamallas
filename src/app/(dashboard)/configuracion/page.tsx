@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, Suspense } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
@@ -22,6 +22,9 @@ async function fetchWCStatus(): Promise<WCStatus> {
 
 function TabEmpresa() {
   const { brand, setBrand } = useBrand();
+  const { user } = useAuth();
+  // La información de la empresa es una sola para todos; solo administradores la modifican
+  const puedeEditar = user?.rol === "ADMIN" || user?.rol === "SUPERADMIN";
   const [form, setForm] = useState({
     companyName: brand.companyName, legalName: brand.legalName,
     nit: brand.nit, address: brand.address, phone: brand.phone,
@@ -32,6 +35,14 @@ function TabEmpresa() {
   const [icoPreview, setIcoPreview] = useState<string | null>(brand.icoUrl);
   const logoRef = useRef<HTMLInputElement>(null);
   const icoRef = useRef<HTMLInputElement>(null);
+
+  // En modo lectura, reflejar siempre lo que llegue de la BD (el form no se edita)
+  useEffect(() => {
+    if (puedeEditar) return;
+    setForm({ companyName: brand.companyName, legalName: brand.legalName, nit: brand.nit, address: brand.address, phone: brand.phone, email: brand.email, brandColor: brand.brandColor });
+    setLogoPreview(brand.logoUrl);
+    setIcoPreview(brand.icoUrl);
+  }, [brand, puedeEditar]);
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>, type: "logo" | "ico") => {
     const file = e.target.files?.[0];
@@ -48,7 +59,7 @@ function TabEmpresa() {
   const save = async () => {
     setSaving(true);
     try {
-      await fetch("/api/configuracion/empresa", {
+      const res = await fetch("/api/configuracion/empresa", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           empresa_nombre: form.companyName, empresa_legal: form.legalName,
@@ -58,6 +69,12 @@ function TabEmpresa() {
           empresa_logo: logoPreview ?? "", empresa_ico: icoPreview ?? "",
         }),
       });
+      const json = await res.json().catch(() => ({ success: false }));
+      // Solo aplicar localmente si la BD aceptó el cambio — si no, cada usuario vería datos distintos
+      if (!res.ok || !json.success) {
+        toast.error(json.error ?? "No se pudo guardar en la base de datos");
+        return;
+      }
       setBrand({ companyName: form.companyName, legalName: form.legalName, nit: form.nit, address: form.address, phone: form.phone, email: form.email, brandColor: form.brandColor, logoUrl: logoPreview, icoUrl: icoPreview });
       toast.success("Configuracion guardada");
     } catch { toast.error("Error al guardar"); }
@@ -66,6 +83,13 @@ function TabEmpresa() {
 
   return (
     <div className="space-y-5 max-w-2xl">
+      {!puedeEditar && (
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300">
+          <Settings size={13} className="flex-shrink-0" />
+          Esta información es la misma para toda la empresa y solo un administrador puede modificarla. La ves en modo lectura.
+        </div>
+      )}
+      <fieldset disabled={!puedeEditar} className="space-y-5 border-0 p-0 m-0 min-w-0">
       <div className="card p-5 space-y-4">
         <h2 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
           <Building2 size={14} style={{ color: form.brandColor }} /> Informacion de la empresa
@@ -135,7 +159,7 @@ function TabEmpresa() {
         <div className="grid grid-cols-2 gap-5">
           <div>
             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Logo principal *</label>
-            <div onClick={() => logoRef.current?.click()}
+            <div onClick={() => puedeEditar && logoRef.current?.click()}
               className="border-2 border-dashed rounded-xl p-4 flex flex-col items-center gap-2 cursor-pointer hover:border-gray-300 transition-colors"
               style={logoPreview ? {} : { borderColor: form.brandColor + "60" }}>
               {logoPreview ? (
@@ -152,7 +176,7 @@ function TabEmpresa() {
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Favicon <span className="text-gray-300 normal-case font-normal">(opcional)</span></label>
-            <div onClick={() => icoRef.current?.click()}
+            <div onClick={() => puedeEditar && icoRef.current?.click()}
               className="border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl p-4 flex flex-col items-center gap-2 cursor-pointer hover:border-gray-300 transition-colors">
               {icoPreview ? (
                 <div className="relative">
@@ -169,10 +193,13 @@ function TabEmpresa() {
         </div>
       </div>
 
-      <button onClick={save} disabled={saving} className="btn-primary w-full justify-center">
-        {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-        Guardar configuracion de empresa
-      </button>
+      {puedeEditar && (
+        <button onClick={save} disabled={saving} className="btn-primary w-full justify-center">
+          {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+          Guardar configuracion de empresa
+        </button>
+      )}
+      </fieldset>
     </div>
   );
 }

@@ -19,6 +19,7 @@ interface BrandContextValue {
   darkMode: boolean;
   mode: "ERP" | "CRM" | "NEXUS" | "MARKETING";
   setBrand: (b: Partial<BrandConfig>) => void;
+  refreshBrand: () => void;
   toggleDark: () => void;
   setMode: (m: "ERP" | "CRM" | "NEXUS" | "MARKETING") => void;
   sidebarOpen: boolean;
@@ -42,6 +43,7 @@ const BrandContext = createContext<BrandContextValue>({
   darkMode: false,
   mode: "ERP",
   setBrand: () => {},
+  refreshBrand: () => {},
   toggleDark: () => {},
   setMode: () => {},
   sidebarOpen: false,
@@ -55,17 +57,10 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<"ERP" | "CRM" | "NEXUS" | "MARKETING">("ERP");
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    // Cargar desde localStorage primero (instantáneo)
-    try {
-      const stored = localStorage.getItem("cm_brand");
-      if (stored) setBrandState({ ...DEFAULT_BRAND, ...JSON.parse(stored) });
-      const dark = localStorage.getItem("cm_dark") === "true";
-      setDarkMode(dark);
-    } catch {}
-    setMounted(true);
-
-    // Luego sincronizar desde DB (para multi-dispositivo)
+  // Sincronizar desde la BD (fuente de verdad, igual para todos los usuarios).
+  // Se llama al montar y también desde el layout del dashboard tras iniciar sesión
+  // (en el login el fetch devuelve 401 y sin esto el usuario quedaba viendo los defaults).
+  const refreshBrand = useCallback(() => {
     fetch("/api/configuracion/empresa")
       .then(r => r.json())
       .then(json => {
@@ -88,6 +83,18 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    // Cargar desde localStorage primero (instantáneo)
+    try {
+      const stored = localStorage.getItem("cm_brand");
+      if (stored) setBrandState({ ...DEFAULT_BRAND, ...JSON.parse(stored) });
+      const dark = localStorage.getItem("cm_dark") === "true";
+      setDarkMode(dark);
+    } catch {}
+    setMounted(true);
+    refreshBrand();
+  }, [refreshBrand]);
 
   // Aplicar dark mode y brand color al DOM
   useEffect(() => {
@@ -127,7 +134,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   if (!mounted) return null;
 
   return (
-    <BrandContext.Provider value={{ brand, darkMode, mode, setBrand, toggleDark, setMode, sidebarOpen, setSidebarOpen }}>
+    <BrandContext.Provider value={{ brand, darkMode, mode, setBrand, refreshBrand, toggleDark, setMode, sidebarOpen, setSidebarOpen }}>
       {children}
     </BrandContext.Provider>
   );
