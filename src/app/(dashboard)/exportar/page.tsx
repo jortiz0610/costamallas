@@ -24,6 +24,29 @@ export default function ExportarPage() {
     queryFn: fetchListosExportar,
   });
 
+  // Estado de la sincronización automática (compuerta "Listo para exportar")
+  const [syncing, setSyncing] = useState(false);
+  const { data: pend, refetch: refetchPend } = useQuery({
+    queryKey: ["sync-pendientes"],
+    queryFn: async () => (await (await fetch("/api/cron/sync-woo?dry=1")).json()).data as { pendientes: number; productos: { sku: string; nombre: string }[] },
+  });
+
+  const handleSyncAhora = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/cron/sync-woo", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || !json.success) { toast.error(json.data?.error ?? json.error ?? "Error al sincronizar"); return; }
+      const d = json.data;
+      toast.success(`Sincronizados ${d.sincronizados ?? 0} producto(s) a WooCommerce`);
+      for (const a of (d.avisos ?? []).slice(0, 3) as { sku: string; aviso: string }[]) {
+        toast(`${a.sku}: ${a.aviso}`, { icon: "🖼️", duration: 10000 });
+      }
+      refetchPend(); refetch();
+    } catch { toast.error("Error de conexión"); }
+    finally { setSyncing(false); }
+  };
+
   const toggleAll = () => {
     if (selected.size === productos.length) {
       setSelected(new Set());
@@ -79,6 +102,26 @@ export default function ExportarPage() {
     <>
       <Topbar title="Exportar a WooCommerce" />
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
+
+        {/* Sincronización automática (compuerta "Listo para exportar") */}
+        <div className="card p-5">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="min-w-0">
+              <h2 className="text-[13px] font-semibold text-gray-800 flex items-center gap-2">
+                <RefreshCw size={15} /> Sincronización automática
+              </h2>
+              <p className="text-[12px] text-gray-500 mt-1 max-w-xl">
+                El CRM es la fuente de verdad: cada 15 minutos se publican a la tienda los productos
+                marcados <b>&ldquo;Listo para exportar&rdquo;</b> que hayan cambiado.
+                {pend ? <> Pendientes ahora mismo: <b className="text-gray-700">{pend.pendientes}</b>.</> : null}
+              </p>
+            </div>
+            <button onClick={handleSyncAhora} disabled={syncing} className="btn-primary btn-sm flex-shrink-0">
+              {syncing ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+              Sincronizar ahora
+            </button>
+          </div>
+        </div>
 
         {/* Modo de exportación */}
         <div className="card p-5">

@@ -7,7 +7,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/cotizar", "/api/public", "/api/marketing/oauth"];
+// /api/cron: la propia ruta valida el CRON_SECRET (Vercel Cron no envía cookie de sesión)
+const PUBLIC_PATHS = ["/login", "/api/auth/login", "/cotizar", "/api/public", "/api/marketing/oauth", "/api/cron"];
 const API_RATE_LIMIT = 200;
 
 export async function middleware(req: NextRequest): Promise<NextResponse> {
