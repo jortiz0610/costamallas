@@ -20,6 +20,13 @@ async function fetchWCStatus(): Promise<WCStatus> {
   return (await res.json()).data;
 }
 
+interface WPStatus { configured: boolean; ok?: boolean; user?: string; siteUrl?: string; error?: string; }
+async function fetchWPStatus(): Promise<WPStatus> {
+  const res = await fetch("/api/wordpress/test");
+  if (!res.ok) return { configured: false };
+  return (await res.json()).data;
+}
+
 function TabEmpresa() {
   const { brand, setBrand } = useBrand();
   const { user } = useAuth();
@@ -262,7 +269,73 @@ function TabWooCommerce() {
           <button onClick={() => testMutation.mutate(true)} disabled={!storeUrl || !consumerKey || !consumerSecret || testMutation.isPending} className="btn-primary">Guardar y conectar</button>
         </div>
       </div>
+
+      <SeccionWordPress />
     </div>
+  );
+}
+
+// Credenciales de WordPress para subir imágenes/PDF directo a la biblioteca de medios
+// (evita el subdominio catalogo.costamallas.com que da 404).
+function SeccionWordPress() {
+  const [siteUrl, setSiteUrl] = useState("https://costamallas.com");
+  const [wpUser, setWpUser] = useState("");
+  const [appPassword, setAppPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const { data: wpStatus, isLoading, refetch } = useQuery({ queryKey: ["wp", "status"], queryFn: fetchWPStatus });
+
+  const mut = useMutation({
+    mutationFn: async (guardar: boolean) => {
+      const res = await fetch("/api/wordpress/test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ siteUrl, user: wpUser, appPassword, guardar }) });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error ?? "Error");
+      return json.data as { ok: boolean; user: string };
+    },
+    onSuccess: (data, guardar) => {
+      toast.success(`Conexión con WordPress OK — ${data.user}`);
+      if (guardar) { toast.success("Credenciales guardadas · las fotos ahora suben a WordPress"); setAppPassword(""); refetch(); }
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const listo = Boolean(siteUrl && wpUser && appPassword);
+
+  return (
+    <>
+      <div className="card p-5">
+        <h2 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2"><Globe size={14} className="text-indigo-500" />Imágenes en WordPress</h2>
+        {isLoading ? <div className="flex items-center gap-2 text-xs text-gray-400"><Loader2 size={13} className="animate-spin" />Verificando...</div>
+        : wpStatus?.configured && wpStatus.ok ? (
+          <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800">
+            <Check size={15} className="text-green-600" />
+            <div><p className="text-[13px] font-medium text-green-800 dark:text-green-300">Conectado — las fotos suben a WordPress</p><p className="text-[11px] text-green-600 dark:text-green-400">{wpStatus.siteUrl} · {wpStatus.user}</p></div>
+          </div>
+        ) : wpStatus?.configured && !wpStatus.ok ? (
+          <div className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+            <X size={15} className="text-red-600" />
+            <div><p className="text-[13px] font-medium text-red-800 dark:text-red-300">Error de conexión</p><p className="text-[11px] text-red-600 dark:text-red-400">{wpStatus.error ?? "Revisa el usuario y el Application Password"}</p></div>
+          </div>
+        ) : <p className="text-xs text-gray-500 dark:text-gray-400">No configurado. Mientras tanto las fotos suben por FTP (catalogo.costamallas.com).</p>}
+      </div>
+
+      <div className="card p-5 space-y-4">
+        <h2 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2"><Settings size={14} />Credenciales WordPress</h2>
+        <p className="text-[11px] text-gray-400">Application Password cifrado AES-256-GCM. Créalo en WordPress: <b>Usuarios → Perfil → Contraseñas de aplicación</b>. Usa un usuario Administrador o Editor.</p>
+        <div><label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">URL del sitio</label><input value={siteUrl} onChange={e => setSiteUrl(e.target.value)} className="input" placeholder="https://costamallas.com" type="url" /></div>
+        <div><label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Usuario de WordPress</label><input value={wpUser} onChange={e => setWpUser(e.target.value)} className="input" placeholder="admin" autoComplete="off" /></div>
+        <div><label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Application Password</label>
+          <div className="relative"><input value={appPassword} onChange={e => setAppPassword(e.target.value)} className="input pr-10 font-mono text-[12px]" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx" type={showPass ? "text" : "password"} autoComplete="off" />
+            <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">{showPass ? <EyeOff size={14} /> : <Eye size={14} />}</button>
+          </div>
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button onClick={() => mut.mutate(false)} disabled={!listo || mut.isPending} className="btn-secondary">
+            {mut.isPending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Probar
+          </button>
+          <button onClick={() => mut.mutate(true)} disabled={!listo || mut.isPending} className="btn-primary">Guardar y conectar</button>
+        </div>
+      </div>
+    </>
   );
 }
 

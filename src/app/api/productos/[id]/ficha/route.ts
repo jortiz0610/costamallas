@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest, canWrite } from "@/lib/auth";
 import { uploadImageFTP, deleteImageFTP } from "@/lib/ftp";
+import { getWPCredentials, uploadToWordPressMedia } from "@/lib/wordpress";
 
 type P = { params: Promise<{ id: string }> };
 const SUBFOLDER = "fichas-tecnicas";
@@ -28,10 +29,14 @@ export async function POST(req: NextRequest, { params }: P) {
 
   let url: string;
   try {
-    url = await uploadImageFTP(buffer, filename, SUBFOLDER);
+    // Preferir WordPress (queda servido por costamallas.com); si no, FTP a catalogo.
+    const wpCreds = await getWPCredentials();
+    url = wpCreds
+      ? (await uploadToWordPressMedia(buffer, filename, "application/pdf")).url
+      : await uploadImageFTP(buffer, filename, SUBFOLDER);
   } catch (err) {
-    console.error("[ficha FTP]", err);
-    return NextResponse.json({ success: false, error: "No se pudo subir al servidor FTP. Verifica las credenciales en .env" }, { status: 500 });
+    console.error("[ficha upload]", err);
+    return NextResponse.json({ success: false, error: "No se pudo subir el PDF. Revisa la configuración de WordPress/FTP." }, { status: 500 });
   }
 
   const acfExtra = { ...(producto.acfExtra as Record<string, unknown> ?? {}), fichaTecnicaUrl: url, fichaTecnicaNombre: file.name };

@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest, canWrite } from "@/lib/auth";
 import { uploadImageFTP } from "@/lib/ftp";
+import { getWPCredentials, uploadToWordPressMedia } from "@/lib/wordpress";
 import { prisma } from "@/lib/prisma";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -35,9 +36,18 @@ export async function POST(req: NextRequest) {
     const safeName = file.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9-_]/g, "-").toLowerCase();
     const filename = `${safeName}-${timestamp}.${ext}`;
 
-    // Subir via FTP
     const buffer = Buffer.from(await file.arrayBuffer());
-    const url = await uploadImageFTP(buffer, filename);
+
+    // Preferir WordPress (media queda servida por costamallas.com y funciona en la
+    // tienda). Si WP no está configurado, usar FTP a catalogo.costamallas.com.
+    let url: string;
+    const wpCreds = await getWPCredentials();
+    if (wpCreds) {
+      const media = await uploadToWordPressMedia(buffer, filename, file.type);
+      url = media.url;
+    } else {
+      url = await uploadImageFTP(buffer, filename);
+    }
 
     // Guardar en BD si viene con productoId
     if (productoId) {
