@@ -40,12 +40,58 @@ export interface TurnoChat {
 /**
  * La API key vive cifrada en la tabla `configuracion` (clave `ai_api_key`),
  * igual que las demás credenciales del portal. `ANTHROPIC_API_KEY` del
- * entorno sirve solo como respaldo para desarrollo local.
+ * entorno sirve como respaldo.
+ *
+ * Ojo con el descifrado: el valor se cifró con la `ENCRYPTION_KEY` de quien
+ * lo cargó. Si esa clave no es la misma que la del entorno actual (p. ej.
+ * se cargó desde local y la de Vercel es otra), `decryptIfNeeded` lanza
+ * excepción. Ese caso se captura para caer al respaldo del entorno en vez
+ * de tumbar el agente: es la diferencia entre "Sembli usa el respaldo" y
+ * "Sembli no responde a nadie y no se sabe por qué".
  */
 export async function obtenerClaveAnthropic(): Promise<string | null> {
+  const respaldo = process.env.ANTHROPIC_API_KEY ?? null;
   const fila = await prisma.configuracion.findUnique({ where: { clave: "ai_api_key" } });
-  if (fila?.valor) return fila.encrypted ? decryptIfNeeded(fila.valor) : fila.valor;
-  return process.env.ANTHROPIC_API_KEY ?? null;
+  if (!fila?.valor) return respaldo;
+  if (!fila.encrypted) return fila.valor;
+
+  try {
+    return decryptIfNeeded(fila.valor);
+  } catch {
+    console.error(
+      "[sembli] No se pudo descifrar configuracion.ai_api_key: la ENCRYPTION_KEY de este " +
+        "entorno no es la que se usó para guardarla. " +
+        (respaldo
+          ? "Se usa ANTHROPIC_API_KEY del entorno."
+          : "Vuelve a cargar la key desde Configuración → IA en ESTE entorno."),
+    );
+    return respaldo;
+  }
+}
+
+/**
+ * Diagnóstico de la credencial, sin revelar su valor. Sirve para saber en
+ * producción si la key quedó bien guardada o si hay que recargarla.
+ */
+export async function estadoCredencial(): Promise<{
+  origen: "base-de-datos" | "entorno" | "ninguno";
+  descifraBien: boolean;
+}> {
+  const fila = await prisma.configuracion.findUnique({ where: { clave: "ai_api_key" } });
+  if (fila?.valor) {
+    try {
+      const v = fila.encrypted ? decryptIfNeeded(fila.valor) : fila.valor;
+      if (v) return { origen: "base-de-datos", descifraBien: true };
+    } catch {
+      // Cae al respaldo del entorno.
+    }
+    return process.env.ANTHROPIC_API_KEY
+      ? { origen: "entorno", descifraBien: false }
+      : { origen: "ninguno", descifraBien: false };
+  }
+  return process.env.ANTHROPIC_API_KEY
+    ? { origen: "entorno", descifraBien: true }
+    : { origen: "ninguno", descifraBien: false };
 }
 
 let clienteCache: { clave: string; cliente: Anthropic } | null = null;

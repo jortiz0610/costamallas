@@ -10,7 +10,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { conversarConSembli, type TurnoChat } from "@/lib/sembli/agente";
+import { conversarConSembli, estadoCredencial, type TurnoChat } from "@/lib/sembli/agente";
+import { esAdmin } from "@/lib/permisos";
 import { nivelDeRol, type Solicitante } from "@/lib/sembli/alcance";
 import { herramientasPara } from "@/lib/sembli/herramientas";
 
@@ -123,6 +124,9 @@ export async function GET(req: NextRequest) {
         descripcion: h.descripcion,
       })),
       sugerencias: SUGERENCIAS[nivel],
+      // Diagnóstico solo para admins: de dónde sale la credencial y si
+      // descifra bien en ESTE entorno. Nunca incluye el valor de la key.
+      ...(esAdmin(user.rol) ? { credencial: await estadoCredencial() } : {}),
     },
   });
 }
