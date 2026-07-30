@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getUserFromRequest, canWrite } from "@/lib/auth";
+import { getUserFromRequest, isAdmin } from "@/lib/auth";
 import { getWCCredentials } from "@/lib/woocommerce";
 
 interface WCProductRaw {
@@ -93,7 +93,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
-  if (!canWrite(user)) return NextResponse.json({ success: false, error: "Sin permisos" }, { status: 403 });
+  // Sincronización con la tienda: solo admin/superadmin. Toca el catálogo
+  // en vivo de costamallas.com, así que no basta con permiso de escritura.
+  if (!isAdmin(user)) return NextResponse.json({ success: false, error: "Solo administradores pueden sincronizar con la tienda" }, { status: 403 });
 
   const creds = await getWCCredentials();
   if (!creds) return NextResponse.json({ success: false, error: "WooCommerce no configurado" }, { status: 400 });

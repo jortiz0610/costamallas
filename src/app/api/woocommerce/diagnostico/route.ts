@@ -4,12 +4,19 @@
 // accesibles y SKU duplicado / wcId desalineado.
 
 import { NextRequest, NextResponse } from "next/server";
-import { getUserFromRequest } from "@/lib/auth";
+import { getUserFromRequest, isAdmin } from "@/lib/auth";
 import { getWCCredentials, diagnosticarWC } from "@/lib/woocommerce";
 
 export async function GET(req: NextRequest) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
+  // Expone el estado de la tienda y sus credenciales: solo admin/superadmin.
+  if (!isAdmin(user)) {
+    return NextResponse.json(
+      { success: false, error: "Solo administradores pueden ver el diagnóstico de la tienda" },
+      { status: 403 },
+    );
+  }
 
   const creds = await getWCCredentials();
   if (!creds) {

@@ -39,8 +39,11 @@ const ERP_ITEMS = [
   { href: "/stock", label: "Stock", icon: Archive, alertKey: "stock" },
   { href: "/compras", label: "Compras", icon: Truck },
   { href: "/facturacion", label: "Facturación", icon: Receipt },
-  { href: "/woocommerce", label: "Sincronización WC", icon: FileInput },
-  { href: "/errores", label: "Errores", icon: AlertTriangle, alertKey: "errores" },
+  // "Sincronización WC" solo la ven admin y superadmin: toca la tienda en vivo.
+  { href: "/woocommerce", label: "Sincronización WC", icon: FileInput, soloAdmin: true },
+  // Antes había además un "Errores" (validación) que era una pantalla vacía.
+  // Se dejó un único módulo: el reporte de errores que sí reportan los usuarios.
+  { href: "/sistema/reportes", label: "Reporte de errores", icon: AlertTriangle, alertKey: "errores" },
 ];
 
 const CRM_ITEMS = [
@@ -67,7 +70,6 @@ const NEXUS_ITEMS = [
 const SYSTEM_ITEMS = [
   { href: "/usuarios", label: "Usuarios y Roles", icon: Users },
   { href: "/reportes", label: "Reportes y logs", icon: BarChart2 },
-  { href: "/sistema/reportes", label: "Reportes de error", icon: AlertTriangle },
   { href: "/sistema/seguridad", label: "Seguridad", icon: ShieldCheck },
   { href: "/configuracion", label: "Configuración", icon: Settings },
 ];
@@ -113,6 +115,10 @@ export function Sidebar({
         </p>
       );
     }
+    // Módulos reservados a admin/superadmin. Ocultar el enlace es solo
+    // presentación: la ruta y su API validan el rol por su cuenta.
+    if ((item as { soloAdmin?: boolean }).soloAdmin && !esAdmin(user?.rol)) return null;
+
     const Icon = item.icon!;
     const href = (item as { href: string }).href;
     const base = href.split("?")[0];

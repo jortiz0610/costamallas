@@ -122,6 +122,8 @@ export interface ProductoDetalle extends ProductoListItem {
   acfNormas: string[];
   acfFichaTecnicaPdf: string | null;
   acfCertificaciones: string[];
+  /** Campos ACF variables por categoría. Incluye `fichaTecnicaUrl`. */
+  acfExtra?: Record<string, unknown> | null;
   intResponsable: string | null;
   intObservaciones: string | null;
   intExportadoEn: string | null;

@@ -40,7 +40,13 @@ export async function POST(req: NextRequest, { params }: P) {
   }
 
   const acfExtra = { ...(producto.acfExtra as Record<string, unknown> ?? {}), fichaTecnicaUrl: url, fichaTecnicaNombre: file.name };
-  await prisma.producto.update({ where: { id }, data: { acfExtra: JSON.parse(JSON.stringify(acfExtra)) } });
+  // Se guarda también en la columna `acfFichaTecnicaPdf`: es la que lee el
+  // sync a WooCommerce y la que consultan otros módulos. Tenerlo solo en
+  // acfExtra hacía que la ficha nunca llegara a la tienda.
+  await prisma.producto.update({
+    where: { id },
+    data: { acfExtra: JSON.parse(JSON.stringify(acfExtra)), acfFichaTecnicaPdf: url },
+  });
 
   await prisma.log.create({ data: { usuarioId: user.sub, accion: "PRODUCTO_FICHA", detalle: `Ficha técnica subida: ${producto.sku}`, resultado: "OK" } }).catch(() => {});
 

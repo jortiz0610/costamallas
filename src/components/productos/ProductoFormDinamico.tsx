@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Save, Loader2, Plus, Trash2, Check, X, Star, Upload, ImageIcon, Sparkles, Wand2, FileText, Languages, Tag as TagIcon } from "lucide-react";
+import { Save, Loader2, Plus, Trash2, Check, X, Star, Upload, ImageIcon, Sparkles, FileText, Tag as TagIcon } from "lucide-react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -276,34 +276,249 @@ function CatalogoInput({ tipo, label, value, onChange, placeholder, hint }: {
   );
 }
 
+/**
+ * Asistente de redacción del producto.
+ *
+ * Genera texto y lo deja en una tarjeta para revisar: nada se escribe en el
+ * formulario sin que el usuario pulse "Usar". El botón "Copiar" es para los
+ * casos que no tienen un campo destino (beneficios, aplicaciones sueltas).
+ */
+function AsistenteProducto({
+  productoId, form, set,
+}: { productoId?: string; form: Record<string, unknown>; set: (k: string, v: unknown) => void }) {
+  const [acciones, setAcciones] = useState<{ id: string; etiqueta: string; campo?: string }[]>([]);
+  const [cargando, setCargando] = useState<string | null>(null);
+  const [libre, setLibre] = useState("");
+  const [salida, setSalida] = useState<{ texto: string; campo?: string; titulo: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/ai/producto")
+      .then(r => r.json())
+      .then(j => { if (j?.success) setAcciones(j.data); })
+      .catch(() => undefined);
+  }, []);
+
+  const pedir = async (opciones: { accion?: string; instruccion?: string; titulo: string }) => {
+    if (!form.nombre) return toast.error("Ponle nombre al producto primero");
+    setCargando(opciones.accion ?? "libre");
+    setSalida(null);
+    try {
+      const res = await fetch("/api/ai/producto", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productoId,
+          accion: opciones.accion,
+          instruccion: opciones.instruccion,
+          // Sin productoId (producto nuevo) se manda lo que haya escrito.
+          borrador: productoId ? undefined : form,
+        }),
+      });
+      const j = await res.json();
+      if (!j.success) {
+        return toast.error(
+          j.sinClave
+            ? "La IA no está activada. Pídele a un superadministrador que cargue la API key en Configuración → IA."
+            : j.error ?? "No se pudo generar el texto",
+        );
+      }
+      setSalida({ texto: j.data.texto, campo: j.data.campo, titulo: opciones.titulo });
+    } catch {
+      toast.error("Error al generar el texto");
+    } finally {
+      setCargando(null);
+    }
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-5">
+      <div className="card p-6" style={{ background: "linear-gradient(135deg, var(--brand-color-10), transparent)" }}>
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--brand-color)" }}>
+            <Sparkles size={26} className="text-white" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">Asistente de producto</h2>
+            <p className="text-sm text-muted mt-1">
+              Redacta a partir de los datos que ya tiene este producto. Revisa siempre antes de usar el texto.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="card p-5">
+        <p className="text-xs font-bold uppercase tracking-widest text-muted mb-3">Acciones rápidas</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {acciones.map(a => (
+            <button
+              key={a.id}
+              type="button"
+              disabled={cargando !== null}
+              onClick={() => pedir({ accion: a.id, titulo: a.etiqueta })}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl surface-2 text-left text-sm font-medium text-soft hover:brand-bg-10 transition-colors disabled:opacity-50"
+            >
+              {cargando === a.id
+                ? <Loader2 size={14} className="animate-spin flex-shrink-0" />
+                : <Sparkles size={14} className="flex-shrink-0" style={{ color: "var(--brand-color)" }} />}
+              <span className="truncate">{a.etiqueta}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="card p-5">
+        <label className="block text-xs font-bold uppercase tracking-widest text-muted mb-2">Pídele algo tú</label>
+        <div className="flex gap-2">
+          <input
+            className="input"
+            value={libre}
+            onChange={e => setLibre(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Enter" && libre.trim()) {
+                e.preventDefault();
+                pedir({ instruccion: libre.trim(), titulo: "Respuesta" });
+              }
+            }}
+            placeholder="Ej: escribe un párrafo sobre la resistencia de esta malla"
+            maxLength={1000}
+          />
+          <button
+            type="button"
+            className="btn-primary flex-shrink-0"
+            disabled={cargando !== null || !libre.trim()}
+            onClick={() => pedir({ instruccion: libre.trim(), titulo: "Respuesta" })}
+          >
+            {cargando === "libre" ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Generar
+          </button>
+        </div>
+      </div>
+
+      {salida && (
+        <div className="card p-5 animate-fade-up">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{salida.titulo}</p>
+            <button type="button" onClick={() => setSalida(null)} className="text-muted hover:text-red-500"><X size={14} /></button>
+          </div>
+          <div className="rounded-xl p-4 surface-2 text-[13px] text-soft whitespace-pre-wrap leading-relaxed max-h-72 overflow-y-auto">
+            {salida.texto}
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button
+              type="button"
+              className="btn-secondary btn-sm flex-1 justify-center"
+              onClick={() => {
+                navigator.clipboard.writeText(salida.texto).then(
+                  () => toast.success("Copiado"),
+                  () => toast.error("El navegador no dejó copiar"),
+                );
+              }}
+            >
+              Copiar
+            </button>
+            {salida.campo && (
+              <button
+                type="button"
+                className="btn-primary btn-sm flex-1 justify-center"
+                onClick={() => {
+                  set(salida.campo!, salida.texto);
+                  toast.success(`Aplicado. Guarda el producto para conservarlo.`);
+                  setSalida(null);
+                }}
+              >
+                <Check size={13} /> Usar este texto
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Respuesta de /api/ai/ficha. */
+interface AnalisisFicha {
+  sugerencias: Record<string, unknown>;
+  camposFicha: { etiqueta: string; valor: string }[];
+  noEncontrado: string[];
+  caracteresLeidos: number;
+}
+
+/** Etiquetas legibles para los campos que devuelve la IA. */
+const ETIQUETA_CAMPO: Record<string, string> = {
+  descCorta: "Descripción corta",
+  descripcion: "Descripción larga",
+  acfMarcaFabricante: "Marca / Fabricante",
+  acfUnidadVenta: "Unidad de venta",
+  acfGarantiaAnos: "Garantía (años)",
+  pesoKg: "Peso (kg)",
+  largoCm: "Largo (cm)",
+  anchoCm: "Ancho (cm)",
+  altoCm: "Alto (cm)",
+  acfAplicaciones: "Aplicaciones",
+  acfColores: "Colores",
+  acfNormas: "Normas",
+  acfCertificaciones: "Certificaciones",
+};
+
+/** "Recubrimiento de zinc" → "recubrimientoDeZinc", para guardarlo en acfExtra. */
+function claveDesdeEtiqueta(etiqueta: string): string {
+  const limpio = etiqueta
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^a-zA-Z0-9 ]/g, " ")
+    .trim()
+    .split(/\s+/);
+  return limpio[0].toLowerCase() + limpio.slice(1).map(p => p[0].toUpperCase() + p.slice(1).toLowerCase()).join("");
+}
+
 function FichaTecnicaUploader({ productoId, urlInicial, nombreInicial, set, setExtra }: { productoId?: string; urlInicial?: string; nombreInicial?: string; set?: (k: string, v: unknown) => void; setExtra?: (k: string, v: unknown) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [url, setUrl] = useState(urlInicial ?? "");
   const [nombre, setNombre] = useState(nombreInicial ?? "");
   const [subiendo, setSubiendo] = useState(false);
   const [analizando, setAnalizando] = useState(false);
-  const [sug, setSug] = useState<Record<string, unknown> | null>(null);
+  const [analisis, setAnalisis] = useState<AnalisisFicha | null>(null);
 
   const analizar = async () => {
-    setAnalizando(true); setSug(null);
+    setAnalizando(true); setAnalisis(null);
     try {
       const res = await fetch("/api/ai/ficha", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ productoId }) });
       const json = await res.json();
-      if (!json.success) return toast.error(json.error ?? "Error al analizar");
-      setSug(json.data);
-      toast.success("Ficha analizada ✓ revisa las sugerencias");
-    } catch { toast.error("Error al analizar"); } finally { setAnalizando(false); }
+      if (!json.success) {
+        return toast.error(
+          json.sinClave
+            ? "La IA no está activada. Pídele a un superadministrador que cargue la API key en Configuración → IA."
+            : json.error ?? "No se pudo analizar la ficha",
+        );
+      }
+      setAnalisis(json.data);
+      const n = Object.keys(json.data.sugerencias ?? {}).length;
+      toast.success(n ? `Ficha leída ✓ ${n} campo${n > 1 ? "s" : ""} para revisar` : "Leí la ficha pero no encontré datos aprovechables");
+    } catch { toast.error("Error al analizar la ficha"); } finally { setAnalizando(false); }
   };
 
+  /**
+   * Aplica las sugerencias al formulario. NO guarda: el usuario revisa y
+   * decide. Una ficha mal leída metería datos falsos al catálogo.
+   */
   const aplicar = () => {
-    if (!sug || !set) return;
-    if (sug.descripcionLarga) set("descripcion", sug.descripcionLarga);
-    if (sug.pesoKg != null) set("pesoKg", Number(sug.pesoKg));
-    if (sug.garantiaAnos != null) set("acfGarantiaAnos", Number(sug.garantiaAnos));
-    if (Array.isArray(sug.normas)) set("acfNormas", sug.normas);
-    if (Array.isArray(sug.certificaciones)) set("acfCertificaciones", sug.certificaciones);
-    toast.success("Campos aplicados. Revisa y guarda el producto.");
-    setSug(null);
+    if (!analisis || !set) return;
+    const s = analisis.sugerencias;
+    let aplicados = 0;
+    for (const [campo, valor] of Object.entries(s)) {
+      if (valor === null || valor === undefined) continue;
+      if (Array.isArray(valor) && valor.length === 0) continue;
+      set(campo, valor);
+      aplicados++;
+    }
+    // Los datos técnicos que no encajan en un campo fijo van a acfExtra,
+    // que es donde viven los campos variables por categoría.
+    for (const { etiqueta, valor } of analisis.camposFicha ?? []) {
+      setExtra?.(claveDesdeEtiqueta(etiqueta), valor);
+      aplicados++;
+    }
+    toast.success(`${aplicados} campos aplicados. Revísalos y guarda el producto.`);
+    setAnalisis(null);
   };
 
   if (!productoId) {
@@ -365,26 +580,59 @@ function FichaTecnicaUploader({ productoId, urlInicial, nombreInicial, set, setE
         </button>
       )}
 
-      {/* Sugerencias de IA */}
-      {sug && (
+      {/* Lo que la IA sacó de la ficha */}
+      {analisis && (
         <div className="mt-3 card p-4 animate-fade-up">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2"><Sparkles size={14} style={{ color: "var(--brand-color)" }} /> Sugerencias de la ficha</p>
-            <button type="button" onClick={() => setSug(null)} className="text-muted hover:text-red-500"><X size={14} /></button>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+              <Sparkles size={14} style={{ color: "var(--brand-color)" }} /> Datos leídos de la ficha
+            </p>
+            <button type="button" onClick={() => setAnalisis(null)} className="text-muted hover:text-red-500"><X size={14} /></button>
           </div>
-          <div className="space-y-1.5 text-xs">
-            {Object.entries(sug).map(([k, v]) => (
-              <div key={k} className="flex gap-2">
-                <span className="font-semibold text-muted capitalize w-28 flex-shrink-0">{k}:</span>
-                <span className="text-soft">{Array.isArray(v) ? v.join(", ") : String(v)}</span>
+
+          {Object.keys(analisis.sugerencias).length > 0 && (
+            <div className="space-y-1.5 text-xs">
+              {Object.entries(analisis.sugerencias).map(([k, v]) => (
+                <div key={k} className="flex gap-2">
+                  <span className="font-semibold text-muted w-32 flex-shrink-0">{ETIQUETA_CAMPO[k] ?? k}:</span>
+                  <span className="text-soft break-words">{Array.isArray(v) ? v.join(", ") : String(v)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {analisis.camposFicha.length > 0 && (
+            <div className="mt-3 pt-3 border-t divider">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted mb-1.5">
+                Datos técnicos adicionales ({analisis.camposFicha.length})
+              </p>
+              <div className="space-y-1 text-xs max-h-44 overflow-y-auto">
+                {analisis.camposFicha.map((c, i) => (
+                  <div key={i} className="flex gap-2">
+                    <span className="font-semibold text-muted w-32 flex-shrink-0 truncate" title={c.etiqueta}>{c.etiqueta}:</span>
+                    <span className="text-soft break-words">{c.valor}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
+
+          {analisis.noEncontrado.length > 0 && (
+            <div className="mt-3 pt-3 border-t divider">
+              <p className="text-[11px] text-muted">
+                <span className="font-semibold">No estaba en la ficha:</span> {analisis.noEncontrado.join(", ")}
+              </p>
+            </div>
+          )}
+
           <div className="flex gap-2 mt-3 pt-3 border-t divider">
-            <button type="button" onClick={() => setSug(null)} className="btn-secondary btn-sm flex-1 justify-center">Descartar</button>
+            <button type="button" onClick={() => setAnalisis(null)} className="btn-secondary btn-sm flex-1 justify-center">Descartar</button>
             <button type="button" onClick={aplicar} className="btn-primary btn-sm flex-1 justify-center"><Check size={13} /> Aplicar a los campos</button>
           </div>
-          <p className="text-[10px] text-muted mt-2">Revisa y confirma. Los cambios se guardan al pulsar "Guardar producto".</p>
+          <p className="text-[10px] text-muted mt-2">
+            Léelo antes de aplicar: si la ficha estaba mal, esto mete datos equivocados al catálogo.
+            Nada se guarda hasta que pulses “Guardar producto”.
+          </p>
         </div>
       )}
     </div>
@@ -447,12 +695,24 @@ function SeoTab({ form, set, productoId }: { form: Record<string, unknown>; set:
     try {
       const res = await fetch("/api/ai/seo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ productoId, nombre, categorias: cats, descripcion: String(form.descCorta ?? "") }) });
       const json = await res.json();
-      if (!json.success) return toast.error(json.error ?? "Error");
+      if (!json.success) {
+        return toast.error(
+          json.sinClave
+            ? "La IA no está activada. Pídele a un superadministrador que cargue la API key en Configuración → IA."
+            : json.error ?? "No se pudo generar el SEO",
+        );
+      }
       const d = json.data;
       set("seoTitulo", d.seoTitulo); set("seoDescripcion", d.seoDescripcion);
       set("seoKeywords", d.seoKeywords); set("seoTexto", d.seoTexto);
       if (d.slug && !form.slug) set("slug", d.slug);
-      toast.success(json.conIA ? "SEO generado con IA ✓ revisa y guarda" : "SEO generado (sin IA). Conéctala en Configuración → IA");
+      // El alt de las imágenes se guarda directo en la BD (es metadato, no
+      // un campo del formulario), así que se avisa aparte.
+      toast.success(
+        json.imagenesActualizadas
+          ? `SEO generado ✓ y se actualizó el alt de ${json.imagenesActualizadas} ${json.imagenesActualizadas > 1 ? "imágenes" : "imagen"}. Revisa y guarda.`
+          : "SEO generado ✓ revisa y guarda",
+      );
     } catch { toast.error("Error al generar SEO"); } finally { setCargando(false); }
   };
 
@@ -505,14 +765,6 @@ function SeoTab({ form, set, productoId }: { form: Record<string, unknown>; set:
         </div>
       </div>
 
-      <div className="card p-5">
-        <p className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2 mb-2"><FileText size={15} style={{ color: "var(--brand-color)" }} /> Conexión con Yoast SEO Pro (al exportar a WooCommerce)</p>
-        <ol className="space-y-1.5 text-xs text-soft list-decimal list-inside">
-          <li>Meta título → <code className="surface-3 px-1 rounded">_yoast_wpseo_title</code>, Meta descripción → <code className="surface-3 px-1 rounded">_yoast_wpseo_metadesc</code>.</li>
-          <li>Primera palabra clave → <code className="surface-3 px-1 rounded">_yoast_wpseo_focuskw</code>; el resto como tags del producto.</li>
-          <li>El slug y el texto SEO se envían en la descripción del producto.</li>
-        </ol>
-      </div>
     </div>
   );
 }
@@ -1265,54 +1517,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
 
         {/* PESTAÑA: ASISTENTE IA */}
         {tab === "ia" && (
-          <div className="max-w-3xl mx-auto space-y-5">
-            {/* Hero */}
-            <div className="card p-6 relative overflow-hidden" style={{ background: "linear-gradient(135deg, var(--brand-color-10), transparent)" }}>
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--brand-color)" }}>
-                  <Sparkles size={26} className="text-white" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base font-bold text-gray-800 dark:text-gray-100">Asistente de IA para productos</h2>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300">En construcción</span>
-                  </div>
-                  <p className="text-sm text-muted mt-1">Pronto podrás generar y optimizar el contenido de tus productos automáticamente con inteligencia artificial.</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Funciones futuras */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {[
-                { Icon: FileText, t: "Generar descripciones", d: "Crea descripciones de venta atractivas a partir del nombre y la ficha técnica." },
-                { Icon: TagIcon, t: "Sugerir etiquetas y SEO", d: "Recomienda palabras clave y meta-datos para posicionar mejor en buscadores." },
-                { Icon: Languages, t: "Traducir contenido", d: "Traduce automáticamente el catálogo a otros idiomas." },
-                { Icon: Wand2, t: "Optimizar imágenes", d: "Genera texto alternativo (alt) y nombres de archivo optimizados." },
-              ].map(f => {
-                const Icon = f.Icon;
-                return (
-                  <div key={f.t} className="card p-4 opacity-80">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-2" style={{ backgroundColor: "var(--brand-color-10)" }}>
-                      <Icon size={17} style={{ color: "var(--brand-color)" }} />
-                    </div>
-                    <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{f.t}</p>
-                    <p className="text-xs text-muted mt-1">{f.d}</p>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Demo input deshabilitado */}
-            <div className="card p-5">
-              <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-2">Pídele algo al asistente</label>
-              <div className="flex gap-2 opacity-60 pointer-events-none">
-                <input className="input" placeholder="Ej: Escribe una descripción para esta malla de seguridad..." disabled />
-                <button className="btn-primary flex-shrink-0" disabled><Sparkles size={14} /> Generar</button>
-              </div>
-              <p className="text-[11px] text-muted mt-2">Esta función estará disponible próximamente. Estamos eligiendo el mejor motor de IA para integrar.</p>
-            </div>
-          </div>
+          <AsistenteProducto productoId={productoId} form={form as Record<string, unknown>} set={set} />
         )}
 
       </div>

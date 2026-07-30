@@ -5,10 +5,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
 import {
   FileInput, FileOutput, Wifi, WifiOff, Loader2, RefreshCw, Download,
-  ShoppingCart, ArrowRight, CheckCircle2, Stethoscope, ImageOff, AlertTriangle,
+  ShoppingCart, ArrowRight, CheckCircle2, Stethoscope, ImageOff, AlertTriangle, Lock,
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { esAdmin } from "@/lib/permisos";
 
 const WC = "#7c3aed";
 
@@ -152,11 +154,48 @@ function WooContent() {
 
         <div className="card p-4 flex items-center gap-3">
           <CheckCircle2 size={16} className="text-emerald-500 flex-shrink-0" />
-          <p className="text-xs text-muted">Los errores de validación de productos se muestran en <Link href="/errores" className="font-semibold" style={{ color: WC }}>ERP → Errores</Link>.</p>
+          <p className="text-xs text-muted">Los problemas que reportan los usuarios se ven en <Link href="/sistema/reportes" className="font-semibold" style={{ color: WC }}>Reporte de errores</Link>.</p>
         </div>
       </div>
     </>
   );
 }
 
-export default function Page() { return <Suspense><WooContent /></Suspense>; }
+/**
+ * Solo admin y superadmin. El sync escribe en la tienda en vivo, así que
+ * un vendedor no debería ni verlo. Las APIs de /api/woocommerce validan el
+ * rol por su cuenta: esto es la puerta visible, no la cerradura.
+ */
+function WooProtegido() {
+  // Se usa `esAdmin` de lib/permisos y no el `isAdmin` del hook: ese
+  // compara `rol === "ADMIN"` y dejaría fuera al SUPERADMIN.
+  const { user, isLoading } = useAuth();
+  if (isLoading) {
+    return (
+      <>
+        <Topbar title="Sincronización WooCommerce" />
+        <div className="flex-1 grid place-items-center"><Loader2 size={20} className="animate-spin text-muted" /></div>
+      </>
+    );
+  }
+  if (!esAdmin(user?.rol)) {
+    return (
+      <>
+        <Topbar title="Sincronización WooCommerce" />
+        <div className="flex-1 grid place-items-center p-6">
+          <div className="card p-8 text-center max-w-sm">
+            <Lock size={28} className="mx-auto mb-3 text-muted" />
+            <p className="text-sm font-bold text-gray-800 dark:text-gray-100">Módulo restringido</p>
+            <p className="text-xs text-muted mt-1.5">
+              La sincronización con la tienda la manejan solo los administradores,
+              porque escribe directamente sobre costamallas.com.
+            </p>
+          </div>
+        </div>
+      </>
+    );
+  }
+  return <WooContent />;
+}
+
+export default function Page() { return <Suspense><WooProtegido /></Suspense>; }

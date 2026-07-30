@@ -137,6 +137,16 @@ async function urlAccesible(url: string): Promise<boolean> {
 // ── Convertir Producto a formato WooCommerce ──
 
 export function productoToWC(producto: ProductoDetalle): WCProduct {
+  // La ficha técnica se sube desde la pestaña Calidad y su URL queda en
+  // `acfExtra.fichaTecnicaUrl`. El sync leía `acfFichaTecnicaPdf`, que es
+  // OTRO campo y estaba siempre vacío: por eso las fichas nunca llegaban a
+  // la tienda aunque en el ERP se vieran cargadas. Se lee el campo real y
+  // se deja el viejo como respaldo para los productos antiguos.
+  const fichaUrl =
+    ((producto.acfExtra as Record<string, unknown> | undefined)?.fichaTecnicaUrl as string | undefined) ??
+    producto.acfFichaTecnicaPdf ??
+    "";
+
   const metaData: WCProduct["meta_data"] = [
     { key: "sku_interno", value: producto.acfSkuInterno ?? "" },
     { key: "marca_fabricante", value: producto.acfMarcaFabricante ?? "" },
@@ -147,7 +157,7 @@ export function productoToWC(producto: ProductoDetalle): WCProduct {
     // aplicaciones y colores_disponibles se emiten como repeater ACF en fichasMetaData()
     { key: "normas_calidad", value: producto.acfNormas.join(" | ") },
     { key: "certificaciones", value: producto.acfCertificaciones.join(" | ") },
-    { key: "ficha_tecnica_pdf", value: producto.acfFichaTecnicaPdf ?? "" },
+    { key: "ficha_tecnica_pdf", value: fichaUrl },
   ];
 
   return {
