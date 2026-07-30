@@ -21,7 +21,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
             error: { duration: 5000, style: { background: "#C0392B", color: "#fff" } },
           }}
         />
-        {process.env.NODE_ENV === "development" && <ReactQueryDevtools initialIsOpen={false} />}
+        {/* El botón de las devtools se manda a la esquina inferior IZQUIERDA:
+            por defecto cae abajo a la derecha, justo encima de los botones
+            flotantes de Sembli y Soporte, y se los come — los clics van a
+            las devtools y no al botón. Solo pasa en desarrollo, pero
+            impide probar Sembli en el navegador. */}
+        {process.env.NODE_ENV === "development" && (
+          <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+        )}
       </BrandProvider>
     </QueryClientProvider>
   );

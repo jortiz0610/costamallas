@@ -100,13 +100,48 @@ externos**; el código local no funciona sin ellos.
 - Las URLs públicas resultantes quedan bajo `https://catalogo.costamallas.com/<subcarpeta>/<archivo>`.
 - Rutas: `/api/imagenes`, `/api/imagenes/upload`.
 
-### 3.5 IA generativa (OpenAI o Anthropic)
-- Asistente IA en `src/lib/ai.ts`. Soporta **OpenAI** (`gpt-4o-mini` por defecto) o
-  **Anthropic** (`claude-3-5-haiku-latest` por defecto).
-- La API key y el proveedor se guardan **cifrados en `configuracion`** (`ai_provider`,
-  `ai_api_key`, `ai_model`). **Si no hay key configurada, el asistente degrada a "modo reglas"**
-  (sin IA generativa) — no rompe.
-- Rutas: `/api/ai/chat`, `/api/ai/config`.
+### 3.5 IA generativa — agente **Sembli** (Claude)
+
+El asistente es un **agente con herramientas**, no un chat de texto suelto. Vive en
+`src/lib/sembli/` y usa el SDK oficial `@anthropic-ai/sdk`.
+
+| Archivo | Qué hace |
+|---------|----------|
+| `modelos.ts` | Registro de modelos y **forma del request por modelo**. Cada modelo de Claude acepta parámetros distintos; mandar el equivocado devuelve 400. Ver los avisos del archivo. |
+| `alcance.ts` | Jerarquía de acceso: `CLIENTE < VENDEDOR < ADMIN < SUPERADMIN`. Mapea `Rol` → nivel, con **fail-closed** (rol raro cae a CLIENTE). |
+| `herramientas.ts` | Las 11 herramientas, cada una con `nivelMinimo`. `ejecutarHerramienta()` **revalida el nivel**: la autorización es del servidor, no del prompt. |
+| `agente.ts` | Bucle manual de tool-use (tope de 6 vueltas), registro de consumo y helpers `pedirJSON` / `pedirTexto`. |
+
+**Modelos (estrategia híbrida para gastar poco):**
+- Chat de Sembli y Nexus → `claude-haiku-4-5` (US$1/US$5 por MTok). Alto volumen.
+- Ficha técnica PDF y SEO → `claude-sonnet-5` (US$3/US$15). Calidad puntual.
+
+⚠️ **Trampas de la API ya resueltas en `modelos.ts` — no las reintroduzcas:**
+- Haiku 4.5 **no** acepta `output_config.effort` (error). Su thinking usa el formato
+  viejo `{type:"enabled", budget_tokens}`.
+- Sonnet 5 **sí piensa aunque omitas `thinking`** (adaptive por defecto) y cobra por
+  ello: hay que apagarlo explícitamente. Rechaza `budget_tokens` y `temperature`.
+- Prompt caching: **hoy no entra**. El prefijo mide ~1.370 tokens (CLIENTE) / ~2.364
+  (ADMIN) y Haiku 4.5 exige 4.096 mínimo. No es un bug; está medido y documentado.
+
+**Costo medido:** ~US$0,006–0,008 por consulta (≈US$6–8 por 1.000). La palanca para
+bajarlo es el tamaño de lo que devuelven las herramientas, no la caché.
+
+**Credencial:** la API key va **cifrada en `configuracion.ai_api_key`** (AES-256-GCM).
+Se carga con `npm run sembli:activar` (lee un archivo con la key, la cifra y la
+guarda; nunca la imprime). `ANTHROPIC_API_KEY` del entorno es solo respaldo local.
+
+**Nivel CLIENTE:** `Usuario.clienteId` ata un login a una ficha del CRM y el rol
+`CLIENTE` limita a Sembli a los pedidos de ese cliente. Requirió DDL aditivo en
+producción (columna nullable + valor de enum + índice), ya aplicado el 2026-07-30.
+
+**Rutas:** `/api/sembli/chat` (POST conversar, GET capacidades y sugerencias).
+Las viejas `/api/ai/*` siguen ahí y se migrarán a este núcleo.
+
+**Verificación (no gasta tokens):** `npx tsx scripts/verificar-sembli.ts` — 26
+comprobaciones del límite de seguridad contra la BD real (escalada de privilegios,
+fuga de campos internos al cliente, aislamiento entre clientes).
+**Prueba real (sí gasta):** `npx tsx scripts/probar-sembli.ts`.
 
 ### 3.6 Marketing — OAuth de Ads (Google / Meta / TikTok)
 - Framework OAuth en `src/lib/marketing-oauth.ts`. URLs de auth/token y scopes por plataforma.

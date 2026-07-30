@@ -5,7 +5,8 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageCircle, X, Bell, AlertTriangle, CheckCircle, Info, Package } from "lucide-react";
 import type { NotificacionDTO } from "@/types";
-import { AsistenteIA } from "@/components/layout/AsistenteIA";
+import { Sembli } from "@/components/layout/Sembli";
+import { PWA } from "@/components/layout/PWA";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { useBrand } from "@/contexts/BrandContext";
 
@@ -155,7 +156,8 @@ function ShellInner({ children }: { children: React.ReactNode }) {
       <MobileNav />
       <NotifToastManager />
       <SupportButton />
-      <AsistenteIA />
+      <Sembli />
+      <PWA />
     </div>
   );
 }

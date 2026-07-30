@@ -2,10 +2,12 @@
 import {
   Bell, Sun, Moon, Zap, Package, ImageIcon, Archive, UserPlus, ClipboardList,
   CheckSquare, Wrench, MessageSquareText, Settings, Inbox, Truck, FileInput,
-  Megaphone, Target, Menu,
+  Megaphone, Target, Menu, RefreshCw,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { useNotificaciones } from "@/hooks/useNotificaciones";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { ReportarError } from "./ReportarError";
@@ -87,6 +89,49 @@ function QuickTaskButton({ mode, color }: { mode: string; color: string }) {
   );
 }
 
+/**
+ * Botón de recargar.
+ *
+ * No hace `location.reload()`: eso descarta la página y vuelve a bajar todo
+ * el bundle. En vez de eso invalida la caché de React Query (todos los
+ * `useQuery` se vuelven a pedir al servidor) y refresca los componentes de
+ * servidor con `router.refresh()`. Resultado: datos frescos, sin parpadeo
+ * y sin perder la posición del scroll ni lo que haya escrito en un formulario.
+ */
+function BotonRecargar({ color }: { color: string }) {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  const [girando, setGirando] = useState(false);
+
+  const recargar = async () => {
+    if (girando) return;
+    setGirando(true);
+
+    // Si el service worker tiene páginas cacheadas, que las suelte también.
+    navigator.serviceWorker?.controller?.postMessage({ tipo: "LIMPIAR_CACHE" });
+
+    router.refresh();
+    try {
+      await queryClient.refetchQueries({ type: "active" });
+    } finally {
+      // Mínimo de giro visible, para que se note que algo pasó.
+      setTimeout(() => setGirando(false), 400);
+    }
+  };
+
+  return (
+    <button
+      onClick={recargar}
+      disabled={girando}
+      className="w-9 h-9 flex items-center justify-center rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 border border-gray-200 dark:border-slate-700 disabled:opacity-60"
+      title="Actualizar la información de esta pantalla"
+      aria-label="Actualizar información"
+    >
+      <RefreshCw size={15} className={cn(girando && "animate-spin")} style={girando ? { color } : undefined} />
+    </button>
+  );
+}
+
 interface TopbarProps { title: string; actions?: React.ReactNode; }
 
 export function Topbar({ title, actions }: TopbarProps) {
@@ -114,6 +159,7 @@ export function Topbar({ title, actions }: TopbarProps) {
       <span className="text-[10px] font-bold px-2.5 py-1 rounded-full text-white hidden sm:inline-flex items-center" style={{ backgroundColor: modeColor }}>{mode}</span>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
       <QuickTaskButton mode={mode} color={modeColor} />
+      <BotonRecargar color={modeColor} />
       <ReportarError />
       <button onClick={toggleDark}
         className="w-9 h-9 flex items-center justify-center rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 border border-gray-200 dark:border-slate-700"

@@ -28,6 +28,11 @@ model Usuario {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Solo para rol CLIENTE: ficha del CRM a la que está atado este login.
+  // Sembli usa este vínculo para mostrarle únicamente SUS pedidos.
+  clienteId    String?
+  clientePropio Cliente? @relation("LoginDelCliente", fields: [clienteId], references: [id], onDelete: SetNull)
+
   logs          Log[]
   clientesAsignados Cliente[]
   cotizaciones  Cotizacion[]
@@ -38,6 +43,7 @@ model Usuario {
 
   @@map("usuarios")
   @@index([email])
+  @@index([clienteId])
 }
 
 enum Rol {
@@ -48,6 +54,7 @@ enum Rol {
   PRODUCCION
   BODEGA
   SOLO_LECTURA
+  CLIENTE // login del cliente final: solo su propia información
 }
 
 // ─────────────────────────────────────────────
@@ -80,6 +87,7 @@ model Cliente {
   pedidos      Pedido[]
   tareas       Tarea[]
   facturas     Factura[]
+  logins       Usuario[] @relation("LoginDelCliente")
 
   @@map("clientes")
   @@index([vendedorId])

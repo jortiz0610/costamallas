@@ -2,7 +2,15 @@
 // COSTAMALLAS ERP — Tipos globales TypeScript
 // ============================================================
 
-export type Rol = "SUPERADMIN" | "ADMIN" | "USUARIO" | "VENDEDOR" | "PRODUCCION" | "BODEGA" | "SOLO_LECTURA";
+export type Rol =
+  | "SUPERADMIN"
+  | "ADMIN"
+  | "USUARIO"
+  | "VENDEDOR"
+  | "PRODUCCION"
+  | "BODEGA"
+  | "SOLO_LECTURA"
+  | "CLIENTE";
 
 export type TipoProducto = "SIMPLE" | "VARIABLE" | "AGRUPADO" | "EXTERNO";
 

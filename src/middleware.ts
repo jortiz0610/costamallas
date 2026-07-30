@@ -79,6 +79,10 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|images|fonts).*)",
+    // Se excluyen los assets estáticos y los archivos de la PWA.
+    // Los de la PWA son obligatorios: el navegador pide el manifest y el
+    // service worker SIN cookie de sesión, así que si el middleware los
+    // redirige a /login la app no se puede instalar ni funciona offline.
+    "/((?!_next/static|_next/image|favicon.ico|favicon.png|images|fonts|icons|sw\\.js|offline\\.html|manifest\\.webmanifest|robots\\.txt).*)",
   ],
 };

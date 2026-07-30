@@ -3,7 +3,15 @@
 // Jerarquía y reglas de acceso por rol. Sin dependencias de servidor.
 // ============================================================
 
-export type Rol = "SUPERADMIN" | "ADMIN" | "USUARIO" | "VENDEDOR" | "PRODUCCION" | "BODEGA" | "SOLO_LECTURA";
+export type Rol =
+  | "SUPERADMIN"
+  | "ADMIN"
+  | "USUARIO"
+  | "VENDEDOR"
+  | "PRODUCCION"
+  | "BODEGA"
+  | "SOLO_LECTURA"
+  | "CLIENTE"; // login del cliente final: solo su propia información
 
 export const esSuperadmin = (rol?: string) => rol === "SUPERADMIN";
 export const esAdmin = (rol?: string) => rol === "ADMIN" || rol === "SUPERADMIN";
@@ -44,6 +52,7 @@ export const MODULOS_POR_ROL: Record<string, string[]> = {
   BODEGA:     ["ERP"],
   USUARIO:    ["ERP", "CRM"],
   SOLO_LECTURA: ["ERP", "CRM", "NEXUS", "MARKETING"],
+  CLIENTE:    [], // no entra al portal interno; solo usa Sembli y su portal de pedidos
 };
 
 export function puedeVerModulo(rol: string | undefined, modulo: string): boolean {
