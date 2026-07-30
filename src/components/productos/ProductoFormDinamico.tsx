@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { GrupoBloques } from "./Bloques";
 import { Save, Loader2, Plus, Trash2, Check, X, Star, Upload, ImageIcon, Sparkles, FileText, Tag as TagIcon } from "lucide-react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -1315,11 +1316,10 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
           <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5">
 
             {/* Columna principal */}
-            <div className="space-y-5">
-
-              {/* Identificación */}
-              <div className="card p-5 space-y-4">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Identificación</p>
+            <GrupoBloques
+              grupo="producto-principal"
+              bloques={[
+                { id: "identificacion", titulo: "Identificación", contenido: (<>
                 <div className="grid grid-cols-2 gap-4">
                   <SInput label="SKU *" value={g("sku")} onChange={v => set("sku", v)} placeholder="MN-001" mono />
                   <SInput label="SKU Interno" value={g("acfSkuInterno")} onChange={v => set("acfSkuInterno", v)} mono />
@@ -1329,45 +1329,34 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
                   <CatalogoInput tipo="MARCA" label="Marca / Fabricante" value={g("acfMarcaFabricante")} onChange={v => set("acfMarcaFabricante", v)} hint="Las nuevas se guardan en Catálogos" />
                   <SSelect label="Unidad de Venta" value={g("acfUnidadVenta")} onChange={v => set("acfUnidadVenta", v)} opts={[["m2","m²"],["ml","ml"],["und","Unidad"],["rollo","Rollo"],["panel","Panel"],["kit","Kit"],["par","Par"]]} />
                 </div>
-              </div>
-
-              {/* Precios */}
-              <div className="card p-5 space-y-4">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Precios</p>
+                </>) },
+                { id: "precios", titulo: "Precios", contenido: (<>
                 <div className="grid grid-cols-2 gap-4">
                   <SInput label="Precio Normal (COP)" value={gn("precioNormal")} onChange={v => set("precioNormal", v)} type="number" placeholder="0" />
                   <SInput label="Precio Oferta (COP)" value={gn("precioOferta")} onChange={v => set("precioOferta", v)} type="number" placeholder="0" />
                 </div>
-              </div>
-
-              {/* Inventario */}
-              <div className="card p-5 space-y-4">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Inventario</p>
+                </>) },
+                { id: "inventario", titulo: "Inventario", contenido: (<>
                 <div className="grid grid-cols-3 gap-4">
                   <SInput label="Stock actual" value={String(form.stock ?? 0)} onChange={v => set("stock", v)} type="number" />
                   <SInput label="Stock mínimo" value={String(form.stockMinimo ?? 15)} onChange={v => set("stockMinimo", v)} type="number" />
                   <SSelect label="Backorders" value={g("permiteBackorders")} onChange={v => set("permiteBackorders", v)} opts={[["no","No permitir"],["notify","Notificar"],["yes","Permitir"]]} />
                 </div>
-              </div>
-
-              {/* Dimensiones */}
-              <div className="card p-5 space-y-4">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Dimensiones y Peso</p>
+                </>) },
+                { id: "dimensiones", titulo: "Dimensiones y Peso", contenido: (<>
                 <div className="grid grid-cols-4 gap-4">
                   <SInput label="Peso (kg)" value={gn("pesoKg")} onChange={v => set("pesoKg", v)} type="number" step="0.001" />
                   <SInput label="Largo (cm)" value={gn("largoCm")} onChange={v => set("largoCm", v)} type="number" step="0.01" />
                   <SInput label="Ancho (cm)" value={gn("anchoCm")} onChange={v => set("anchoCm", v)} type="number" step="0.01" />
                   <SInput label="Alto (cm)" value={gn("altoCm")} onChange={v => set("altoCm", v)} type="number" step="0.01" />
                 </div>
-              </div>
-
-              {/* Servicios */}
-              <div className="card p-5 space-y-1">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Servicios adicionales</p>
+                </>) },
+                { id: "servicios", titulo: "Servicios adicionales", contenido: (<>
                 <SToggle label="Fabricación a Medida" desc="Se puede fabricar según especificaciones del cliente" checked={Boolean(form.acfFabricacionMedida)} onChange={v => set("acfFabricacionMedida", v)} />
                 <SToggle label="Instalación Disponible" desc="Costamallas ofrece servicio de instalación para este producto" checked={Boolean(form.acfInstalacion)} onChange={v => set("acfInstalacion", v)} />
-              </div>
-            </div>
+                </>) },
+              ]}
+            />
 
             {/* Sidebar */}
             <div className="space-y-4">
