@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-
-function generarNumero(prefix: string, count: number) {
-  return `${prefix}-${String(count + 1).padStart(5, "0")}`;
-}
+import { siguienteNumeroSeguro } from "@/lib/consecutivos";
 
 export async function GET(req: NextRequest) {
   const user = await getUserFromRequest(req);
@@ -64,8 +61,9 @@ export async function POST(req: NextRequest) {
   const iva = subtotalConDesc * IVA_PCT;
   const total = subtotalConDesc + iva;
 
-  const count = await prisma.cotizacion.count();
-  const numero = generarNumero("COT", count);
+  // Consecutivo atómico. Antes era `count() + 1`, que repetía números
+  // si se borraba una cotización y chocaba entre usuarios simultáneos.
+  const numero = await siguienteNumeroSeguro("COT");
 
   const cotizacion = await prisma.cotizacion.create({
     data: {

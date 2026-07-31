@@ -2,7 +2,7 @@
 import { useState, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { ChevronRight, Package, Wrench, ClipboardList, Truck, CheckCircle2, Clock, Globe, RefreshCw, Download, Loader2 } from "lucide-react";
+import { ChevronRight, Package, Wrench, ClipboardList, Truck, CheckCircle2, Clock, Globe, RefreshCw, Download, Loader2, MessageSquare, ShoppingBag } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import { formatCOP } from "@/lib/utils";
@@ -10,6 +10,9 @@ import { formatCOP } from "@/lib/utils";
 interface Pedido {
   id: string; numero: string; estado: string; total: number; createdAt: string;
   tieneInstalacion: boolean;
+  /** WEB | MANUAL | COTIZACION | NEXUS | MARKETPLACE */
+  origen?: string;
+  origenRef?: string | null;
   cliente: { nombre: string; empresa?: string };
   vendedor?: { nombre: string };
   instalacion?: { estado: string; fechaAgendada?: string };
@@ -17,6 +20,18 @@ interface Pedido {
 }
 
 const CRM_COLOR = "#BA7517";
+
+/** De dónde llegó el pedido. Se muestra como filtro y como insignia. */
+const ORIGENES = [
+  { v: "",            l: "Todos",       c: CRM_COLOR, Icon: Package },
+  { v: "WEB",         l: "Tienda web",  c: "#7c3aed", Icon: Globe },
+  { v: "MANUAL",      l: "Manual",      c: "#6b7280", Icon: ClipboardList },
+  { v: "COTIZACION",  l: "Cotización",  c: "#185FA5", Icon: ClipboardList },
+  { v: "NEXUS",       l: "Chat",        c: "#0ea5e9", Icon: MessageSquare },
+  { v: "MARKETPLACE", l: "Marketplace", c: "#d97706", Icon: ShoppingBag },
+];
+
+const ORIGEN_META = (v?: string) => ORIGENES.find(o => o.v === (v ?? "MANUAL")) ?? ORIGENES[2];
 const ESTADOS_FLUJO = [
   { v: "NUEVO",         l: "Nuevo",         bg: "#f1f5f9", text: "#6b7280",  next: "CONFIRMADO" },
   { v: "CONFIRMADO",    l: "Confirmado",    bg: "#dbeafe", text: "#1d4ed8",  next: "EN_PRODUCCION" },
@@ -44,8 +59,23 @@ function PedidoRow({ p, onAvanzar }: { p: Pedido; onAvanzar: (p: Pedido) => void
         {p.cliente.nombre.charAt(0)}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{p.cliente.nombre}</p>
+          {/* El origen se identifica aquí, dentro del pedido, en vez de
+              tener una pestaña aparte que lo adivinaba mal. */}
+          {(() => {
+            const o = ORIGEN_META(p.origen);
+            const OIcon = o.Icon;
+            return (
+              <span
+                className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-1"
+                style={{ backgroundColor: o.c + "1a", color: o.c }}
+                title={p.origenRef ? `${o.l} · ref ${p.origenRef}` : o.l}
+              >
+                <OIcon size={9} />{o.l}
+              </span>
+            );
+          })()}
           {p.tieneInstalacion && (
             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 flex items-center gap-1">
               <Wrench size={9} />Inst.
@@ -72,7 +102,7 @@ function PedidoRow({ p, onAvanzar }: { p: Pedido; onAvanzar: (p: Pedido) => void
 }
 
 function PedidosContent() {
-  const [tab, setTab] = useState<"internet" | "instalacion">("internet");
+  const [filtroOrigen, setFiltroOrigen] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
   const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
@@ -117,27 +147,20 @@ function PedidosContent() {
     }
   };
 
-  // Split by tieneInstalacion
-  const pedidosInternet = pedidos.filter(p => !p.tieneInstalacion);
-  const pedidosInstalacion = pedidos.filter(p => p.tieneInstalacion);
-  const base = tab === "internet" ? pedidosInternet : pedidosInstalacion;
+  // Un solo listado de pedidos. Antes había una pestaña "Pedidos web"
+  // que en realidad filtraba por "no tiene instalación", así que un
+  // pedido telefónico sin instalación se mostraba como si viniera de la
+  // tienda. Ahora el origen es un dato del pedido y se ve en cada fila.
+  const base = filtroOrigen ? pedidos.filter(p => (p.origen ?? "MANUAL") === filtroOrigen) : pedidos;
   const filtrados = filtroEstado ? base.filter(p => p.estado === filtroEstado) : base;
+  const conInstalacion = pedidos.filter(p => p.tieneInstalacion).length;
 
-  const COLS_INTERNET = [
-    { estados: ["NUEVO", "CONFIRMADO"],     label: "Por confirmar", Icon: Clock,        color: "#6b7280" },
-    { estados: ["EN_PRODUCCION", "LISTO"],  label: "Producción",   Icon: ClipboardList, color: CRM_COLOR },
-    { estados: ["DESPACHADO", "ENTREGADO"], label: "Despacho",     Icon: Truck,         color: "#185FA5" },
-    { estados: ["INSTALADO"],               label: "Completados",  Icon: CheckCircle2,  color: "#16a34a" },
+  const cols = [
+    { estados: ["NUEVO", "CONFIRMADO"],     label: "Por confirmar", Icon: Clock,         color: "#6b7280" },
+    { estados: ["EN_PRODUCCION", "LISTO"],  label: "Producción",    Icon: ClipboardList, color: CRM_COLOR },
+    { estados: ["DESPACHADO", "ENTREGADO"], label: "Despacho",      Icon: Truck,         color: "#185FA5" },
+    { estados: ["INSTALADO"],               label: "Completados",   Icon: CheckCircle2,  color: "#16a34a" },
   ];
-
-  const COLS_INST = [
-    { estados: ["NUEVO", "CONFIRMADO"],     label: "Pendientes",   Icon: Clock,         color: "#6b7280" },
-    { estados: ["EN_PRODUCCION", "LISTO"],  label: "En proceso",   Icon: Wrench,        color: CRM_COLOR },
-    { estados: ["DESPACHADO", "ENTREGADO"], label: "En camino",    Icon: Truck,         color: "#185FA5" },
-    { estados: ["INSTALADO"],               label: "Instalados",   Icon: CheckCircle2,  color: "#16a34a" },
-  ];
-
-  const cols = tab === "internet" ? COLS_INTERNET : COLS_INST;
 
   return (
     <>
@@ -154,26 +177,29 @@ function PedidosContent() {
       } />
       <div className="flex-1 overflow-y-auto page-bg p-5 space-y-4">
 
-        {/* Tabs */}
-        <div className="flex rounded-2xl overflow-hidden border border-gray-200 dark:border-slate-700 w-fit">
-          <button
-            onClick={() => { setTab("internet"); setFiltroEstado(""); }}
-            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all"
-            style={tab === "internet"
-              ? { backgroundColor: CRM_COLOR, color: "white" }
-              : { backgroundColor: "var(--surface)", color: "var(--text-muted)" }}
-          >
-            <Globe size={14} /> Pedidos web ({pedidosInternet.length})
-          </button>
-          <button
-            onClick={() => { setTab("instalacion"); setFiltroEstado(""); }}
-            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold transition-all"
-            style={tab === "instalacion"
-              ? { backgroundColor: "#d97706", color: "white" }
-              : { backgroundColor: "var(--surface)", color: "var(--text-muted)" }}
-          >
-            <Wrench size={14} /> Con instalación ({pedidosInstalacion.length})
-          </button>
+        {/* Filtro por origen */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {ORIGENES.map(o => {
+            const n = o.v ? pedidos.filter(p => (p.origen ?? "MANUAL") === o.v).length : pedidos.length;
+            if (o.v && n === 0) return null; // no llenar de filtros vacíos
+            const Icon = o.Icon;
+            const activo = filtroOrigen === o.v;
+            return (
+              <button
+                key={o.v || "todos"}
+                onClick={() => { setFiltroOrigen(o.v); setFiltroEstado(""); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors"
+                style={activo
+                  ? { backgroundColor: o.c, color: "white" }
+                  : { backgroundColor: "var(--surface-2)", color: "var(--text-soft)" }}
+              >
+                <Icon size={12} /> {o.l} ({n})
+              </button>
+            );
+          })}
+          {conInstalacion > 0 && (
+            <span className="text-[11px] text-muted ml-1">· {conInstalacion} con instalación</span>
+          )}
         </div>
 
         {/* Stats */}

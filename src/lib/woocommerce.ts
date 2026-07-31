@@ -652,6 +652,11 @@ export async function importarPedidosWC(creds: WCCredentials, perPage = 50): Pro
         data: {
           numero, clienteId: cliente.id,
           estado: WC_ESTADO_MAP[order.status] ?? "NUEVO",
+          // Origen explícito: antes se deducía en la interfaz a partir de
+          // "no tiene instalación", que etiquetaba mal los pedidos
+          // telefónicos.
+          origen: "WEB",
+          origenRef: String(order.number ?? order.id ?? ""),
           total: Number(order.total),
           notas: order.customer_note || null,
           direccionEntrega: order.billing?.address_1 || null,

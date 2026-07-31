@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { siguienteNumeroSeguro } from "@/lib/consecutivos";
 
 type P = { params: Promise<{ id: string }> };
 
@@ -39,8 +40,9 @@ export async function PUT(req: NextRequest, { params }: P) {
       where: { id }, include: { items: true },
     });
     if (cotizacion) {
-      const count = await prisma.pedido.count();
-      const numero = `PED-${String(count + 1).padStart(5, "0")}`;
+      // Consecutivo atómico compartido: aquí también estaba el `count + 1`
+      // que repetía número si se borraba un pedido.
+      const numero = await siguienteNumeroSeguro("PED");
       await prisma.pedido.create({
         data: {
           numero,
@@ -48,6 +50,8 @@ export async function PUT(req: NextRequest, { params }: P) {
           clienteId: cotizacion.clienteId,
           vendedorId: cotizacion.vendedorId,
           estado: "NUEVO",
+          origen: "COTIZACION",
+          origenRef: cotizacion.numero,
           tieneInstalacion: cotizacion.tieneInstalacion,
           total: cotizacion.total,
           items: {

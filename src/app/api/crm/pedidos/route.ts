@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { siguienteNumeroSeguro } from "@/lib/consecutivos";
 
 const ESTADOS_PEDIDO = ["NUEVO","CONFIRMADO","EN_PRODUCCION","LISTO","DESPACHADO","ENTREGADO","INSTALADO","CANCELADO"];
 
@@ -57,13 +58,14 @@ export async function POST(req: NextRequest) {
     return { productoId: (item.productoId as string) ?? null, descripcion: item.descripcion as string, cantidad: Number(item.cantidad), precioUnitario: Number(item.precioUnitario), subtotal: sub, unidad: (item.unidad as string) ?? null, orden: i };
   });
 
-  const count = await prisma.pedido.count();
-  const numero = `PED-${String(count + 1).padStart(5, "0")}`;
+  const numero = await siguienteNumeroSeguro("PED");
 
   const pedido = await prisma.pedido.create({
     data: {
       numero, cotizacionId: cotizacionId ?? null, clienteId, vendedorId: user.sub,
       estado: "NUEVO", tieneInstalacion: tieneInstalacion ?? false,
+      // Lo creó un asesor desde el CRM (o nació de una cotización).
+      origen: cotizacionId ? "COTIZACION" : "MANUAL",
       fechaEntrega: fechaEntrega ? new Date(fechaEntrega) : null,
       direccionEntrega, notas, total,
       items: { create: itemsData },

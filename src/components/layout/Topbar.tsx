@@ -29,8 +29,7 @@ const QUICK_TASKS: Record<string, QuickTask[]> = {
   ],
   CRM: [
     { label: "Nuevo cliente", href: "/crm/clientes/nuevo", Icon: UserPlus },
-    { label: "Nueva cotización", href: "/crm/cotizaciones/nueva", Icon: ClipboardList },
-    { label: "Nueva tarea", href: "/crm/tareas", Icon: CheckSquare },
+    { label: "Nueva cotización", href: "/crm/cotizaciones/nueva", Icon: ClipboardList },
     { label: "Agendar instalación", href: "/crm/instalaciones", Icon: Wrench },
     { label: "Ver pipeline", href: "/crm/pipeline", Icon: ClipboardList },
   ],

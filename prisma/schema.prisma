@@ -369,6 +369,15 @@ model Pedido {
   vendedor         Usuario?   @relation(fields: [vendedorId], references: [id], onDelete: SetNull)
   estado           String     @default("NUEVO")
   tieneInstalacion Boolean    @default(false)
+
+  /// De dónde viene el pedido: WEB (tienda), MANUAL (lo creó un asesor),
+  /// COTIZACION (nació de una cotización aprobada), NEXUS (chat) o
+  /// MARKETPLACE. Antes se deducía de `!tieneInstalacion`, lo que
+  /// etiquetaba como "web" cualquier pedido telefónico sin instalación.
+  origen           String     @default("MANUAL")
+  /// Referencia en el sistema de origen (nº de pedido de WooCommerce, etc.).
+  origenRef        String?
+
   fechaEntrega     DateTime?
   direccionEntrega String?
   notas            String?    @db.Text

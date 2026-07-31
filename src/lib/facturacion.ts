@@ -5,6 +5,7 @@
 // Config y credenciales en Configuracion (cifradas).
 // ============================================================
 
+import { siguienteNumeroSeguro } from "@/lib/consecutivos";
 import { prisma } from "@/lib/prisma";
 import { decryptIfNeeded, encrypt } from "@/lib/encryption";
 
@@ -60,10 +61,17 @@ export async function setFacturacionConfig(data: Partial<Record<string, string>>
   }
 }
 
-// Número interno consecutivo (ej FAC-00001)
+
+/**
+ * Consecutivo interno de facturación.
+ *
+ * Antes era `count() + 1`, lo que repetía un número si se borraba una
+ * factura y entregaba el mismo a dos usuarios simultáneos. En facturación
+ * eso no es solo un error técnico: un consecutivo repetido o con saltos
+ * es un problema ante la DIAN. Ahora usa el contador atómico compartido.
+ */
 export async function siguienteNumeroInterno(): Promise<string> {
-  const count = await prisma.factura.count();
-  return `FAC-${String(count + 1).padStart(5, "0")}`;
+  return siguienteNumeroSeguro("FAC");
 }
 
 // ── Adaptador de facturación electrónica ──
