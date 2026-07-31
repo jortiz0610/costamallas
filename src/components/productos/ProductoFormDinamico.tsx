@@ -253,6 +253,35 @@ function CatalogoTagInput({ tipo, label, value, onChange, hint, placeholder }: {
 }
 
 // Un solo valor (Marca): input con lista desplegable del catálogo; guarda lo nuevo al salir.
+/**
+ * Desplegable cuyas opciones salen de Catálogos.
+ *
+ * Es lo que hace que "lo que se crea en Catálogos aparezca como opción en
+ * los productos": al agregar, por ejemplo, una unidad de venta nueva, sale
+ * aquí sin tocar código. `CatalogoInput` hace algo parecido pero con
+ * datalist (permite escribir libre); este es una lista cerrada, que es lo
+ * correcto para campos que luego se sincronizan con la tienda.
+ *
+ * Si el producto trae un valor que ya no está en el catálogo, se conserva
+ * como opción para no borrarlo en silencio al guardar.
+ */
+function CatalogoSelect({ tipo, label, value, onChange, hint, vacio = "— Sin definir —" }: {
+  tipo: string; label: string; value: string; onChange: (v: string) => void; hint?: string; vacio?: string;
+}) {
+  const { data: items = [], isLoading } = useCatalogo(tipo);
+  const huerfano = value && !items.some(i => i.valor === value);
+
+  return (
+    <FieldWrap label={label} hint={hint}>
+      <select className="input" value={value} onChange={e => onChange(e.target.value)} disabled={isLoading}>
+        <option value="">{isLoading ? "Cargando…" : vacio}</option>
+        {items.map(i => <option key={i.id} value={i.valor}>{i.label}</option>)}
+        {huerfano && <option value={value}>{value} (ya no está en Catálogos)</option>}
+      </select>
+    </FieldWrap>
+  );
+}
+
 function CatalogoInput({ tipo, label, value, onChange, placeholder, hint }: {
   tipo: string; label: string; value: string; onChange: (v: string) => void; placeholder?: string; hint?: string;
 }) {
@@ -1327,7 +1356,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
                 <SInput label="Nombre del producto *" value={g("nombre")} onChange={v => set("nombre", v)} placeholder="Nombre completo tal como aparece en la tienda" />
                 <div className="grid grid-cols-2 gap-4">
                   <CatalogoInput tipo="MARCA" label="Marca / Fabricante" value={g("acfMarcaFabricante")} onChange={v => set("acfMarcaFabricante", v)} hint="Las nuevas se guardan en Catálogos" />
-                  <SSelect label="Unidad de Venta" value={g("acfUnidadVenta")} onChange={v => set("acfUnidadVenta", v)} opts={[["m2","m²"],["ml","ml"],["und","Unidad"],["rollo","Rollo"],["panel","Panel"],["kit","Kit"],["par","Par"]]} />
+                  <CatalogoSelect tipo="UNIDAD_VENTA" label="Unidad de Venta" value={g("acfUnidadVenta")} onChange={v => set("acfUnidadVenta", v)} hint="Se administran en Catálogos" />
                 </div>
                 </>) },
                 { id: "precios", titulo: "Precios", contenido: (<>

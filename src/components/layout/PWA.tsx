@@ -25,6 +25,21 @@ export function PWA() {
   // ── Registrar el service worker ──
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
+
+    // En desarrollo NO se registra, y además se da de baja el que hubiera.
+    //
+    // El service worker cachea /_next/static/ con estrategia cache-first,
+    // que es correcto en producción porque esos archivos llevan hash en el
+    // nombre. En desarrollo los chunks cambian de contenido conservando la
+    // ruta, así que el SW seguía sirviendo el bundle viejo: se editaba un
+    // componente, se recompilaba, y el navegador mostraba el código
+    // anterior aunque se borrara .next y se reiniciara el servidor.
+    if (process.env.NODE_ENV !== "production") {
+      navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
+      caches?.keys().then(ks => ks.forEach(k => { if (k.startsWith("cm-")) caches.delete(k); }));
+      return;
+    }
+
     const registrar = () => {
       navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {
         // Si falla (navegador viejo, http sin TLS en local) la app sigue
