@@ -214,13 +214,58 @@ model Proveedor {
   notas        String?  @db.Text
   leadTimeDias Int?     // tiempo de entrega estimado
   activo       Boolean  @default(true)
+
+  // ── Ficha comercial ──
+  whatsapp        String?
+  paginaWeb       String?
+  departamento    String?
+  pais            String   @default("Colombia")
+  // Segundo correo para copiar en los pedidos (compras, cartera…).
+  emailAlterno    String?
+  condicionesPago String?  // "30 días", "contado", "50% anticipo"…
+  moneda          String   @default("COP")
+  /// Costamallas fabrica algunos productos. El proveedor marcado como
+  /// propio identifica esos casos: sus productos NO entran en el KPI de
+  /// "por reabastecer", porque no se le compran a nadie.
+  esPropio        Boolean  @default(false)
+  calificacion    Int?     // 1 a 5, evaluación interna
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   ordenes      OrdenCompra[]
+  productos    ProveedorProducto[]
 
   @@map("proveedores")
   @@index([activo])
+  @@index([esPropio])
+}
+
+/// Qué productos nos provee cada proveedor, con su referencia y precio.
+/// Un producto puede tener varios proveedores (para comparar) y uno se
+/// marca como preferido para armar los pedidos automáticamente.
+model ProveedorProducto {
+  id          String    @id @default(cuid())
+  proveedorId String
+  proveedor   Proveedor @relation(fields: [proveedorId], references: [id], onDelete: Cascade)
+  productoId  String
+  producto    Producto  @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  /// Código con el que el proveedor identifica el producto en SU catálogo.
+  referencia    String?
+  precioCompra  Decimal? @db.Decimal(14, 2)
+  /// Cantidad mínima que acepta por pedido.
+  minimoPedido  Int?
+  leadTimeDias  Int?
+  preferido     Boolean  @default(false)
+  notas         String?  @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([proveedorId, productoId])
+  @@map("proveedor_productos")
+  @@index([productoId])
+  @@index([preferido])
 }
 
 model OrdenCompra {
@@ -234,6 +279,15 @@ model OrdenCompra {
   items        Json     @default("[]")
   fechaEsperada DateTime?
   recibidaEn   DateTime?
+
+  // ── Envío al proveedor por correo ──
+  enviadaEn      DateTime?
+  enviadaAEmail  String?
+  /// Error del último intento de envío. Sirve para reintentar sabiendo
+  /// por qué falló, en vez de dejar la orden en un limbo silencioso.
+  errorEnvio     String?  @db.Text
+  creadaPorId    String?
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -450,8 +504,9 @@ model Producto {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  imagenes AcfImagen[]
-  errores  ErrorValidacion[]
+  imagenes   AcfImagen[]
+  errores    ErrorValidacion[]
+  proveedores ProveedorProducto[]
 
   acfMM AcfMallasMetalicas?
   acfBH AcfBalcones?

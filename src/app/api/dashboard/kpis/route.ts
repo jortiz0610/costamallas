@@ -19,7 +19,14 @@ export async function GET(req: NextRequest) {
       },
     }),
     prisma.producto.findMany({
-      where: { stock: { lte: 30 }, intEstado: { not: "ARCHIVADO" } },
+      where: {
+        stock: { lte: 30 },
+        intEstado: { not: "ARCHIVADO" },
+        // Lo que fabrica Costamallas no se "reabastece": no se le compra a
+        // nadie. Si el único proveedor asignado está marcado como propio,
+        // el producto no cuenta como alerta de compra.
+        NOT: { proveedores: { some: { proveedor: { esPropio: true } } } },
+      },
       select: { id: true, sku: true, nombre: true, stock: true, stockMinimo: true },
       orderBy: { stock: "asc" },
       take: 10,

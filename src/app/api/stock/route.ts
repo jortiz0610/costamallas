@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
     select: {
       id: true, sku: true, nombre: true, stock: true, stockMinimo: true,
       enStock: true, categorias: true, acfUnidadVenta: true, publicado: true,
+      proveedores: { select: { proveedor: { select: { esPropio: true } } } },
     },
   });
 
@@ -54,6 +55,9 @@ export async function GET(req: NextRequest) {
     ...p,
     nivelStock: nivelStock(p.stock, p.stockMinimo),
     agotado: p.stock <= 0,
+    // Lo fabrica Costamallas: aparece en la tabla (hay que saber cuánto
+    // hay) pero no se cuenta como "por reabastecer", porque no se compra.
+    fabricacionPropia: p.proveedores.some((v) => v.proveedor.esPropio),
   }));
 
   const filtrados = nivel
@@ -62,6 +66,8 @@ export async function GET(req: NextRequest) {
 
   // El resumen se calcula sobre TODO el catálogo (sin el filtro de nivel),
   // para que las tarjetas no cambien al filtrar la tabla.
+  // "Por reabastecer" cuenta solo lo que se le compra a un tercero.
+  const comprables = conNivel.filter((p) => !p.fabricacionPropia);
   const resumen = {
     total: conNivel.length,
     agotados: conNivel.filter((p) => p.agotado).length,
@@ -69,6 +75,8 @@ export async function GET(req: NextRequest) {
     bajos: conNivel.filter((p) => p.nivelStock === "BAJO").length,
     ok: conNivel.filter((p) => p.nivelStock === "OK").length,
     unidadesTotales: conNivel.reduce((s, p) => s + p.stock, 0),
+    porReabastecer: comprables.filter((p) => p.stock <= p.stockMinimo).length,
+    fabricacionPropia: conNivel.length - comprables.length,
   };
 
   const desde = (pagina - 1) * POR_PAGINA;
