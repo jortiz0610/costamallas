@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest, canWrite } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteImageFTP } from "@/lib/ftp";
+import { sincronizarProducto } from "@/lib/sync-tienda";
 
 export async function GET(req: NextRequest) {
   const user = await getUserFromRequest(req);
@@ -41,7 +42,11 @@ export async function DELETE(req: NextRequest) {
   }
 
   await prisma.acfImagen.delete({ where: { id } });
-  return NextResponse.json({ success: true });
+
+  // Borrar una imagen cambia lo que ve el cliente en la tienda: se
+  // sincroniza de una en vez de esperar al próximo guardado o al cron.
+  const sync = await sincronizarProducto(imagen.productoId);
+  return NextResponse.json({ success: true, sync });
 }
 
 export async function PATCH(req: NextRequest) {
@@ -66,7 +71,10 @@ export async function PATCH(req: NextRequest) {
       )
     );
     const data = await prisma.acfImagen.findMany({ where: { productoId }, orderBy: { posicion: "asc" } });
-    return NextResponse.json({ success: true, data });
+    // El orden decide cuál es la imagen destacada en la tienda: hay que
+    // reflejarlo de inmediato.
+    const sync = await sincronizarProducto(productoId);
+    return NextResponse.json({ success: true, data, sync });
   }
 
   if (!id) return NextResponse.json({ success: false, error: "id requerido" }, { status: 400 });
@@ -87,7 +95,8 @@ export async function PATCH(req: NextRequest) {
         ),
       ]);
       const updated = await prisma.acfImagen.findUnique({ where: { id } });
-      return NextResponse.json({ success: true, data: updated });
+      const sync = await sincronizarProducto(imagen.productoId);
+      return NextResponse.json({ success: true, data: updated, sync });
     }
   }
 
@@ -100,5 +109,6 @@ export async function PATCH(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ success: true, data: updated });
+  const sync = await sincronizarProducto(updated.productoId);
+  return NextResponse.json({ success: true, data: updated, sync });
 }

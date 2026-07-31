@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { GrupoBloques } from "./Bloques";
+import { ProgresoProducto, calcularPasos } from "./ProgresoProducto";
 import { Save, Loader2, Plus, Trash2, Check, X, Star, Upload, ImageIcon, Sparkles, FileText, Tag as TagIcon } from "lucide-react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -1244,6 +1245,15 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
   const router = useRouter();
   const [tab, setTab] = useState<TabId>("producto");
   const [saving, setSaving] = useState(false);
+
+  // Solo el conteo, para la guía de completitud. Comparte queryKey con
+  // GaleriaProducto, así que al subir o borrar una foto el progreso se
+  // actualiza solo, sin pedir los datos dos veces.
+  const { data: imagenesDelProducto = [] } = useQuery<AcfImagen[]>({
+    queryKey: ["imagenes", productoId],
+    queryFn: async () => (await (await fetch(`/api/imagenes?productoId=${productoId}`)).json()).data ?? [],
+    enabled: Boolean(productoId),
+  });
   const [activeFichaKey, setActiveFichaKey] = useState<string | null>(null);
   const init = initialData ?? {};
 
@@ -1339,6 +1349,17 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
 
       {/* ── Contenido de cada pestaña ── */}
       <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+
+        {/* Guía de completitud. Se esconde sola cuando el producto ya
+            existe y tiene todo lo obligatorio. */}
+        <div className="max-w-6xl mx-auto">
+          <ProgresoProducto
+            pasos={calcularPasos(form as Record<string, unknown>, imagenesDelProducto.length)}
+            onIrA={(t) => setTab(t as TabId)}
+            esNuevo={!productoId}
+          />
+        </div>
+
 
         {/* PESTAÑA: PRODUCTO */}
         {tab === "producto" && (

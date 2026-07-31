@@ -7,6 +7,7 @@ import { getUserFromRequest, canWrite } from "@/lib/auth";
 import { uploadImageFTP } from "@/lib/ftp";
 import { getWPCredentials, uploadToWordPressMedia } from "@/lib/wordpress";
 import { prisma } from "@/lib/prisma";
+import { sincronizarProducto } from "@/lib/sync-tienda";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_SIZE_MB = 5;
@@ -72,7 +73,10 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      return NextResponse.json({ success: true, data: { url, imagen } });
+      // Que la foto nueva aparezca en la tienda sin esperar a que alguien
+      // vuelva a guardar el producto ni al cron diario.
+      const sync = await sincronizarProducto(productoId);
+      return NextResponse.json({ success: true, data: { url, imagen }, sync });
     }
 
     return NextResponse.json({ success: true, data: { url, filename } });
