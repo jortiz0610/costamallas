@@ -160,6 +160,21 @@ export function productoToWC(producto: ProductoDetalle): WCProduct {
     { key: "ficha_tecnica_pdf", value: fichaUrl },
   ];
 
+  // ── SEO → Yoast ──
+  // El meta título y la meta descripción que se generan en el ERP se
+  // quedaban ahí: el payload no llevaba ninguna clave de Yoast, así que
+  // en costamallas.com seguía mandando la plantilla por defecto.
+  //
+  // Solo se envían si tienen valor. Mandar "" no es neutro: le borraría a
+  // Yoast lo que ya tenga y el producto quedaría peor que antes.
+  if (producto.seoTitulo) metaData.push({ key: "_yoast_wpseo_title", value: producto.seoTitulo });
+  if (producto.seoDescripcion) metaData.push({ key: "_yoast_wpseo_metadesc", value: producto.seoDescripcion });
+  if (producto.seoKeywords?.length) {
+    // Yoast maneja UNA frase clave objetivo; las demás son secundarias
+    // (solo en la versión de pago). Se manda la primera.
+    metaData.push({ key: "_yoast_wpseo_focuskw", value: producto.seoKeywords[0] });
+  }
+
   return {
     name: producto.nombre,
     slug: producto.slug,
@@ -510,6 +525,9 @@ function mapPrismaToDetalle(p: {
   acfGarantiaAnos: number | null; acfAplicaciones: string[];
   acfColores: string[]; acfNormas: string[]; acfFichaTecnicaPdf: string | null;
   acfCertificaciones: string[]; intEstado: string;
+  acfExtra: unknown;
+  seoTitulo: string | null; seoDescripcion: string | null;
+  seoKeywords: string[]; seoTexto: string | null;
   intResponsable: string | null; intObservaciones: string | null;
   intListoExportar: boolean; intExportadoEn: Date | null;
   createdAt: Date; updatedAt: Date;
@@ -561,6 +579,14 @@ function mapPrismaToDetalle(p: {
     acfNormas: p.acfNormas,
     acfFichaTecnicaPdf: p.acfFichaTecnicaPdf,
     acfCertificaciones: p.acfCertificaciones,
+    // Sin esto, `productoToWC` no encontraba `acfExtra.fichaTecnicaUrl` y
+    // el campo ACF `ficha_tecnica_pdf` seguía viajando vacío a la tienda,
+    // aunque el ERP mostrara la ficha cargada.
+    acfExtra: (p.acfExtra ?? null) as Record<string, unknown> | null,
+    seoTitulo: p.seoTitulo,
+    seoDescripcion: p.seoDescripcion,
+    seoKeywords: p.seoKeywords,
+    seoTexto: p.seoTexto,
     intEstado: p.intEstado as ProductoDetalle["intEstado"],
     intResponsable: p.intResponsable,
     intObservaciones: p.intObservaciones,
