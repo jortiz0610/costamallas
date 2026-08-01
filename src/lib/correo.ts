@@ -11,7 +11,7 @@
 
 import nodemailer from "nodemailer";
 import { prisma } from "@/lib/prisma";
-import { decryptIfNeeded } from "@/lib/encryption";
+import { decryptIfNeeded, encrypt } from "@/lib/encryption";
 
 export interface ConfigCorreo {
   host: string;
@@ -66,6 +66,79 @@ export async function getConfigCorreo(): Promise<ConfigCorreo | null> {
 }
 
 export const correoConfigurado = async () => (await getConfigCorreo()) !== null;
+
+/**
+ * Estado de la configuración para mostrar en el portal, **sin la
+ * contraseña**. `descifra` en false significa que hay una contraseña
+ * guardada que este entorno no puede leer: se cargó con otra
+ * ENCRYPTION_KEY (típicamente desde local hacia producción).
+ */
+export async function estadoCorreo(): Promise<{
+  configurado: boolean;
+  descifra: boolean;
+  host: string; puerto: string; seguro: boolean;
+  usuario: string; remitenteNombre: string; remitenteEmail: string;
+  tienePassword: boolean;
+}> {
+  const filas = await prisma.configuracion.findMany({ where: { clave: { in: [...CLAVES] } } });
+  const map = Object.fromEntries(filas.map(f => [f.clave, f]));
+  const plano = (clave: string) => map[clave]?.valor ?? "";
+
+  const pass = map["smtp_password"];
+  let descifra = true;
+  if (pass?.valor) {
+    try {
+      const v = pass.encrypted ? decryptIfNeeded(pass.valor) : pass.valor;
+      descifra = Boolean(v);
+    } catch {
+      descifra = false;
+    }
+  }
+
+  return {
+    configurado: (await getConfigCorreo()) !== null,
+    descifra,
+    host: plano("smtp_host"),
+    puerto: plano("smtp_port") || "587",
+    seguro: plano("smtp_secure") === "true",
+    usuario: plano("smtp_user"),
+    remitenteNombre: plano("smtp_from_name"),
+    remitenteEmail: plano("smtp_from_email"),
+    tienePassword: Boolean(pass?.valor),
+  };
+}
+
+/**
+ * Guarda la configuración SMTP. La contraseña se cifra; si llega vacía
+ * se deja la que ya estaba, para poder cambiar el puerto o el remitente
+ * sin tener que volver a escribirla.
+ */
+export async function setConfigCorreo(datos: Partial<Record<(typeof CLAVES)[number], string>>) {
+  for (const [clave, valor] of Object.entries(datos)) {
+    if (valor === undefined) continue;
+    const cifrar = clave === "smtp_password";
+    if (cifrar && !valor) continue;
+    const guardado = cifrar ? encrypt(valor) : valor;
+    await prisma.configuracion.upsert({
+      where: { clave },
+      create: { clave, valor: guardado, encrypted: cifrar },
+      update: { valor: guardado, encrypted: cifrar },
+    });
+  }
+}
+
+/** Borra las credenciales SMTP. Deja de poder enviarse correo. */
+export async function borrarConfigCorreo() {
+  await prisma.configuracion.deleteMany({ where: { clave: { in: [...CLAVES] } } });
+}
+
+/** Quita las claves vacías o indefinidas para que no pisen lo guardado. */
+function limpiar(o?: Partial<ConfigCorreo>): Partial<ConfigCorreo> {
+  if (!o) return {};
+  return Object.fromEntries(
+    Object.entries(o).filter(([, v]) => v !== undefined && v !== null && v !== ""),
+  ) as Partial<ConfigCorreo>;
+}
 
 interface Adjunto { filename: string; content: Buffer | string; contentType?: string }
 
@@ -131,9 +204,30 @@ export async function enviarCorreo(opciones: {
   }
 }
 
-/** Prueba la conexión sin mandar nada. Para el botón "Probar" del portal. */
-export async function probarCorreo(): Promise<{ ok: boolean; mensaje: string }> {
-  const cfg = await getConfigCorreo();
+/**
+ * Prueba la conexión sin mandar nada. Para el botón "Probar" del portal.
+ *
+ * Acepta valores sueltos para poder probar lo que el usuario acaba de
+ * escribir antes de guardarlo. Lo que no venga se toma de lo guardado
+ * (así se prueba un host nuevo sin volver a teclear la contraseña).
+ */
+export async function probarCorreo(
+  override?: Partial<ConfigCorreo>,
+): Promise<{ ok: boolean; mensaje: string }> {
+  const guardada = await getConfigCorreo();
+  const mezcla = { ...(guardada ?? {}), ...limpiar(override) } as Partial<ConfigCorreo>;
+  const cfg =
+    mezcla.host && mezcla.usuario && mezcla.password
+      ? {
+          host: mezcla.host,
+          puerto: mezcla.puerto || 587,
+          seguro: mezcla.seguro ?? mezcla.puerto === 465,
+          usuario: mezcla.usuario,
+          password: mezcla.password,
+          remitenteNombre: mezcla.remitenteNombre || "Costamallas",
+          remitenteEmail: mezcla.remitenteEmail || mezcla.usuario,
+        }
+      : null;
   if (!cfg) return { ok: false, mensaje: "Faltan datos: host, usuario o contraseña." };
 
   const transporte = nodemailer.createTransport({

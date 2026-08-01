@@ -6,7 +6,7 @@ import {
   AlertTriangle, Settings, LogOut, Users, UserCircle, ClipboardList,
   ShoppingCart, Wrench, Kanban, ChevronDown, ShieldCheck, BarChart2,
   MessageSquare, Truck, CheckSquare, MessageSquareText, Zap, Ruler,
-  Megaphone, Target, TrendingUp, Radio, Receipt,
+  Megaphone, Target, TrendingUp, Radio, Receipt, PieChart,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -39,6 +39,7 @@ const ERP_ITEMS = [
   { href: "/stock", label: "Stock", icon: Archive, alertKey: "stock" },
   { href: "/compras", label: "Compras", icon: Truck },
   { href: "/facturacion", label: "Facturación", icon: Receipt },
+  { href: "/facturacion/cartera", label: "Cartera", icon: PieChart },
   // "Sincronización WC" solo la ven admin y superadmin: toca la tienda en vivo.
   { href: "/woocommerce", label: "Sincronización WC", icon: FileInput, soloAdmin: true },
   // Antes había además un "Errores" (validación) que era una pantalla vacía.
@@ -73,6 +74,26 @@ const SYSTEM_ITEMS = [
   { href: "/configuracion", label: "Configuración", icon: Settings },
 ];
 
+// Rutas de todo el menu, para resolver cual se ilumina.
+const RUTAS_MENU = [...MARKETING_ITEMS, ...ERP_ITEMS, ...CRM_ITEMS, ...NEXUS_ITEMS, ...SYSTEM_ITEMS]
+  .map(i => (i as { href?: string }).href?.split("?")[0])
+  .filter((h): h is string => Boolean(h));
+
+/**
+ * Cual enlace del menu corresponde a la URL actual.
+ *
+ * Con `startsWith` a secas, estando en la cartera se encendian
+ * "Facturacion" y "Cartera" a la vez. Gana la coincidencia mas larga, asi
+ * que agregar una subruta al menu no vuelve ambiguo al padre.
+ */
+function rutaActiva(pathname: string): string | null {
+  let mejor: string | null = null;
+  for (const ruta of RUTAS_MENU) {
+    const coincide = ruta === "/" ? pathname === "/" : pathname === ruta || pathname.startsWith(ruta + "/");
+    if (coincide && (!mejor || ruta.length > mejor.length)) mejor = ruta;
+  }
+  return mejor;
+}
 type Mode = "ERP" | "CRM" | "NEXUS" | "MARKETING";
 
 interface SidebarProps {
@@ -106,6 +127,8 @@ export function Sidebar({
   const navItems =
     mode === "ERP" ? ERP_ITEMS : mode === "CRM" ? CRM_ITEMS : mode === "MARKETING" ? MARKETING_ITEMS : NEXUS_ITEMS;
 
+  const activa = rutaActiva(pathname);
+
   function NavItem({ item }: { item: (typeof ERP_ITEMS)[number] }) {
     if ("section" in item) {
       return (
@@ -121,7 +144,7 @@ export function Sidebar({
     const Icon = item.icon!;
     const href = (item as { href: string }).href;
     const base = href.split("?")[0];
-    const isActive = base === "/" || base === "/crm" ? pathname === base : pathname.startsWith(base);
+    const isActive = base === "/crm" ? pathname === base : base === activa;
     const alertKey = (item as { alertKey?: string }).alertKey;
     const badgeCount = alertKey ? (badges[alertKey] ?? 0) : 0;
 
@@ -216,7 +239,7 @@ export function Sidebar({
           <div className="pb-1">
             {SYSTEM_ITEMS.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname.startsWith(item.href);
+              const isActive = item.href === activa;
               return (
                 <Link
                   key={item.href}

@@ -1,23 +1,33 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
 import {
-  Plus, Truck, Search, X, Loader2, Building2, Phone, Mail, Clock,
-  Package, AlertTriangle, ShoppingBag, Trash2, MapPin,
+  Plus, Search, X, Loader2, Building2, Phone, Mail, Clock,
+  Package, AlertTriangle, ShoppingBag, Trash2, MapPin, ChevronDown,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { FichaProveedor } from "@/components/compras/FichaProveedor";
+import { Ordenes } from "@/components/compras/Ordenes";
 
 const ERP_COLOR = "#185FA5";
 
 interface Proveedor {
   id: string; nombre: string; contacto?: string; email?: string; telefono?: string;
   nit?: string; ciudad?: string; categorias: string[]; leadTimeDias?: number;
+  esPropio?: boolean;
   _count: { ordenes: number };
 }
-interface ProductoBajo { id: string; sku: string; nombre: string; stock: number; stockMinimo: number; }
+interface ProductoBajo {
+  id: string; sku: string; nombre: string; stock: number; stockMinimo: number;
+  agotado: boolean; acfUnidadVenta?: string | null;
+}
+
+/** Recuerda si el usuario dejó abierto el bloque de reabastecimiento. */
+const LS_REABASTECER = "compras:reabastecer-abierto";
 
 function NuevoProveedor({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({ nombre: "", contacto: "", email: "", telefono: "", nit: "", ciudad: "", leadTimeDias: "" });
@@ -90,20 +100,44 @@ function ComprasContent() {
   const qc = useQueryClient();
   const [modal, setModal] = useState(false);
   const [busqueda, setBusqueda] = useState("");
+  const [vista, setVista] = useState<"proveedores" | "ordenes">("proveedores");
+  const [ficha, setFicha] = useState<Proveedor | null>(null);
 
   const { data: proveedores = [], isLoading } = useQuery<Proveedor[]>({
     queryKey: ["proveedores", busqueda],
     queryFn: async () => (await (await fetch(`/api/compras/proveedores?busqueda=${encodeURIComponent(busqueda)}`)).json()).data ?? [],
   });
 
-  // Productos que necesitan reabastecimiento (stock bajo)
-  const { data: bajos = [] } = useQuery<ProductoBajo[]>({
+  // Productos que necesitan reabastecimiento.
+  //
+  // Antes esto pedía /api/productos?stockCritico=true, que trae lo que
+  // tiene stock <= 5 (umbral fijo) sin mirar el mínimo de cada producto:
+  // una malla con mínimo 15 y 12 unidades no aparecía, y en cambio sí
+  // aparecía lo que Costamallas fabrica, que no se le compra a nadie.
+  // El endpoint de stock aplica el mismo criterio que el KPI del inicio.
+  const { data: reabastecer } = useQuery<{ items: ProductoBajo[]; total: number }>({
     queryKey: ["productos-reabastecer"],
     queryFn: async () => {
-      const json = await (await fetch("/api/productos?stockCritico=true&limit=50")).json();
-      return (json.data ?? []).filter((p: ProductoBajo) => p.stock <= p.stockMinimo);
+      const json = await (await fetch("/api/stock?nivel=REABASTECER&orden=stock")).json();
+      const items: ProductoBajo[] = json.data ?? [];
+      return { items, total: json.resumen?.porReabastecer ?? items.length };
     },
   });
+  const bajos = reabastecer?.items ?? [];
+  const totalBajos = reabastecer?.total ?? 0;
+
+  // Plegado: arranca cerrado (el número ya se ve en la tarjeta de arriba)
+  // y se recuerda la preferencia. Se lee en un efecto y no en el estado
+  // inicial para no desalinear el HTML del servidor con el del navegador.
+  const [reabAbierto, setReabAbierto] = useState(false);
+  useEffect(() => {
+    setReabAbierto(localStorage.getItem(LS_REABASTECER) === "1");
+  }, []);
+  const alternarReab = () =>
+    setReabAbierto(abierto => {
+      localStorage.setItem(LS_REABASTECER, abierto ? "0" : "1");
+      return !abierto;
+    });
 
   const eliminar = async (id: string) => {
     if (!confirm("¿Desactivar proveedor?")) return;
@@ -115,9 +149,11 @@ function ComprasContent() {
   return (
     <>
       <Topbar title="Compras & Proveedores" actions={
-        <button onClick={() => setModal(true)} className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: ERP_COLOR }}>
-          <Plus size={13} /> Nuevo proveedor
-        </button>
+        vista === "proveedores" ? (
+          <button onClick={() => setModal(true)} className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: ERP_COLOR }}>
+            <Plus size={13} /> Nuevo proveedor
+          </button>
+        ) : undefined
       } />
       <div className="flex-1 overflow-y-auto page-bg p-6 space-y-6">
 
@@ -126,7 +162,7 @@ function ComprasContent() {
           {[
             { l: "Proveedores", v: proveedores.length, c: ERP_COLOR, Icon: Building2 },
             { l: "Órdenes activas", v: proveedores.reduce((s, p) => s + p._count.ordenes, 0), c: "#7c3aed", Icon: ShoppingBag },
-            { l: "Por reabastecer", v: bajos.length, c: "#ef4444", Icon: AlertTriangle },
+            { l: "Por reabastecer", v: totalBajos, c: "#ef4444", Icon: AlertTriangle },
           ].map(s => {
             const Icon = s.Icon;
             return (
@@ -140,28 +176,78 @@ function ComprasContent() {
           })}
         </div>
 
-        {/* Sugerencia de reabastecimiento */}
+        {/* Sugerencia de reabastecimiento (plegable) */}
         {bajos.length > 0 && (
-          <div className="card p-5" style={{ borderLeft: "4px solid #ef4444" }}>
-            <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2 mb-3">
-              <AlertTriangle size={15} className="text-red-500" /> Productos que requieren reabastecimiento
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {bajos.slice(0, 6).map(p => (
-                <div key={p.id} className="flex items-center gap-3 p-2.5 rounded-xl surface-2">
-                  <Package size={16} className="text-red-500 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-soft truncate">{p.nombre}</p>
-                    <p className="text-[10px] text-muted font-mono">{p.sku}</p>
-                  </div>
-                  <span className="text-xs font-bold text-red-500">{p.stock}/{p.stockMinimo}</span>
+          <div className="card" style={{ borderLeft: "4px solid #ef4444" }}>
+            <button
+              onClick={alternarReab}
+              aria-expanded={reabAbierto}
+              className="w-full flex items-center gap-3 p-5 text-left"
+            >
+              <AlertTriangle size={15} className="text-red-500 flex-shrink-0" />
+              <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100 flex-1">
+                Productos que requieren reabastecimiento
+              </h2>
+              <span className="text-[11px] font-bold text-red-500 bg-red-50 dark:bg-red-500/15 px-2 py-0.5 rounded-lg">
+                {totalBajos}
+              </span>
+              <ChevronDown
+                size={16}
+                className="text-muted transition-transform flex-shrink-0"
+                style={{ transform: reabAbierto ? "rotate(180deg)" : "none" }}
+              />
+            </button>
+
+            {reabAbierto && (
+              <div className="px-5 pb-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[420px] overflow-y-auto">
+                  {bajos.map(p => (
+                    <Link
+                      key={p.id}
+                      href={`/productos/${p.id}`}
+                      className="flex items-center gap-3 p-2.5 rounded-xl surface-2 hover:brand-bg-10 transition-colors"
+                    >
+                      <Package size={16} className={p.agotado ? "text-red-600 flex-shrink-0" : "text-red-500 flex-shrink-0"} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-soft truncate">{p.nombre}</p>
+                        <p className="text-[10px] text-muted font-mono">{p.sku}</p>
+                      </div>
+                      {p.agotado
+                        ? <span className="text-[10px] font-bold text-white bg-red-600 px-1.5 py-0.5 rounded">AGOTADO</span>
+                        : <span className="text-xs font-bold text-red-500">{p.stock}/{p.stockMinimo}</span>}
+                    </Link>
+                  ))}
                 </div>
-              ))}
-            </div>
-            {bajos.length > 6 && <Link href="/stock" className="text-xs font-semibold mt-3 inline-block" style={{ color: ERP_COLOR }}>Ver todos ({bajos.length})</Link>}
+                {totalBajos > bajos.length && (
+                  <Link href="/stock" className="text-xs font-semibold mt-3 inline-block" style={{ color: ERP_COLOR }}>
+                    Ver los {totalBajos} en Stock
+                  </Link>
+                )}
+              </div>
+            )}
           </div>
         )}
 
+        {/* Proveedores / Órdenes */}
+        <div className="flex gap-1 p-1 rounded-xl surface-2 w-fit">
+          {([
+            { id: "proveedores", label: "Proveedores" },
+            { id: "ordenes", label: "Órdenes de compra" },
+          ] as const).map(v => (
+            <button
+              key={v.id}
+              onClick={() => setVista(v.id)}
+              className={cn("px-4 py-1.5 rounded-lg text-xs font-semibold transition-all", vista === v.id ? "text-white" : "text-muted")}
+              style={vista === v.id ? { backgroundColor: ERP_COLOR } : undefined}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+
+        {vista === "ordenes" && <Ordenes proveedores={proveedores} />}
+
+        {vista === "proveedores" && (<>
         {/* Búsqueda */}
         <div className="relative max-w-xs">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -201,13 +287,27 @@ function ComprasContent() {
                 </div>
                 <div className="flex items-center gap-2 mt-4 pt-3 border-t divider">
                   <span className="text-xs text-muted"><span className="font-bold text-soft">{p._count.ordenes}</span> órdenes</span>
+                  {p.esPropio && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-500/15">
+                      Fabricación propia
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setFicha(p)}
+                    className="ml-auto text-xs font-semibold"
+                    style={{ color: ERP_COLOR }}
+                  >
+                    Productos que provee →
+                  </button>
                 </div>
               </div>
             ))}
           </div>
         )}
+        </>)}
       </div>
       {modal && <NuevoProveedor onClose={() => setModal(false)} onSaved={() => { setModal(false); qc.invalidateQueries({ queryKey: ["proveedores"] }); }} />}
+      {ficha && <FichaProveedor proveedor={ficha} onClose={() => setFicha(null)} />}
     </>
   );
 }

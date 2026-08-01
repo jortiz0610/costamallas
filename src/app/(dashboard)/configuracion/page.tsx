@@ -11,6 +11,7 @@ import {
 import toast from "react-hot-toast";
 import { useBrand } from "@/contexts/BrandContext";
 import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
 interface WCStatus { configured: boolean; ok?: boolean; storeName?: string; version?: string; error?: string; }
 
@@ -930,9 +931,176 @@ function TabFacturacion() {
   );
 }
 
+// ============================================================
+// Correo saliente (SMTP)
+//
+// De aquí dependen dos cosas que ya están construidas y hoy no pueden
+// funcionar: mandarle la orden de compra al proveedor y el recordatorio
+// de pago al cliente.
+// ============================================================
+function TabCorreo() {
+  const [f, setF] = useState({
+    host: "", puerto: "587", seguro: false, usuario: "", password: "",
+    remitenteNombre: "", remitenteEmail: "",
+  });
+  const [estado, setEstado] = useState<{ configurado: boolean; descifra: boolean; tienePassword: boolean } | null>(null);
+  const [ocupado, setOcupado] = useState<"" | "probar" | "guardar">("");
+  const [resultado, setResultado] = useState<{ ok: boolean; mensaje: string } | null>(null);
+  const u = (k: string, v: string | boolean) => setF(p => ({ ...p, [k]: v }));
+
+  const { refetch } = useQuery({
+    queryKey: ["correo-config"],
+    queryFn: async () => {
+      const j = await (await fetch("/api/configuracion/correo")).json();
+      if (j.success) {
+        setEstado({ configurado: j.data.configurado, descifra: j.data.descifra, tienePassword: j.data.tienePassword });
+        setF(p => ({
+          ...p,
+          host: j.data.host, puerto: j.data.puerto, seguro: j.data.seguro,
+          usuario: j.data.usuario, remitenteNombre: j.data.remitenteNombre,
+          remitenteEmail: j.data.remitenteEmail, password: "",
+        }));
+      }
+      return j;
+    },
+  });
+
+  const enviar = async (guardar: boolean) => {
+    setOcupado(guardar ? "guardar" : "probar");
+    setResultado(null);
+    try {
+      const res = await fetch("/api/configuracion/correo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...f, puerto: f.puerto, guardar }),
+      });
+      const j = await res.json();
+      const mensaje = j.mensaje ?? j.error ?? "Sin respuesta del servidor";
+      setResultado({ ok: Boolean(j.success), mensaje });
+      if (j.success) {
+        toast.success(guardar ? "Correo configurado" : "Conexión correcta");
+        if (guardar) { setF(p => ({ ...p, password: "" })); refetch(); }
+      } else {
+        toast.error("No se pudo conectar");
+      }
+    } catch {
+      setResultado({ ok: false, mensaje: "No se pudo contactar al servidor" });
+      toast.error("Error");
+    } finally {
+      setOcupado("");
+    }
+  };
+
+  const quitar = async () => {
+    if (!confirm("¿Quitar las credenciales de correo? Dejarán de salir órdenes de compra y recordatorios de pago.")) return;
+    await fetch("/api/configuracion/correo", { method: "DELETE" });
+    toast.success("Credenciales eliminadas");
+    setF(p => ({ ...p, password: "" }));
+    setResultado(null);
+    refetch();
+  };
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+      <div className="card p-5 flex items-center gap-4" style={{ background: "linear-gradient(135deg, var(--brand-color-10), transparent)" }}>
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--brand-color)" }}>
+          <Mail size={22} className="text-white" />
+        </div>
+        <div className="flex-1">
+          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Correo saliente (SMTP)</h2>
+          <p className="text-xs text-muted mt-0.5">Con esto el sistema envía las órdenes de compra a los proveedores y los recordatorios de pago a los clientes.</p>
+        </div>
+        {estado?.configurado && <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-500/15 px-2.5 py-1 rounded-lg">Activo</span>}
+      </div>
+
+      {estado?.tienePassword && !estado.descifra && (
+        <div className="card p-4 text-xs" style={{ borderLeft: "4px solid #f59e0b" }}>
+          <p className="font-bold text-amber-600 mb-1">Hay una contraseña guardada que este entorno no puede leer</p>
+          <p className="text-muted">
+            Se cifró con otra clave (normalmente: se cargó desde un computador y esto es producción, o al revés).
+            Vuelve a escribirla aquí y guarda.
+          </p>
+        </div>
+      )}
+
+      <div className="card p-5 space-y-4">
+        <div className="grid grid-cols-3 gap-4">
+          <div className="col-span-2">
+            <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Servidor SMTP</label>
+            <input className="input font-mono text-xs" value={f.host} onChange={e => u("host", e.target.value)} placeholder="smtp.hostinger.com" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Puerto</label>
+            <input type="number" className="input" value={f.puerto} onChange={e => u("puerto", e.target.value)} placeholder="587" />
+          </div>
+        </div>
+
+        <label className="flex items-center gap-2 text-xs text-soft">
+          <input type="checkbox" checked={f.seguro} onChange={e => u("seguro", e.target.checked)} />
+          Conexión SSL directa (puerto 465). Déjalo sin marcar para el 587, que negocia STARTTLS.
+        </label>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Usuario</label>
+            <input className="input font-mono text-xs" value={f.usuario} onChange={e => u("usuario", e.target.value)} placeholder="pedidos@costamallas.com" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">
+              Contraseña {estado?.tienePassword && estado.descifra && <span className="text-emerald-500 normal-case">(guardada — déjala vacía para no cambiarla)</span>}
+            </label>
+            <input type="password" className="input font-mono text-xs" value={f.password} onChange={e => u("password", e.target.value)} placeholder="••••••••" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Remitente (nombre)</label>
+            <input className="input" value={f.remitenteNombre} onChange={e => u("remitenteNombre", e.target.value)} placeholder="Costamallas" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Remitente (correo)</label>
+            <input type="email" className="input font-mono text-xs" value={f.remitenteEmail} onChange={e => u("remitenteEmail", e.target.value)} placeholder="pedidos@costamallas.com" />
+          </div>
+        </div>
+
+        {resultado && (
+          <div className={cn("p-3 rounded-lg text-xs", resultado.ok ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "bg-red-50 dark:bg-red-500/10 text-red-600")}>
+            {resultado.ok ? <Check size={12} className="inline mr-1" /> : <X size={12} className="inline mr-1" />}
+            {resultado.mensaje}
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button onClick={() => enviar(false)} disabled={ocupado !== ""} className="btn-secondary flex-1 justify-center">
+            {ocupado === "probar" ? <Loader2 size={13} className="animate-spin" /> : <PlugZap size={13} />} Probar conexión
+          </button>
+          <button onClick={() => enviar(true)} disabled={ocupado !== ""} className="btn-primary flex-1 justify-center">
+            {ocupado === "guardar" ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Probar y guardar
+          </button>
+          {estado?.configurado && <button onClick={quitar} className="btn-secondary">Quitar</button>}
+        </div>
+        <p className="text-[11px] text-muted">
+          Solo se guarda si la conexión funciona: unas credenciales que no conectan guardadas &quot;por si acaso&quot; únicamente sirven
+          para que el envío falle después, lejos de esta pantalla.
+        </p>
+      </div>
+
+      <div className="card p-5 text-xs text-muted space-y-1.5">
+        <p className="font-bold text-soft text-sm mb-2">Datos típicos</p>
+        <p>• <b>Hostinger</b> (el correo del dominio): <code className="surface-3 px-1 rounded">smtp.hostinger.com</code>, puerto 465 con SSL o 587 sin SSL.</p>
+        <p>• <b>Google Workspace</b>: <code className="surface-3 px-1 rounded">smtp.gmail.com</code>, puerto 587, y una <b>contraseña de aplicación</b> (la del correo no sirve).</p>
+        <p>• <b>Microsoft 365</b>: <code className="surface-3 px-1 rounded">smtp.office365.com</code>, puerto 587.</p>
+        <p className="pt-2 border-t divider mt-2">
+          La contraseña se guarda cifrada (AES-256) en la base de datos. <b>Cárgala desde este portal en producción</b>: lo que se cifra
+          en un computador local no se puede descifrar en el servidor, porque la clave de cifrado es distinta.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 const TABS = [
   { id: "empresa",      label: "Empresa",       icon: Building2   },
   { id: "ia",           label: "IA",            icon: Sparkles    },
+  { id: "correo",       label: "Correo",        icon: Mail        },
   { id: "facturacion",  label: "Facturación",   icon: Building2   },
   { id: "canales",      label: "Canales & Redes", icon: Radio     },
   { id: "marketing",    label: "Conexiones Ads", icon: Radio      },
@@ -976,6 +1144,7 @@ function ConfiguracionContent() {
         <div className="p-6">
           {tab === "empresa"      && <TabEmpresa />}
           {tab === "ia"           && <TabIA />}
+          {tab === "correo"       && <TabCorreo />}
           {tab === "facturacion"  && <TabFacturacion />}
           {tab === "canales"      && <TabCanales />}
           {tab === "marketing"    && <TabMarketingAds />}

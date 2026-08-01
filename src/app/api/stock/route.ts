@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const q = (sp.get("q") ?? "").trim();
-  const nivel = sp.get("nivel") ?? "";          // OK | ADVERTENCIA | BAJO | CRITICO | AGOTADO
+  const nivel = sp.get("nivel") ?? "";          // OK | ADVERTENCIA | BAJO | CRITICO | AGOTADO | REABASTECER
   const categoria = sp.get("categoria") ?? "";
   const orden = sp.get("orden") ?? "stock";      // stock | nombre | sku
   const pagina = Math.max(1, Number(sp.get("pagina")) || 1);
@@ -60,8 +60,18 @@ export async function GET(req: NextRequest) {
     fabricacionPropia: p.proveedores.some((v) => v.proveedor.esPropio),
   }));
 
+  // "REABASTECER" es lo que de verdad hay que comprar: por debajo del
+  // mínimo y de un tercero. Es el mismo criterio del KPI del dashboard,
+  // para que las dos pantallas no se contradigan.
+  const porReabastecer = (p: (typeof conNivel)[number]) =>
+    !p.fabricacionPropia && p.stock <= p.stockMinimo;
+
   const filtrados = nivel
-    ? conNivel.filter((p) => (nivel === "AGOTADO" ? p.agotado : p.nivelStock === nivel))
+    ? conNivel.filter((p) =>
+        nivel === "AGOTADO" ? p.agotado
+        : nivel === "REABASTECER" ? porReabastecer(p)
+        : p.nivelStock === nivel,
+      )
     : conNivel;
 
   // El resumen se calcula sobre TODO el catálogo (sin el filtro de nivel),
@@ -75,7 +85,7 @@ export async function GET(req: NextRequest) {
     bajos: conNivel.filter((p) => p.nivelStock === "BAJO").length,
     ok: conNivel.filter((p) => p.nivelStock === "OK").length,
     unidadesTotales: conNivel.reduce((s, p) => s + p.stock, 0),
-    porReabastecer: comprables.filter((p) => p.stock <= p.stockMinimo).length,
+    porReabastecer: conNivel.filter(porReabastecer).length,
     fabricacionPropia: conNivel.length - comprables.length,
   };
 

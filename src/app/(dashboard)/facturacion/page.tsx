@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { Plus, FileText, Loader2, DollarSign, Clock, AlertTriangle, Eye } from "lucide-react";
+import { Plus, FileText, Loader2, DollarSign, Clock, AlertTriangle, Eye, PieChart } from "lucide-react";
 import Link from "next/link";
 import { formatCOP } from "@/lib/utils";
 
@@ -39,9 +39,14 @@ function FacturacionContent() {
   return (
     <>
       <Topbar title="Facturación" actions={
-        <Link href="/facturacion/nueva" className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: ERP_COLOR }}>
-          <Plus size={13} /> Nueva factura
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/facturacion/cartera" className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 surface-2 text-soft">
+            <PieChart size={13} /> Cartera
+          </Link>
+          <Link href="/facturacion/nueva" className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: ERP_COLOR }}>
+            <Plus size={13} /> Nueva factura
+          </Link>
+        </div>
       } />
       <div className="flex-1 overflow-y-auto page-bg p-6 space-y-5">
         {/* KPIs */}
