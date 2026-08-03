@@ -80,6 +80,10 @@ export async function GET(req: NextRequest) {
     intListoExportar: p.intListoExportar,
     updatedAt: p.updatedAt.toISOString(),
     imagenPrincipal: p.imagenes[0]?.urlImagen ?? null,
+    // Los necesita el cotizador: la bandera decide si se piden medidas y
+    // la unidad evita que el asesor tenga que escribirla a mano.
+    acfFabricacionMedida: p.acfFabricacionMedida,
+    acfUnidadVenta: p.acfUnidadVenta,
     _count: { imagenes: p._count.imagenes },
   }));
 

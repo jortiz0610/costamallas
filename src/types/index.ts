@@ -90,6 +90,9 @@ export interface ProductoListItem {
   intListoExportar: boolean;
   updatedAt: string;
   imagenPrincipal?: string | null;
+  /** Se fabrica a la medida: al cotizarlo se piden largo y ancho. */
+  acfFabricacionMedida?: boolean;
+  acfUnidadVenta?: string | null;
 }
 
 export interface ProductoDetalle extends ProductoListItem {

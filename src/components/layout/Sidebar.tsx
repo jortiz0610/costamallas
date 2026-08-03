@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Package, ImageIcon, Tag, Archive, FileOutput, FileInput,
   AlertTriangle, Settings, LogOut, Users, UserCircle, ClipboardList,
   ShoppingCart, Wrench, Kanban, ChevronDown, ShieldCheck, BarChart2,
-  MessageSquare, Truck, CheckSquare, MessageSquareText, Zap, Ruler,
+  MessageSquare, Truck, CheckSquare, MessageSquareText, Zap,
   Megaphone, Target, TrendingUp, Radio, Receipt, PieChart,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
@@ -52,7 +52,6 @@ const CRM_ITEMS = [
   { section: "Gestión" },
   { href: "/crm/clientes", label: "Clientes", icon: UserCircle },
   { href: "/crm/cotizaciones", label: "Cotizaciones", icon: ClipboardList },
-  { href: "/crm/cotizador", label: "Cotizador a medida", icon: Ruler },
   { href: "/crm/pedidos", label: "Pedidos", icon: ShoppingCart },
   { section: "Producción" },
   { href: "/crm/pipeline", label: "Pipeline", icon: Kanban },

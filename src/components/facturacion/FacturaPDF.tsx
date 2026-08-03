@@ -1,7 +1,7 @@
 "use client";
 
 import { formatCOP } from "@/lib/utils";
-import type { BrandInfo } from "@/components/crm/CotizacionPDF";
+import type { BrandInfo } from "@/components/crm/CotizacionDoc";
 
 export interface FacturaPDFData {
   numero: string; prefijo?: string | null; consecutivo?: number | null;

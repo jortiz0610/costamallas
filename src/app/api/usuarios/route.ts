@@ -13,6 +13,9 @@ const createSchema = z.object({
   password: z.string().min(8, "Mínimo 8 caracteres"),
   rol: z.enum(["SUPERADMIN","ADMIN","USUARIO","VENDEDOR","PRODUCCION","BODEGA","SOLO_LECTURA"]),
   activo: z.boolean().default(true),
+  // Sale en la cotización y es el número del botón de WhatsApp que ve el
+  // cliente en la oferta.
+  telefono: z.string().optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -21,7 +24,7 @@ export async function GET(req: NextRequest) {
   if (!["SUPERADMIN","ADMIN"].includes(user.rol)) return NextResponse.json({ success: false, error: "Sin permisos" }, { status: 403 });
 
   const usuarios = await prisma.usuario.findMany({
-    select: { id: true, nombre: true, email: true, rol: true, activo: true, ultimoAcceso: true, createdAt: true },
+    select: { id: true, nombre: true, email: true, rol: true, activo: true, telefono: true, ultimoAcceso: true, createdAt: true },
     orderBy: { createdAt: "desc" },
   });
 
@@ -47,7 +50,7 @@ export async function POST(req: NextRequest) {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ success: false, error: parsed.error.errors[0]?.message }, { status: 400 });
 
-  const { nombre, email, password, rol, activo } = parsed.data;
+  const { nombre, email, password, rol, activo, telefono } = parsed.data;
 
   // Solo el superadmin puede crear/asignar el rol SUPERADMIN
   if (rol === "SUPERADMIN" && user.rol !== "SUPERADMIN") {
@@ -59,8 +62,8 @@ export async function POST(req: NextRequest) {
 
   const hashedPwd = await bcrypt.hash(password, 12);
   const nuevo = await prisma.usuario.create({
-    data: { nombre, email, password: hashedPwd, rol: rol as never, activo },
-    select: { id: true, nombre: true, email: true, rol: true, activo: true, createdAt: true },
+    data: { nombre, email, password: hashedPwd, rol: rol as never, activo, telefono: telefono || null },
+    select: { id: true, nombre: true, email: true, rol: true, activo: true, telefono: true, createdAt: true },
   });
 
   return NextResponse.json({ success: true, data: nuevo }, { status: 201 });

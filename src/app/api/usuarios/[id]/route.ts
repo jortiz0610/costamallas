@@ -14,6 +14,7 @@ const updateSchema = z.object({
   rol: z.enum(["SUPERADMIN","ADMIN","USUARIO","VENDEDOR","PRODUCCION","BODEGA","SOLO_LECTURA"]).optional(),
   activo: z.boolean().optional(),
   password: z.string().min(8).optional(),
+  telefono: z.string().optional(),
 });
 
 export async function PUT(req: NextRequest, { params }: Params) {
@@ -38,11 +39,12 @@ export async function PUT(req: NextRequest, { params }: Params) {
   if (parsed.data.rol) data.rol = parsed.data.rol;
   if (parsed.data.activo !== undefined) data.activo = parsed.data.activo;
   if (parsed.data.password) data.password = await bcrypt.hash(parsed.data.password, 12);
+  if (parsed.data.telefono !== undefined) data.telefono = parsed.data.telefono || null;
 
   const updated = await prisma.usuario.update({
     where: { id },
     data: data as never,
-    select: { id: true, nombre: true, email: true, rol: true, activo: true },
+    select: { id: true, nombre: true, email: true, rol: true, activo: true, telefono: true },
   });
 
   return NextResponse.json({ success: true, data: updated });

@@ -8,7 +8,12 @@ import { getUserFromRequest } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 
 // /api/cron: la propia ruta valida el CRON_SECRET (Vercel Cron no envía cookie de sesión)
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/cotizar", "/api/public", "/api/marketing/oauth", "/api/cron"];
+// /cotizacion: la cotización que se le comparte al cliente. Es pública a
+//   propósito, pero se llega por un token largo, no por el id.
+const PUBLIC_PATHS = [
+  "/login", "/api/auth/login", "/cotizar", "/api/public",
+  "/api/marketing/oauth", "/api/cron", "/cotizacion",
+];
 const API_RATE_LIMIT = 200;
 
 export async function middleware(req: NextRequest): Promise<NextResponse> {

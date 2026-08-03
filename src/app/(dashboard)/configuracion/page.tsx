@@ -12,6 +12,8 @@ import toast from "react-hot-toast";
 import { useBrand } from "@/contexts/BrandContext";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { TabCotizacion } from "@/components/configuracion/TabCotizacion";
+import { TabInstalacion } from "@/components/configuracion/TabInstalacion";
 
 interface WCStatus { configured: boolean; ok?: boolean; storeName?: string; version?: string; error?: string; }
 
@@ -1101,6 +1103,8 @@ const TABS = [
   { id: "empresa",      label: "Empresa",       icon: Building2   },
   { id: "ia",           label: "IA",            icon: Sparkles    },
   { id: "correo",       label: "Correo",        icon: Mail        },
+  { id: "cotizacion",   label: "Cotización",    icon: BookOpen    },
+  { id: "instalacion",  label: "Instalación",   icon: PlugZap     },
   { id: "facturacion",  label: "Facturación",   icon: Building2   },
   { id: "canales",      label: "Canales & Redes", icon: Radio     },
   { id: "marketing",    label: "Conexiones Ads", icon: Radio      },
@@ -1145,6 +1149,8 @@ function ConfiguracionContent() {
           {tab === "empresa"      && <TabEmpresa />}
           {tab === "ia"           && <TabIA />}
           {tab === "correo"       && <TabCorreo />}
+          {tab === "cotizacion"   && <TabCotizacion />}
+          {tab === "instalacion"  && <TabInstalacion />}
           {tab === "facturacion"  && <TabFacturacion />}
           {tab === "canales"      && <TabCanales />}
           {tab === "marketing"    && <TabMarketingAds />}

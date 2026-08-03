@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 interface Usuario {
   id: string; nombre: string; email: string;
   rol: string; activo: boolean; ultimoAcceso: string | null; createdAt: string;
+  telefono?: string | null;
   twoFactor?: boolean;
 }
 
@@ -115,6 +116,7 @@ function ModalUsuario({ usuario, onClose, onSaved }: {
     rol: usuario?.rol ?? "VENDEDOR",
     password: "",
     activo: usuario?.activo ?? true,
+    telefono: usuario?.telefono ?? "",
   });
   const [saving, setSaving] = useState(false);
   const [showPass, setShowPass] = useState(false);
@@ -124,7 +126,7 @@ function ModalUsuario({ usuario, onClose, onSaved }: {
     if (esNuevo && form.password.length < 8) return toast.error("Contraseña mínimo 8 caracteres");
     setSaving(true);
     try {
-      const body: Record<string, unknown> = { nombre: form.nombre, rol: form.rol, activo: form.activo };
+      const body: Record<string, unknown> = { nombre: form.nombre, rol: form.rol, activo: form.activo, telefono: form.telefono };
       if (esNuevo) { body.email = form.email; body.password = form.password; }
       if (!esNuevo && form.password) body.password = form.password;
 
@@ -167,6 +169,14 @@ function ModalUsuario({ usuario, onClose, onSaved }: {
           <div>
             <label className="text-xs font-semibold text-gray-400 dark:text-slate-400 uppercase tracking-wider block mb-1.5">Nombre completo *</label>
             <input className="input" value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} placeholder="Ej. María García" />
+          </div>
+
+          {/* Celular: sale en la cotización y es el WhatsApp al que le
+              escribe el cliente desde la oferta. */}
+          <div>
+            <label className="text-xs font-semibold text-gray-400 dark:text-slate-400 uppercase tracking-wider block mb-1.5">Celular</label>
+            <input className="input" value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))} placeholder="300 607 8956" />
+            <p className="text-[11px] text-muted mt-1">Aparece en las cotizaciones que envíe y es el número del botón de WhatsApp que ve el cliente.</p>
           </div>
 
           {/* Email */}
