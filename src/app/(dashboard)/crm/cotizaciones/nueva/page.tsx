@@ -71,6 +71,7 @@ function CotizadorContent() {
   const [notas, setNotas] = useState("");
   const [plantilla, setPlantilla] = useState<"EXPRESS" | "PROPUESTA">("EXPRESS");
   const [validezDias, setValidezDias] = useState(3);
+  const [incluyeInstalacion, setIncluyeInstalacion] = useState(false);
   const [ciudadInstalacion, setCiudadInstalacion] = useState("");
   const [direccionInstalacion, setDireccionInstalacion] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -116,6 +117,36 @@ function CotizadorContent() {
     setProdBusq("");
   };
 
+  /** Instalación sin precio cerrado: queda en la oferta como "a convenir". */
+  const agregarInstalacionLibre = () => {
+    setLineas(prev => [...prev, {
+      descripcion: "Instalación",
+      detalle: "El valor se confirma con la visita técnica.",
+      aMedida: false, puedeMedida: false,
+      largo: 1, ancho: 1, unidades: 1,
+      cantidad: 1,
+      precioUnitario: 0,
+      descuento: 0,
+      unidad: "global",
+      tipo: "INSTALACION",
+    }]);
+  };
+
+  /**
+   * Al desmarcar la instalación se quitan sus líneas: dejarlas escondidas
+   * sumando al total es peor que borrarlas, porque el asesor vería un
+   * total que no cuadra con lo que ve en pantalla.
+   */
+  const alternarInstalacion = (valor: boolean) => {
+    if (!valor && lineas.some(l => l.tipo === "INSTALACION")) {
+      if (!confirm("Se quitarán las líneas de instalación de esta cotización. ¿Sigo?")) return;
+      setLineas(prev => prev.filter(l => l.tipo !== "INSTALACION"));
+      setCiudadInstalacion("");
+      setDireccionInstalacion("");
+    }
+    setIncluyeInstalacion(valor);
+  };
+
   const agregarServicio = (s: ServicioInstalacion) => {
     setLineas(prev => [...prev, {
       descripcion: s.nombre,
@@ -155,7 +186,9 @@ function CotizadorContent() {
     return { subtotal: sub, valorInstalacion: inst, recargoValor: rec, base: b, iva: i, total: b + i };
   }, [lineas, descuentoGlobal, recargo]);
 
-  const hayInstalacion = lineas.some(l => l.tipo === "INSTALACION");
+  // El sitio de instalación se pide en cuanto se marca la casilla, no
+  // cuando ya se agregó una línea: la ciudad es la que define el recargo.
+  const hayInstalacion = incluyeInstalacion || lineas.some(l => l.tipo === "INSTALACION");
 
   const guardar = async () => {
     if (!clienteId) return toast.error("Elige un cliente");
@@ -293,19 +326,53 @@ function CotizadorContent() {
               )}
             </div>
 
-            {/* Servicios de instalación */}
-            {servicios.length > 0 && (
-              <div className="mb-4">
-                <p className="text-[11px] font-semibold text-muted mb-2 flex items-center gap-1.5"><Wrench size={12} /> Agregar instalación</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {servicios.map(s => (
-                    <button key={s.id} onClick={() => agregarServicio(s)} className="pill text-xs">
-                      + {s.nombre} <span className="text-muted">({formatCOP(s.precioBase)}/{s.unidad})</span>
-                    </button>
-                  ))}
+            {/* ── ¿Lleva instalación? ── */}
+            <div className="mb-4 p-3 rounded-xl surface-2">
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={incluyeInstalacion}
+                  onChange={e => alternarInstalacion(e.target.checked)}
+                />
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-soft flex items-center gap-1.5">
+                    <Wrench size={12} /> Esta cotización incluye instalación
+                  </p>
+                  <p className="text-[11px] text-muted mt-0.5">
+                    Márcalo si además del material se cobra la mano de obra. Sale discriminada en la oferta.
+                  </p>
                 </div>
-              </div>
-            )}
+              </label>
+
+              {incluyeInstalacion && (
+                <div className="mt-3 pt-3 border-t divider space-y-2">
+                  {servicios.length > 0 ? (
+                    <>
+                      <p className="text-[11px] font-semibold text-muted">Elige el servicio</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {servicios.map(s => (
+                          <button key={s.id} onClick={() => agregarServicio(s)} className="pill text-xs">
+                            + {s.nombre} <span className="text-muted">({formatCOP(s.precioBase)}/{s.unidad})</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-[11px] text-muted">
+                      No hay servicios en el catálogo todavía. Se pueden cargar en Configuración → Instalación, o
+                      agregar la instalación a mano aquí abajo.
+                    </p>
+                  )}
+
+                  {/* Hay cerramientos que no se pueden costear en la primera
+                      visita. Mejor dejarla escrita en la oferta que omitirla. */}
+                  <button onClick={agregarInstalacionLibre} className="pill text-xs">
+                    + Instalación a convenir <span className="text-muted">(sin precio por ahora)</span>
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Líneas */}
             {lineas.length === 0 ? (
