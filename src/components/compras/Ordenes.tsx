@@ -11,7 +11,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Loader2, Send, X, ShoppingBag, Search, Trash2, Zap, AlertTriangle,
-  CheckCircle2, Clock, FileText,
+  CheckCircle2, Clock, FileText, PackageCheck,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { formatCOP, formatDate, cn } from "@/lib/utils";
@@ -216,7 +216,41 @@ function NuevaOrden({
 // ── Modal: detalle y envío ──────────────────────────────────
 function DetalleOrden({ orden, onClose, onCambio }: { orden: Orden; onClose: () => void; onCambio: () => void }) {
   const [enviando, setEnviando] = useState(false);
+  const [cambiando, setCambiando] = useState(false);
   const [error, setError] = useState(orden.errorEnvio);
+
+  const cambiarEstado = async (estado: string, aviso?: string) => {
+    if (aviso && !confirm(aviso)) return;
+    setCambiando(true);
+    try {
+      const res = await fetch(`/api/compras/ordenes/${orden.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado }),
+      });
+      const j = await res.json();
+      if (!res.ok || !j.success) return toast.error(j.error ?? "No se pudo actualizar");
+      toast.success(j.mensaje ?? "Orden actualizada");
+      onCambio();
+      if (estado === "RECIBIDA" || estado === "CANCELADA") onClose();
+    } finally { setCambiando(false); }
+  };
+
+  const cancelar = async () => {
+    if (!confirm(`¿Cancelar la orden ${orden.numero}? Queda en el historial, no se borra.`)) return;
+    setCambiando(true);
+    try {
+      const res = await fetch(`/api/compras/ordenes/${orden.id}`, { method: "DELETE" });
+      const j = await res.json();
+      if (!res.ok || !j.success) return toast.error(j.error ?? "No se pudo cancelar");
+      toast.success("Orden cancelada");
+      onCambio();
+      onClose();
+    } finally { setCambiando(false); }
+  };
+
+  const recibida = orden.estado === "RECIBIDA";
+  const cancelada = orden.estado === "CANCELADA";
 
   const enviar = async () => {
     if (!confirm(`¿Enviar la orden ${orden.numero} a ${orden.proveedor.email}?`)) return;
@@ -303,16 +337,56 @@ function DetalleOrden({ orden, onClose, onCambio }: { orden: Orden; onClose: () 
           )}
         </div>
 
+        {/* Recepción de mercancía */}
+        {!recibida && !cancelada && (
+          <div className="px-5 pb-4">
+            <div className="p-4 rounded-xl surface-2">
+              <p className="text-xs font-bold text-soft mb-1">¿Ya llegó la mercancía?</p>
+              <p className="text-[11px] text-muted mb-3">
+                Al marcarla recibida, las cantidades de esta orden entran al stock. Se hace una sola vez.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => cambiarEstado("RECIBIDA_PARCIAL")}
+                  disabled={cambiando}
+                  className="btn-secondary btn-sm flex-1 justify-center"
+                >
+                  Llegó parcial
+                </button>
+                <button
+                  onClick={() => cambiarEstado("RECIBIDA", `¿Confirmas que llegó completa la orden ${orden.numero}? Se sumará el stock de ${orden.items.length} producto(s).`)}
+                  disabled={cambiando}
+                  className="flex-1 py-2 rounded-lg text-xs font-semibold text-white flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  style={{ backgroundColor: "#16a34a" }}
+                >
+                  {cambiando ? <Loader2 size={12} className="animate-spin" /> : <PackageCheck size={12} />} Recibida — sumar stock
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {recibida && (
+          <div className="px-5 pb-4">
+            <div className="p-3 rounded-xl text-xs text-center bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+              Mercancía recibida y sumada al stock.
+            </div>
+          </div>
+        )}
+
         <div className="p-5 pt-0 flex gap-3">
           <button onClick={onClose} className="btn-secondary flex-1">Cerrar</button>
+          {!recibida && !cancelada && (
+            <button onClick={cancelar} disabled={cambiando} className="btn-secondary text-red-600">Cancelar orden</button>
+          )}
           <button
             onClick={enviar}
-            disabled={enviando || !orden.proveedor.email || orden.estado === "CANCELADA"}
+            disabled={enviando || !orden.proveedor.email || cancelada || recibida}
             className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50"
             style={{ backgroundColor: ERP_COLOR }}
           >
             {enviando ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-            {orden.enviadaEn ? "Reenviar al proveedor" : "Enviar al proveedor"}
+            {orden.enviadaEn ? "Reenviar" : "Enviar al proveedor"}
           </button>
         </div>
       </div>
@@ -334,6 +408,10 @@ export function Ordenes({ proveedores }: { proveedores: ProveedorOpcion[] }) {
   const refrescar = () => {
     qc.invalidateQueries({ queryKey: ["ordenes-compra"] });
     qc.invalidateQueries({ queryKey: ["proveedores"] });
+    // Al recibir mercancía cambia el stock: el bloque de reabastecimiento
+    // de arriba tiene que reflejarlo sin que haya que recargar la página.
+    qc.invalidateQueries({ queryKey: ["productos-reabastecer"] });
+    qc.invalidateQueries({ queryKey: ["stock"] });
   };
 
   return (
