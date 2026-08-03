@@ -1,10 +1,25 @@
+// ============================================================
+// POST /api/ai/nexus-reply — sugiere la respuesta de una conversación.
+//
+// Antes usaba `ai.ts`, el motor viejo (OpenAI/Anthropic genérico). Ahora
+// va por el núcleo de Sembli con la tarea `nexus`, que corre en Haiku:
+// es alto volumen y no necesita el modelo caro. Así hay un solo lugar
+// donde se configura la IA y un solo sitio donde se mide lo que cuesta.
+//
+// Sugiere, no envía. El asesor lee, ajusta y decide.
+// ============================================================
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { getAIConfig, chatAI } from "@/lib/ai";
+import { pedirTexto } from "@/lib/sembli/agente";
 
-// Sugiere una respuesta para una conversación de Nexus usando la IA configurada.
-// Implementa 2 flujos: consulta de producto y ayuda a cotizar (con transferencia a humano si se complica).
+interface NodoFlujo { tipo: string; config: Record<string, unknown> }
+interface Flujo {
+  disparador: string[]; objetivo: string; activo: boolean;
+  transferirSiComplejo: boolean; nodos?: NodoFlujo[];
+}
+
 export async function POST(req: NextRequest) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
@@ -12,76 +27,105 @@ export async function POST(req: NextRequest) {
   const { conversacionId } = await req.json();
   if (!conversacionId) return NextResponse.json({ success: false, error: "Falta conversacionId" }, { status: 400 });
 
-  const cfg = await getAIConfig();
-  if (!cfg) return NextResponse.json({ success: false, sinClave: true, error: "Configura la IA en Configuración → IA." });
-
   const conv = await prisma.nexusConversacion.findUnique({
     where: { id: conversacionId },
-    include: { mensajes: { orderBy: { createdAt: "asc" }, take: 20 } },
+    include: {
+      mensajes: { orderBy: { createdAt: "asc" }, take: 20 },
+      cliente: { select: { nombre: true, empresa: true, ciudad: true } },
+    },
   }).catch(() => null);
   if (!conv) return NextResponse.json({ success: false, error: "Conversación no encontrada" }, { status: 404 });
 
-  // Determinar el objetivo según los flujos activos (coincidencia por palabras clave)
+  // ── Qué flujo aplica ──
   let objetivo = "Atender al cliente de forma amable y profesional, resolver dudas de producto y ayudar a cotizar.";
   let transferirSiComplejo = true;
   try {
-    interface FNodo { tipo: string; config: Record<string, unknown> }
-    interface FFlujo { disparador: string[]; objetivo: string; activo: boolean; transferirSiComplejo: boolean; nodos?: FNodo[] }
-    const flujosRow = await prisma.configuracion.findUnique({ where: { clave: "nexus_flujos" } });
-    const flujos: FFlujo[] = flujosRow ? JSON.parse(flujosRow.valor) : [];
-    const textoCliente = conv.mensajes.filter(m => m.origen === "contacto").map(m => m.contenido.toLowerCase()).join(" ");
+    const fila = await prisma.configuracion.findUnique({ where: { clave: "nexus_flujos" } });
+    const flujos: Flujo[] = fila ? JSON.parse(fila.valor) : [];
+    const textoCliente = conv.mensajes
+      .filter(m => m.origen === "contacto")
+      .map(m => m.contenido.toLowerCase())
+      .join(" ");
+
     const match = flujos.find(f => {
-      const disp = (f.disparador ?? []).concat(
-        (f.nodos ?? []).filter(n => n.tipo === "trigger").flatMap(n => String(n.config.disparador ?? "").split(",").map(s => s.trim()))
+      const disparadores = (f.disparador ?? []).concat(
+        (f.nodos ?? [])
+          .filter(n => n.tipo === "trigger")
+          .flatMap(n => String(n.config.disparador ?? "").split(",").map(s => s.trim())),
       );
-      return f.activo && disp.some(d => d && textoCliente.includes(d.toLowerCase()));
+      return f.activo && disparadores.some(d => d && textoCliente.includes(d.toLowerCase()));
     });
+
     if (match) {
       transferirSiComplejo = match.transferirSiComplejo;
-      // Construye el objetivo desde los nodos de IA (contexto + tareas) si existen
-      const iaNodos = (match.nodos ?? []).filter(n => n.tipo === "ia");
-      if (iaNodos.length) {
-        objetivo = iaNodos.map(n => {
+      const nodosIA = (match.nodos ?? []).filter(n => n.tipo === "ia");
+      if (nodosIA.length) {
+        objetivo = nodosIA.map(n => {
           const tareas = Array.isArray(n.config.tareas) ? (n.config.tareas as string[]).filter(Boolean) : [];
-          return `Contexto: ${n.config.contexto ?? ""}${tareas.length ? `\nTareas: ${tareas.map(t => `- ${t}`).join("\n")}` : ""}`;
+          return `Contexto: ${n.config.contexto ?? ""}${tareas.length ? `\nTareas:\n${tareas.map(t => `- ${t}`).join("\n")}` : ""}`;
         }).join("\n");
         if ((match.nodos ?? []).some(n => n.tipo === "transferir")) transferirSiComplejo = true;
       } else if (match.objetivo) {
         objetivo = match.objetivo;
       }
     }
-  } catch { /* usa el objetivo por defecto */ }
+  } catch {
+    // Un flujo mal guardado no debe dejar al asesor sin sugerencia.
+  }
 
-  // Productos publicados (contexto breve para responder consultas)
   const productos = await prisma.producto.findMany({
     where: { publicado: true },
-    select: { nombre: true, categorias: true, precioNormal: true },
+    select: { nombre: true, precioNormal: true, acfUnidadVenta: true },
     take: 40,
   });
-  const catalogo = productos.map(p => `- ${p.nombre}${p.precioNormal ? ` (desde $${Number(p.precioNormal)}/m²)` : ""}`).join("\n");
+  const catalogo = productos
+    .map(p => `- ${p.nombre}${p.precioNormal ? ` (desde ${Number(p.precioNormal)} COP/${p.acfUnidadVenta ?? "unidad"})` : ""}`)
+    .join("\n");
 
-  const historial = conv.mensajes.map(m => `${m.origen === "contacto" ? "Cliente" : "Asesor"}: ${m.contenido}`).join("\n");
+  // Lo que el bot ya dedujo al entrar el mensaje, para no volver a
+  // preguntar lo que el cliente ya dijo.
+  const calificacion = (conv.metadata as { calificacion?: Record<string, unknown> } | null)?.calificacion;
 
   const system = [
-    "Eres asesor virtual de Costamallas (Colombia), fabricante de mallas (metálicas, nylon, plásticas, balcones, seguridad perimetral) con instalación.",
+    "Eres asesor comercial de Costamallas (Colombia), fabricante de mallas metálicas, de nylon, plásticas,",
+    "para balcones y de seguridad perimetral, con servicio de instalación propio.",
     `Objetivo: ${objetivo}`,
-    "Reglas de los 2 flujos:",
-    "1) CONSULTA DE PRODUCTO: responde con la información disponible del catálogo (abajo). Sé claro y útil.",
-    "2) COTIZACIÓN: ayuda amablemente a entender qué necesita (tipo de malla, medidas largo×ancho, cantidad, ciudad, si requiere instalación). Pregunta de forma ordenada, una o dos cosas a la vez.",
-    transferirSiComplejo ? "Si la conversación se vuelve compleja, técnica o el cliente lo pide, ofrece transferir a un asesor humano (responde incluyendo la etiqueta [TRANSFERIR] al final)." : "Resuelve la consulta tú mismo de forma completa.",
-    "Responde en español, breve, cordial y profesional. Devuelve SOLO el texto de la respuesta sugerida para enviar al cliente.",
+    conv.cliente ? `Quien escribe YA es cliente: ${conv.cliente.empresa ?? conv.cliente.nombre}${conv.cliente.ciudad ? ` (${conv.cliente.ciudad})` : ""}. Trátalo como tal.` : "",
+    calificacion ? `Del primer mensaje ya se dedujo: ${JSON.stringify(calificacion)}. No vuelvas a preguntar eso.` : "",
+    conv.etiquetas.length ? `Etiquetas: ${conv.etiquetas.join(", ")}.` : "",
+    "Para cotizar necesitas: tipo de malla, medidas (largo × ancho), cantidad, ciudad y si requiere instalación.",
+    "Pregunta una o dos cosas a la vez, nunca un cuestionario.",
+    transferirSiComplejo
+      ? "Si se vuelve técnico o el cliente lo pide, ofrece pasarlo con un asesor humano y termina con la etiqueta [TRANSFERIR]."
+      : "Resuelve tú la consulta de forma completa.",
+    "Responde en español, breve y cordial. Devuelve SOLO el texto que se le enviaría al cliente.",
     "",
-    "Catálogo disponible:",
+    "Catálogo publicado:",
     catalogo || "(sin productos publicados)",
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 
-  const userMsg = `Conversación hasta ahora:\n${historial || "(sin mensajes)"}\n\nRedacta la siguiente respuesta del asesor.`;
+  const historial = conv.mensajes
+    .map(m => `${m.origen === "contacto" ? "Cliente" : "Asesor"}: ${m.contenido}`)
+    .join("\n");
 
   try {
-    const respuesta = await chatAI(system, userMsg, cfg);
-    const transferir = respuesta.includes("[TRANSFERIR]");
-    return NextResponse.json({ success: true, data: { respuesta: respuesta.replace("[TRANSFERIR]", "").trim(), transferir } });
+    const { texto, costoUSD } = await pedirTexto({
+      tarea: "nexus",
+      system,
+      mensaje: `Conversación hasta ahora:\n${historial || "(sin mensajes)"}\n\nRedacta la siguiente respuesta del asesor.`,
+      maxTokens: 700,
+    });
+
+    const transferir = texto.includes("[TRANSFERIR]");
+    return NextResponse.json({
+      success: true,
+      data: { respuesta: texto.replace("[TRANSFERIR]", "").trim(), transferir, costoUSD },
+    });
   } catch (e) {
-    return NextResponse.json({ success: false, error: `IA: ${(e as Error).message}` }, { status: 500 });
+    const msg = (e as Error).message;
+    return NextResponse.json(
+      { success: false, error: /no está configurada/i.test(msg) ? "La IA no está configurada. Cárgala en Configuración → IA." : `IA: ${msg}` },
+      { status: 500 },
+    );
   }
 }

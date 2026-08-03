@@ -91,6 +91,7 @@ model Cliente {
   tareas       Tarea[]
   facturas     Factura[]
   logins       Usuario[] @relation("LoginDelCliente")
+  conversaciones NexusConversacion[]
 
   @@map("clientes")
   @@index([vendedorId])
@@ -937,9 +938,20 @@ model NexusConversacion {
   asunto      String?
   estado      String        @default("ABIERTA")
   prioridad   String        @default("NORMAL")
-  asignadoId  String?       // usuario asignado (heredado de la línea o transferido)
+  asignadoId  String?       // usuario asignado (por turno o transferido)
   leida       Boolean       @default(false)
   metadata    Json?
+
+  /// Lo que el bot saca del primer mensaje: producto, ciudad, urgencia.
+  etiquetas   String[]      @default([])
+  /// Vínculo con el CRM: saber que quien escribe ya es cliente cambia
+  /// por completo cómo se le atiende.
+  clienteId   String?
+  cliente     Cliente?      @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  /// Cuándo contestó un humano por primera vez. Es lo que permite medir
+  /// el compromiso de responder en una hora.
+  primeraRespuestaEn DateTime?
+
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -964,6 +976,15 @@ model NexusMensaje {
   tipo            String            @default("texto")
   metadata        Json?
   leido           Boolean           @default(false)
+
+  /// RECIBIDO (entró del contacto) · ENVIADO · PENDIENTE · ERROR.
+  /// Sin esto, que la API del canal rechazara el mensaje era invisible:
+  /// el asesor veía su respuesta en pantalla y el cliente nunca la recibía.
+  estadoEnvio     String            @default("RECIBIDO")
+  errorEnvio      String?           @db.Text
+  /// Id del mensaje en el canal (wamid en WhatsApp).
+  refExterna      String?
+
   createdAt       DateTime          @default(now())
 
   @@map("nexus_mensajes")

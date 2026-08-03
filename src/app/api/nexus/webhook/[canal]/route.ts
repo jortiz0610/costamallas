@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { asignarConversacion } from "@/lib/nexus/asignacion";
+import { calificarMensaje, etiquetasDe, prioridadDe } from "@/lib/nexus/bot";
 
 type P = { params: Promise<{ canal: string }> };
 
@@ -59,7 +61,51 @@ export async function POST(req: NextRequest, { params }: P) {
     metadata = body;
   }
 
-  // Crear conversación + primer mensaje
+  // ── Si ya hay una conversación abierta con este contacto, el mensaje
+  // se suma a ella. Abrir una nueva por cada mensaje partía el hilo y
+  // el asesor perdía el contexto de lo que ya había hablado.
+  const abierta = (telRemit || emailRemit)
+    ? await prisma.nexusConversacion.findFirst({
+        where: {
+          canal,
+          estado: "ABIERTA",
+          OR: [
+            ...(telRemit ? [{ telRemit }] : []),
+            ...(emailRemit ? [{ emailRemit }] : []),
+          ],
+        },
+        orderBy: { createdAt: "desc" },
+        select: { id: true },
+      })
+    : null;
+
+  if (abierta) {
+    await prisma.nexusMensaje.create({
+      data: {
+        conversacionId: abierta.id,
+        origen: "contacto",
+        contenido: contenido || "(Sin mensaje)",
+        tipo: "texto",
+        estadoEnvio: "RECIBIDO",
+        metadata,
+      },
+    });
+    await prisma.nexusConversacion.update({
+      where: { id: abierta.id },
+      data: { leida: false, updatedAt: new Date() },
+    });
+    return NextResponse.json({ ok: true, conversacionId: abierta.id, continuacion: true });
+  }
+
+  // ── Conversación nueva ──
+  // El bot califica y el reparto decide a quién le toca. Las dos cosas
+  // pueden fallar sin que el mensaje se pierda: peor que un lead sin
+  // clasificar es un lead que no entró.
+  const [calificacion, asignacion] = await Promise.all([
+    calificarMensaje(contenido),
+    asignarConversacion({ telefono: telRemit, email: emailRemit, preferido: conexion.asignadoId }),
+  ]);
+
   const conversacion = await prisma.nexusConversacion.create({
     data: {
       conexionId: conexion.id,
@@ -69,31 +115,46 @@ export async function POST(req: NextRequest, { params }: P) {
       telRemit: telRemit || undefined,
       asunto,
       estado: "ABIERTA",
-      asignadoId: conexion.asignadoId ?? undefined, // hereda el usuario asignado a la línea
+      // Ya no hereda el dueño fijo de la línea: se reparte por turno para
+      // que todos los asesores tengan la misma oportunidad.
+      asignadoId: asignacion.usuarioId ?? undefined,
+      clienteId: asignacion.clienteId ?? undefined,
+      prioridad: prioridadDe(calificacion),
+      etiquetas: etiquetasDe(calificacion),
       leida: false,
-      metadata,
+      metadata: { ...metadata, calificacion, asignacion: asignacion.motivo },
       mensajes: {
         create: {
           origen: "contacto",
           contenido: contenido || "(Sin mensaje)",
           tipo: "texto",
+          estadoEnvio: "RECIBIDO",
           metadata,
         },
       },
     },
   });
 
-  // Crear notificación
   await prisma.notificacion.create({
     data: {
       tipo: "NEXUS_MENSAJE" as "SISTEMA",
       titulo: `Nuevo mensaje de ${remitente}`,
-      mensaje: `Canal: ${canal} · ${asunto ?? ""}`,
-      data: { conversacionId: conversacion.id, canal },
+      mensaje: [
+        `Canal: ${canal}`,
+        calificacion?.resumen,
+        calificacion?.urgencia === "ALTA" ? "URGENTE" : null,
+      ].filter(Boolean).join(" · "),
+      data: { conversacionId: conversacion.id, canal, asignadoId: asignacion.usuarioId },
     },
   }).catch(() => {});
 
-  return NextResponse.json({ ok: true, conversacionId: conversacion.id });
+  return NextResponse.json({
+    ok: true,
+    conversacionId: conversacion.id,
+    asignadoA: asignacion.usuarioId,
+    motivo: asignacion.motivo,
+    calificacion,
+  });
 }
 
 /** Verificación de webhook (GET) — para plataformas como Meta */

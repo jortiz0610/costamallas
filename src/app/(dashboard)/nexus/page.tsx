@@ -7,7 +7,7 @@ import {
   MessageSquare, Settings2, Search, Send, RefreshCw,
   Globe, Smartphone, Instagram, CheckCheck,
   X, Mail, MessageSquareText,
-  Inbox, PlugZap, Facebook, Sparkles, Loader2,
+  Inbox, PlugZap, Facebook, Sparkles, Loader2, StickyNote,
 } from "lucide-react";
 import Link from "next/link";
 import { useBrand } from "@/contexts/BrandContext";
@@ -25,8 +25,11 @@ interface NexusConexion {
 }
 
 interface NexusMensaje {
-  id: string; origen: "contacto" | "agente"; contenido: string;
+  id: string; origen: "contacto" | "agente" | "nota"; contenido: string;
   tipo: string; createdAt: string; agente?: { nombre: string } | null;
+  /** RECIBIDO · ENVIADO · ERROR · NOTA. Sin esto, un mensaje que no salió
+   *  se veía igual que uno entregado. */
+  estadoEnvio?: string; errorEnvio?: string | null;
 }
 
 interface Conversacion {
@@ -152,20 +155,30 @@ function ChatView({ conv, onMarcarResuelta }: { conv: Conversacion; onMarcarResu
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [mensajes.length]);
 
   const sendMutation = useMutation({
-    mutationFn: async (contenido: string) => {
+    mutationFn: async ({ contenido, soloNota }: { contenido: string; soloNota?: boolean }) => {
       const res = await fetch("/api/nexus/mensajes", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversacionId: conv.id, contenido }),
+        body: JSON.stringify({ conversacionId: conv.id, contenido, soloNota }),
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error);
+      // El servidor guarda el mensaje aunque el envío falle: se refresca
+      // igual para que el asesor vea el error marcado en su burbuja.
+      if (!json.success) {
+        qc.invalidateQueries({ queryKey: ["nexus-mensajes", conv.id] });
+        throw new Error(json.error ?? "No se pudo enviar");
+      }
       return json.data;
     },
-    onSuccess: () => { setTexto(""); qc.invalidateQueries({ queryKey: ["nexus-mensajes", conv.id] }); qc.invalidateQueries({ queryKey: ["nexus-conversaciones"] }); },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => {
+      setTexto("");
+      qc.invalidateQueries({ queryKey: ["nexus-mensajes", conv.id] });
+      qc.invalidateQueries({ queryKey: ["nexus-conversaciones"] });
+    },
+    onError: (e: Error) => toast.error(e.message, { duration: 6000 }),
   });
 
-  const handleSend = () => { if (texto.trim()) sendMutation.mutate(texto.trim()); };
+  const handleSend = () => { if (texto.trim()) sendMutation.mutate({ contenido: texto.trim() }); };
+  const handleNota = () => { if (texto.trim()) sendMutation.mutate({ contenido: texto.trim(), soloNota: true }); };
 
   const meta = CANAL_META[conv.canal];
   const Icon = meta?.Icon ?? MessageSquare;
@@ -234,13 +247,28 @@ function ChatView({ conv, onMarcarResuelta }: { conv: Conversacion; onMarcarResu
                     ? "text-white rounded-br-sm"
                     : "text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 rounded-bl-sm border border-slate-100 dark:border-slate-700"
                 )}
-                  style={m.origen === "agente" ? { backgroundColor: brand.brandColor } : {}}>
+                  style={
+                    m.origen === "nota"
+                      ? { backgroundColor: "#fef3c7", color: "#78350f" }
+                      : m.origen === "agente" ? { backgroundColor: brand.brandColor } : {}
+                  }>
+                  {m.origen === "nota" && <span className="block text-[9px] font-bold uppercase tracking-wider mb-0.5 opacity-70">Nota interna</span>}
                   {m.contenido}
                 </div>
                 <div className={cn("mt-0.5 text-[10px] text-slate-400", m.origen === "agente" ? "text-right" : "text-left")}>
                   {timeAgoCO(m.createdAt)}
                   {m.origen === "agente" && m.agente && ` · ${m.agente.nombre}`}
+                  {/* Un mensaje que no salió tiene que verse distinto: antes
+                      quedaba idéntico a uno entregado y el asesor daba por
+                      hecho que el cliente lo había recibido. */}
+                  {m.estadoEnvio === "ENVIADO" && <span className="text-emerald-500"> · entregado</span>}
+                  {m.estadoEnvio === "ERROR" && <span className="text-red-500 font-semibold"> · NO SE ENVIÓ</span>}
                 </div>
+                {m.estadoEnvio === "ERROR" && m.errorEnvio && (
+                  <p className="mt-1 text-[10px] text-red-600 bg-red-50 dark:bg-red-500/10 rounded-lg px-2 py-1 max-w-xs">
+                    {m.errorEnvio}
+                  </p>
+                )}
               </div>
             </div>
           ))
@@ -262,10 +290,16 @@ function ChatView({ conv, onMarcarResuelta }: { conv: Conversacion; onMarcarResu
             className="input flex-1 py-2 text-sm"
             placeholder="Escribe una respuesta… (Enter para enviar)"
           />
+          {/* Nota interna: queda en el hilo para quien retome la
+              conversación, pero NO se le manda al cliente. */}
+          <button onClick={handleNota} disabled={!texto.trim() || sendMutation.isPending} title="Guardar como nota interna (no se envía al cliente)"
+            className="w-10 h-10 rounded-xl flex items-center justify-center border divider text-muted hover:surface-2 transition-all disabled:opacity-50 flex-shrink-0">
+            <StickyNote size={16} />
+          </button>
           <button onClick={handleSend} disabled={!texto.trim() || sendMutation.isPending}
             className="w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all disabled:opacity-50 flex-shrink-0"
             style={{ backgroundColor: brand.brandColor }}>
-            <Send size={16} />
+            {sendMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </button>
         </div>
       ) : (

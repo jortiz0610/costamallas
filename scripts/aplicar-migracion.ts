@@ -41,13 +41,37 @@ async function main() {
   const { PrismaClient } = await import("@prisma/client");
   const prisma = new PrismaClient();
 
-  const sentencias = readFileSync(ruta, "utf8")
+  const limpio = readFileSync(ruta, "utf8")
     .split("\n")
     .filter(l => !l.trim().startsWith("--"))
-    .join("\n")
-    .split(";")
-    .map(s => s.trim())
-    .filter(Boolean);
+    .join("\n");
+
+  // Partir por ';' a secas rompe los bloques DO $$ ... $$, que llevan
+  // punto y coma adentro: se caían con "unterminated dollar-quoted
+  // string". Se lleva la cuenta de si vamos dentro de un $$.
+  const sentencias: string[] = [];
+  let actual = "";
+  let dentroDeBloque = false;
+  for (const trozo of limpio.split(/(\$\$)/)) {
+    if (trozo === "$$") {
+      dentroDeBloque = !dentroDeBloque;
+      actual += trozo;
+      continue;
+    }
+    if (dentroDeBloque) {
+      actual += trozo;
+      continue;
+    }
+    const partes = trozo.split(";");
+    for (let i = 0; i < partes.length; i++) {
+      actual += partes[i];
+      if (i < partes.length - 1) {
+        if (actual.trim()) sentencias.push(actual.trim());
+        actual = "";
+      }
+    }
+  }
+  if (actual.trim()) sentencias.push(actual.trim());
 
   console.log(`${sentencias.length} sentencias en ${ruta}\n`);
 

@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { TabCotizacion } from "@/components/configuracion/TabCotizacion";
 import { TabInstalacion } from "@/components/configuracion/TabInstalacion";
+import { CredencialesCanal, type ConexionCanal } from "@/components/configuracion/CredencialesCanal";
 
 interface WCStatus { configured: boolean; ok?: boolean; storeName?: string; version?: string; error?: string; }
 
@@ -559,6 +560,7 @@ function ChannelCard({ canal, conexiones, onConnect, onToggle, brandColor }: {
 }) {
   const [open, setOpen] = useState(false);
   const [showGuia, setShowGuia] = useState(false);
+  const [verCredenciales, setVerCredenciales] = useState(false);
   const [nombre, setNombre] = useState("");
   const [saving, setSaving] = useState(false);
   const { Icon } = canal;
@@ -626,6 +628,22 @@ function ChannelCard({ canal, conexiones, onConnect, onToggle, brandColor }: {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Credenciales de envío: sin ellas el canal solo recibe */}
+      {activa && (
+        <>
+          <button
+            onClick={() => setVerCredenciales(v => !v)}
+            className="w-full flex items-center justify-between px-4 py-2.5 border-t divider text-xs font-semibold text-muted hover:text-soft transition-colors"
+          >
+            <span className="flex items-center gap-1.5"><PlugZap size={12} /> Credenciales para responder</span>
+            <ChevronDown size={13} className={verCredenciales ? "rotate-180" : ""} />
+          </button>
+          {verCredenciales && (
+            <CredencialesCanal conexion={activa as unknown as ConexionCanal} />
+          )}
+        </>
       )}
 
       {/* Guía de conexión */}
