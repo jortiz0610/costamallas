@@ -49,6 +49,7 @@ const ERP_ITEMS = [
 
 const CRM_ITEMS = [
   { href: "/crm", label: "Resumen", icon: LayoutDashboard },
+  { href: "/crm/embudo", label: "Embudo", icon: Target },
   { section: "Gestión" },
   { href: "/crm/clientes", label: "Clientes", icon: UserCircle },
   { href: "/crm/cotizaciones", label: "Cotizaciones", icon: ClipboardList },
