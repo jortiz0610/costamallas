@@ -21,7 +21,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Parámetros inválidos" }, { status: 400 });
   }
 
-  const { busqueda, categoria, estado, publicado, stockCritico, page, limit, orderBy, order } = parsed.data;
+  const {
+    busqueda, categoria, estado, publicado, stockCritico, page, limit, orderBy, order,
+    nivel, sinImagen, sinPrecio, sinSEO, sinFicha, sinTienda, listoExportar, aMedida,
+  } = parsed.data;
   const skip = (page - 1) * limit;
 
   const where: Prisma.ProductoWhereInput = {};
@@ -48,6 +51,42 @@ export async function GET(req: NextRequest) {
   if (estado) where.intEstado = estado;
   if (publicado !== undefined) where.publicado = publicado;
   if (stockCritico) where.stock = { lte: 5 };
+
+  // ── Filtros de trabajo ──
+  if (sinImagen) where.imagenes = { none: {} };
+  if (sinPrecio) where.OR = [{ precioNormal: null }, { precioNormal: 0 }];
+  if (sinSEO) {
+    // Falta cualquiera de las dos: sin título o sin descripción, la ficha
+    // no está lista para posicionar.
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+      { OR: [{ seoTitulo: null }, { seoTitulo: "" }, { seoDescripcion: null }, { seoDescripcion: "" }] },
+    ];
+  }
+  if (sinFicha) {
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+      { OR: [{ acfFichaTecnicaPdf: null }, { acfFichaTecnicaPdf: "" }] },
+    ];
+  }
+  if (sinTienda) where.wcId = null;
+  if (listoExportar) where.intListoExportar = true;
+  if (aMedida) where.acfFabricacionMedida = true;
+
+  // El nivel compara stock con stockMinimo (columna contra columna), que
+  // Prisma no expresa en `where`. Cuando se filtra por nivel se traen los
+  // ids que cumplen y se acotan aquí; es más caro, pero es la única forma
+  // de que la paginación y el total sigan siendo correctos.
+  if (nivel) {
+    const candidatos = await prisma.producto.findMany({
+      where,
+      select: { id: true, stock: true, stockMinimo: true },
+    });
+    const ids = candidatos
+      .filter((p) => (nivel === "AGOTADO" ? p.stock <= 0 : nivelStock(p.stock, p.stockMinimo) === nivel))
+      .map((p) => p.id);
+    where.id = { in: ids };
+  }
 
   const [productos, total] = await Promise.all([
     prisma.producto.findMany({

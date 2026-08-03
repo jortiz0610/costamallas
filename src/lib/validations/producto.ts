@@ -55,9 +55,24 @@ export const filtrosProductosSchema = z.object({
   estado: z.enum(["BORRADOR", "REVISION", "LISTO", "PUBLICADO", "ARCHIVADO"]).optional(),
   publicado: z.coerce.boolean().optional(),
   stockCritico: z.coerce.boolean().optional(),
+
+  // ── Filtros de trabajo del catálogo ──
+  // Responden a "qué me falta para poder publicar" y "qué está mal",
+  // que es lo que de verdad se busca cuando se abre esta pantalla.
+  /** Nivel calculado comparando stock con el mínimo de cada producto. */
+  nivel: z.enum(["AGOTADO", "CRITICO", "BAJO", "ADVERTENCIA", "OK"]).optional(),
+  sinImagen: z.coerce.boolean().optional(),
+  sinPrecio: z.coerce.boolean().optional(),
+  sinSEO: z.coerce.boolean().optional(),
+  sinFicha: z.coerce.boolean().optional(),
+  /** Nunca ha llegado a la tienda: no tiene wcId. */
+  sinTienda: z.coerce.boolean().optional(),
+  listoExportar: z.coerce.boolean().optional(),
+  aMedida: z.coerce.boolean().optional(),
+
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(25),
-  orderBy: z.enum(["updatedAt", "nombre", "sku", "precioNormal", "stock"]).default("updatedAt"),
+  orderBy: z.enum(["updatedAt", "createdAt", "nombre", "sku", "precioNormal", "stock"]).default("updatedAt"),
   order: z.enum(["asc", "desc"]).default("desc"),
 });
 
