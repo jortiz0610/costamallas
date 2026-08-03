@@ -6,6 +6,7 @@ import { Wrench, Calendar, MapPin, User, CheckCircle2, Clock, AlertCircle, Refre
 import toast from "react-hot-toast";
 import { formatCOP } from "@/lib/utils";
 import { CIUDADES } from "@/lib/colombia";
+import { FichaInstalacion } from "@/components/crm/FichaInstalacion";
 
 interface PedidoOpt { id: string; numero: string; total: number; cliente: { nombre: string; empresa?: string }; }
 interface TecnicoOpt { id: string; nombre: string; }
@@ -97,10 +98,25 @@ function NuevaInstalacion({ onClose, onSaved }: { onClose: () => void; onSaved: 
 }
 
 interface Instalacion {
-  id: string; estado: string; fechaAgendada?: string; direccion?: string; ciudad?: string; notas?: string;
-  pedido: { numero: string; total: number; cliente: { nombre: string; empresa?: string } };
-  tecnico?: { nombre: string };
+  id: string; estado: string; fechaAgendada?: string; fechaRealizada?: string;
+  direccion?: string; ciudad?: string; notas?: string;
+  fotos?: { url: string; titulo?: string; momento: "ANTES" | "DESPUES" }[];
+  checklist?: { texto: string; hecho: boolean }[];
+  pedido: { id?: string; numero: string; total: number; cliente: { nombre: string; empresa?: string; telefono?: string } };
+  tecnico?: { id?: string; nombre: string };
 }
+
+/** Lunes de la semana a la que pertenece la fecha. */
+function lunesDe(fecha: Date): Date {
+  const d = new Date(fecha);
+  d.setHours(0, 0, 0, 0);
+  // getDay(): 0 = domingo. Se corre al lunes anterior.
+  const desplazamiento = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - desplazamiento);
+  return d;
+}
+
+const DIAS_SEMANA = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const CRM_COLOR = "#BA7517";
 const ESTADOS = [
   { v: "PENDIENTE",  l: "Pendiente",  bg: "#fef3c7", text: "#92400e", Icon: Clock },
@@ -126,6 +142,9 @@ const STATS = [
 function InstalacionesContent() {
   const [filtro, setFiltro] = useState("todos");
   const [modal, setModal] = useState(false);
+  const [vista, setVista] = useState<"semana" | "lista">("semana");
+  const [semana, setSemana] = useState(() => lunesDe(new Date()));
+  const [abierta, setAbierta] = useState<string | null>(null);
   const qc = useQueryClient();
   const { data: instalaciones = [], isLoading, refetch } = useQuery<Instalacion[]>({
     queryKey: ["instalaciones"],
@@ -162,16 +181,92 @@ function InstalacionesContent() {
             );
           })}
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {([{ v: "todos", l: "Todas" }, ...ESTADOS] as { v: string; l: string }[]).map(e => (
-            <button key={e.v} onClick={() => setFiltro(e.v)}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
-              style={filtro === e.v ? { backgroundColor: "var(--brand-color)", color: "white" } : { backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>
-              {e.l}
-            </button>
-          ))}
+        {/* Semana / Lista */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex gap-1 p-1 rounded-xl surface-2">
+            {([{ v: "semana", l: "Semana" }, { v: "lista", l: "Lista" }] as const).map(v => (
+              <button key={v.v} onClick={() => setVista(v.v)}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={vista === v.v ? { backgroundColor: CRM_COLOR, color: "white" } : { color: "var(--text-muted)" }}>
+                {v.l}
+              </button>
+            ))}
+          </div>
+
+          {vista === "semana" ? (
+            <div className="flex items-center gap-2 ml-auto">
+              <button onClick={() => setSemana(s => { const d = new Date(s); d.setDate(d.getDate() - 7); return d; })} className="btn-secondary btn-sm">←</button>
+              <button onClick={() => setSemana(lunesDe(new Date()))} className="btn-secondary btn-sm">Esta semana</button>
+              <button onClick={() => setSemana(s => { const d = new Date(s); d.setDate(d.getDate() + 7); return d; })} className="btn-secondary btn-sm">→</button>
+            </div>
+          ) : (
+            <div className="flex gap-2 flex-wrap">
+              {([{ v: "todos", l: "Todas" }, ...ESTADOS] as { v: string; l: string }[]).map(e => (
+                <button key={e.v} onClick={() => setFiltro(e.v)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
+                  style={filtro === e.v ? { backgroundColor: "var(--brand-color)", color: "white" } : { backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>
+                  {e.l}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-        <div className="space-y-3">
+
+        {/* Calendario semanal: se ve de un vistazo quién tiene qué día
+            ocupado, que es lo que evita mandar al mismo técnico a dos
+            obras el mismo día. */}
+        {vista === "semana" && (
+          <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
+            {Array.from({ length: 7 }, (_, i) => {
+              const dia = new Date(semana);
+              dia.setDate(dia.getDate() + i);
+              const esHoy = dia.toDateString() === new Date().toDateString();
+              const delDia = instalaciones.filter(inst =>
+                inst.fechaAgendada && new Date(inst.fechaAgendada).toDateString() === dia.toDateString(),
+              );
+              const tecnicosDelDia = new Set(delDia.map(d => d.tecnico?.nombre).filter(Boolean));
+              const choque = delDia.length > tecnicosDelDia.size && tecnicosDelDia.size > 0;
+
+              return (
+                <div key={i} className="card overflow-hidden flex flex-col" style={{ minHeight: "180px", ...(esHoy ? { borderTop: `3px solid ${CRM_COLOR}` } : {}) }}>
+                  <div className="px-2.5 py-2 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted">{DIAS_SEMANA[i]}</p>
+                      <p className="text-sm font-bold" style={{ color: esHoy ? CRM_COLOR : undefined }}>{dia.getDate()}</p>
+                    </div>
+                    {delDia.length > 0 && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: CRM_COLOR + "20", color: CRM_COLOR }}>
+                        {delDia.length}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex-1 p-1.5 space-y-1.5">
+                    {choque && (
+                      <p className="text-[9px] font-bold text-red-600 flex items-center gap-1 px-1">
+                        <AlertCircle size={9} /> Técnico repetido
+                      </p>
+                    )}
+                    {delDia.length === 0 && <p className="text-[10px] text-muted text-center pt-4">—</p>}
+                    {delDia.map(inst => (
+                      <button
+                        key={inst.id}
+                        onClick={() => setAbierta(inst.id)}
+                        className="w-full text-left p-2 rounded-lg surface-2 hover:brand-bg-10 transition-colors"
+                        style={{ borderLeft: `3px solid ${av(inst.pedido.cliente.nombre)}` }}
+                      >
+                        <p className="text-[10px] font-bold text-soft truncate">{inst.pedido.cliente.empresa || inst.pedido.cliente.nombre}</p>
+                        <p className="text-[9px] text-muted truncate">{inst.tecnico?.nombre ?? "Sin técnico"}</p>
+                        {inst.ciudad && <p className="text-[9px] text-muted truncate">{inst.ciudad}</p>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div className={vista === "semana" ? "hidden" : "space-y-3"}>
           {isLoading ? <div className="card p-8 text-center text-sm text-gray-400">Cargando...</div>
           : lista.length === 0 ? (
             <div className="card p-12 text-center"><Wrench size={28} className="mx-auto mb-3 text-gray-200" /><p className="text-sm text-gray-400">Sin instalaciones</p></div>
@@ -195,6 +290,9 @@ function InstalacionesContent() {
                   {inst.notas && <p className="text-xs text-gray-500 mt-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-xl px-3 py-2">{inst.notas}</p>}
                 </div>
                 <div className="flex flex-col gap-1.5 flex-shrink-0">
+                  <button onClick={() => setAbierta(inst.id)} className="text-[11px] font-semibold px-3 py-1.5 rounded-xl text-white whitespace-nowrap" style={{ backgroundColor: CRM_COLOR }}>
+                    Evidencia
+                  </button>
                   {ESTADOS.filter(e => e.v !== inst.estado && e.v !== "CANCELADA").slice(0,2).map(e => (
                     <button key={e.v} onClick={() => cambiarEstado(inst.id, e.v)} className="text-[11px] font-semibold px-3 py-1.5 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 transition-colors border border-gray-100 dark:border-gray-700 whitespace-nowrap">
                       {e.l}
@@ -210,6 +308,10 @@ function InstalacionesContent() {
         </div>
       </div>
       {modal && <NuevaInstalacion onClose={() => setModal(false)} onSaved={() => { setModal(false); qc.invalidateQueries({ queryKey: ["instalaciones"] }); }} />}
+      {abierta && (() => {
+        const inst = instalaciones.find(i => i.id === abierta);
+        return inst ? <FichaInstalacion inst={inst} onClose={() => setAbierta(null)} /> : null;
+      })()}
     </>
   );
 }

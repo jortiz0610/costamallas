@@ -11,13 +11,16 @@ export async function GET(req: NextRequest) {
   const instalaciones = await prisma.instalacion.findMany({
     where: estado ? { estado } : undefined,
     include: {
-      pedido: { select: { numero: true, total: true, cliente: { select: { nombre: true, empresa: true } } } },
-      tecnico: { select: { nombre: true } },
+      pedido: { select: { id: true, numero: true, total: true, cliente: { select: { nombre: true, empresa: true, telefono: true } } } },
+      tecnico: { select: { id: true, nombre: true } },
     },
     orderBy: [{ estado: "asc" }, { fechaAgendada: "asc" }],
   });
 
-  return NextResponse.json({ success: true, data: instalaciones });
+  return NextResponse.json({
+    success: true,
+    data: instalaciones.map(i => ({ ...i, pedido: { ...i.pedido, total: Number(i.pedido.total) } })),
+  });
 }
 
 export async function POST(req: NextRequest) {
