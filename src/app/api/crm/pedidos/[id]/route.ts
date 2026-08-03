@@ -32,10 +32,16 @@ export async function PUT(req: NextRequest, { params }: P) {
   const body = await req.json();
   const { estado, notas, fechaEntrega, direccionEntrega } = body;
 
+  // El reloj de "días en etapa" solo se reinicia cuando el estado cambia
+  // de verdad: si se guarda el mismo estado, el pedido no se movió.
+  const previo = estado ? await prisma.pedido.findUnique({ where: { id }, select: { estado: true } }) : null;
+  const cambioEstado = Boolean(estado && previo && previo.estado !== estado);
+
   const updated = await prisma.pedido.update({
     where: { id },
     data: {
       ...(estado && { estado }),
+      ...(cambioEstado && { estadoDesde: new Date() }),
       ...(notas !== undefined && { notas }),
       ...(fechaEntrega && { fechaEntrega: new Date(fechaEntrega) }),
       ...(direccionEntrega && { direccionEntrega }),

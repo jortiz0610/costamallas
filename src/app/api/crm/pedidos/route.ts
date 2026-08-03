@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     },
     include: {
       cliente: { select: { nombre: true, empresa: true } },
-      vendedor: { select: { nombre: true } },
+      vendedor: { select: { id: true, nombre: true } },
       _count: { select: { items: true } },
       instalacion: { select: { estado: true, fechaAgendada: true } },
     },
@@ -27,7 +27,16 @@ export async function GET(req: NextRequest) {
     take: 200,
   });
 
-  return NextResponse.json({ success: true, data: pedidos });
+  return NextResponse.json({
+    success: true,
+    data: pedidos.map(p => ({
+      ...p,
+      total: Number(p.total),
+      // Si el pedido es anterior a que existiera la columna, se cuenta
+      // desde su última actualización en vez de mostrar "0 días".
+      estadoDesde: (p.estadoDesde ?? p.updatedAt).toISOString(),
+    })),
+  });
 }
 
 export async function POST(req: NextRequest) {
