@@ -24,6 +24,9 @@ model Usuario {
   password     String   // bcrypt hash — nunca texto plano
   rol          Rol      @default(USUARIO)
   activo       Boolean  @default(true)
+  /// Celular del asesor. Sale en la cotización y es el número al que
+  /// llega el botón de WhatsApp que ve el cliente en la oferta.
+  telefono     String?
   ultimoAcceso DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -329,6 +332,28 @@ model Cotizacion {
   validezDias      Int      @default(30)
   notas            String?  @db.Text
   tieneInstalacion Boolean  @default(false)
+
+  /// EXPRESS (1-2 hojas, para producto suelto, que es la mayoría) o
+  /// PROPUESTA (dossier con portada, para cerramientos e instalaciones).
+  plantilla        String   @default("EXPRESS")
+
+  // ── Enlace público que se le comparte al cliente ──
+  /// Token del enlace. Es distinto del id para que nadie adivine una
+  /// cotización ajena cambiando un número en la URL.
+  publicId         String?  @unique
+  vistaPrimeraEn   DateTime?
+  vistaUltimaEn    DateTime?
+  vistas           Int      @default(0)
+
+  // ── Envío al cliente ──
+  enviadaEn        DateTime?
+  enviadaAEmail    String?
+  errorEnvio       String?  @db.Text
+
+  /// Dónde se instala: define el recargo por desplazamiento y sale en el PDF.
+  ciudadInstalacion    String?
+  direccionInstalacion String?
+
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -354,8 +379,62 @@ model ItemCotizacion {
   unidad         String?
   orden          Int        @default(0)
 
+  /// PRODUCTO o INSTALACION. La instalación va como ítem aparte porque su
+  /// precio no depende solo del producto, sino también de la ciudad.
+  tipo           String     @default("PRODUCTO")
+  /// Foto que se muestra en la cotización. Se copia del catálogo al cotizar
+  /// para que la oferta enviada no cambie si después se edita el producto.
+  imagenUrl      String?
+  /// Detalle largo (medidas, acabado, observaciones) que sale bajo el nombre.
+  detalle        String?    @db.Text
+
   @@map("items_cotizacion")
   @@index([cotizacionId])
+}
+
+// ── Catálogo de instalación (submódulo CRM) ──
+
+/// Servicios de instalación que el asesor puede agregar a una cotización.
+/// Antes la instalación era un sí/no que solo pintaba un sello: no tenía
+/// precio propio ni quedaba discriminada en la oferta.
+model ServicioInstalacion {
+  id          String   @id @default(cuid())
+  nombre      String
+  descripcion String?  @db.Text
+  /// m2, ml (metro lineal), unidad, dia…
+  unidad      String   @default("m2")
+  precioBase  Decimal  @db.Decimal(14,2) @default(0)
+  /// Categorías de producto a las que aplica, para sugerir solo lo que
+  /// tiene sentido según lo que ya está cotizado.
+  categorias  String[] @default([])
+  /// Cantidad mínima facturable (una instalación de 2 m² no se cobra a 2 m²).
+  minimoCobro Decimal? @db.Decimal(10,2)
+  activo      Boolean  @default(true)
+  orden       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("servicios_instalacion")
+  @@index([activo])
+}
+
+/// Recargo por desplazamiento fuera de la ciudad base (viáticos).
+/// "No vale lo mismo instalar en Barranquilla que mandar el personal a
+/// Santa Marta, Cartagena o Montería."
+model RecargoCiudad {
+  id           String  @id @default(cuid())
+  ciudad       String  @unique
+  departamento String?
+  /// Porcentaje sobre el valor de la instalación.
+  porcentaje   Decimal @db.Decimal(5,2) @default(0)
+  /// Monto fijo adicional, para cuando el viático se cobra completo y no
+  /// como porcentaje. Se suman los dos si ambos están puestos.
+  montoFijo    Decimal @db.Decimal(14,2) @default(0)
+  activo       Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("recargos_ciudad")
 }
 
 model Pedido {
@@ -377,6 +456,11 @@ model Pedido {
   origen           String     @default("MANUAL")
   /// Referencia en el sistema de origen (nº de pedido de WooCommerce, etc.).
   origenRef        String?
+
+  /// Desde cuándo está en el estado actual. Sin esto, "días en etapa" hay
+  /// que sacarlo de updatedAt, que cambia por cualquier edición y hace
+  /// que un pedido estancado parezca recién movido.
+  estadoDesde      DateTime?
 
   fechaEntrega     DateTime?
   direccionEntrega String?
@@ -422,6 +506,15 @@ model Instalacion {
   direccion      String?
   ciudad         String?
   notas          String?   @db.Text
+
+  /// Evidencia de la obra: [{ url, titulo, momento: "ANTES"|"DESPUES" }].
+  /// Es el respaldo cuando un cliente reclama garantía por algo que ya
+  /// estaba dañado, o dice que no se hizo lo que se hizo.
+  fotos          Json      @default("[]")
+  /// Checklist de cierre: [{ texto, hecho }]. La obra no se marca como
+  /// terminada con puntos sin cumplir.
+  checklist      Json      @default("[]")
+
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
