@@ -1,0 +1,9 @@
+# El portal es interno: nada de aquí debe salir en buscadores.
+#
+# /cotizacion es la excepción pública (el cliente abre su oferta sin
+# cuenta), y es justamente lo más sensible: lleva su nombre, lo que
+# compró y a qué precio. La página además va marcada noindex; esto es
+# el segundo cerrojo por si alguien pega el enlace en un sitio público.
+
+User-agent: *
+Disallow: /
