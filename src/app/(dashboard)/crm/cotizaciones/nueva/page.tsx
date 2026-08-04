@@ -19,7 +19,7 @@ import { useRouter } from "next/navigation";
 import { Topbar } from "@/components/layout/Topbar";
 import {
   ArrowLeft, Search, Plus, Trash2, X, Loader2, Save, Ruler, Package,
-  UserPlus, Wrench, FileText, LayoutTemplate, MapPin,
+  UserPlus, Wrench, FileText, LayoutTemplate, MapPin, ShieldAlert,
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -68,6 +68,9 @@ function CotizadorContent() {
   const [prodBusq, setProdBusq] = useState("");
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [descuentoGlobal, setDescuentoGlobal] = useState(0);
+  // Vacío = se aplica el mínimo de la política. Solo se escribe cuando
+  // se pactó uno distinto.
+  const [anticipoPct, setAnticipoPct] = useState<string>("");
   const [notas, setNotas] = useState("");
   const [plantilla, setPlantilla] = useState<"EXPRESS" | "PROPUESTA">("EXPRESS");
   const [validezDias, setValidezDias] = useState(3);
@@ -91,6 +94,11 @@ function CotizadorContent() {
   const { data: catalogo } = useQuery<{ servicios: ServicioInstalacion[]; ciudades: RecargoCiudad[] }>({
     queryKey: ["instalacion-catalogo-activo"],
     queryFn: async () => (await (await fetch("/api/crm/instalacion-catalogo")).json()).data ?? { servicios: [], ciudades: [] },
+  });
+
+  const { data: politica } = useQuery<{ descuentoMaxPct: number; anticipoMinPct: number; exigirAprobacion: boolean }>({
+    queryKey: ["config-comercial-lectura"],
+    queryFn: async () => (await (await fetch("/api/configuracion/comercial")).json()).data,
   });
 
   const servicios = catalogo?.servicios ?? [];
@@ -190,6 +198,28 @@ function CotizadorContent() {
   // cuando ya se agregó una línea: la ciudad es la que define el recargo.
   const hayInstalacion = incluyeInstalacion || lineas.some(l => l.tipo === "INSTALACION");
 
+  // ── Política comercial ──
+  // El mismo cálculo que hace el servidor, para poder avisar en pantalla
+  // mientras se cotiza. Quien decide sigue siendo el servidor.
+  const anticipoEfectivo = anticipoPct === "" ? (politica?.anticipoMinPct ?? null) : Number(anticipoPct);
+  const fueraDePolitica = useMemo(() => {
+    if (!politica?.exigirAprobacion) return null;
+    const bruto = lineas.reduce((a, l) => a + l.cantidad * l.precioUnitario, 0);
+    if (bruto <= 0) return null;
+    const neto = lineas.reduce((a, l) => a + l.cantidad * l.precioUnitario * (1 - l.descuento / 100), 0)
+      * (1 - descuentoGlobal / 100);
+    const pct = Math.round(((bruto - neto) / bruto) * 10000) / 100;
+
+    const motivos: string[] = [];
+    if (pct > politica.descuentoMaxPct) {
+      motivos.push(`El descuento efectivo es ${pct}% y el tope sin aprobación es ${politica.descuentoMaxPct}%.`);
+    }
+    if (anticipoPct !== "" && Number(anticipoPct) < politica.anticipoMinPct) {
+      motivos.push(`El anticipo es ${anticipoPct}% y el mínimo es ${politica.anticipoMinPct}%.`);
+    }
+    return motivos.length ? motivos.join(" ") : null;
+  }, [lineas, descuentoGlobal, anticipoPct, politica]);
+
   const guardar = async () => {
     if (!clienteId) return toast.error("Elige un cliente");
     if (lineas.length === 0) return toast.error("Agrega al menos un producto");
@@ -237,10 +267,14 @@ function CotizadorContent() {
           plantilla,
           ciudadInstalacion: ciudadInstalacion || undefined,
           direccionInstalacion: direccionInstalacion || undefined,
+          anticipoPct: anticipoPct === "" ? null : Number(anticipoPct),
         }),
       });
       const j = await res.json();
       if (!res.ok || !j.success) return toast.error(j.error ?? "No se pudo guardar");
+      // Si se salió de la política, se dice AQUÍ: el asesor tiene que
+      // saberlo antes de prometerle el precio al cliente por teléfono.
+      if (j.aviso) toast(j.aviso, { icon: "⚠️", duration: 7000 });
       toast.success(`${j.data.numero} guardada como borrador`);
       router.push(`/crm/cotizaciones/${j.data.id}`);
     } finally { setGuardando(false); }
@@ -545,7 +579,35 @@ function CotizadorContent() {
                   <span className="text-xs font-bold uppercase tracking-wider text-muted">Total</span>
                   <span className="text-xl font-black" style={{ color: CRM_COLOR }}>{formatCOP(total)}</span>
                 </div>
+
+                {/* Anticipo. Vacío = el mínimo de la política. */}
+                <div className="flex justify-between items-center text-xs text-soft pt-2">
+                  <span>Anticipo</span>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number" className="input py-0.5 text-xs w-16 text-right" value={anticipoPct}
+                      onChange={e => setAnticipoPct(e.target.value)}
+                      placeholder={politica ? String(politica.anticipoMinPct) : ""}
+                    />
+                    <span className="text-muted">%</span>
+                  </div>
+                </div>
+                {anticipoEfectivo != null && (
+                  <div className="flex justify-between text-[11px] text-muted">
+                    <span>· para iniciar</span>
+                    <span>{formatCOP((total * anticipoEfectivo) / 100)}</span>
+                  </div>
+                )}
               </div>
+
+              {/* Aviso mientras cotiza, no al guardar: si se entera
+                  después, ya se lo dijo al cliente por teléfono. */}
+              {fueraDePolitica && (
+                <div className="mt-3 flex items-start gap-1.5 text-[11px] leading-snug p-2.5 rounded-lg text-amber-700 bg-amber-50 dark:text-amber-400 dark:bg-amber-500/10">
+                  <ShieldAlert size={12} className="flex-shrink-0 mt-0.5" />
+                  <span>{fueraDePolitica} Se puede guardar, pero no se podrá enviar hasta que un administrador la autorice.</span>
+                </div>
+              )}
 
               <button onClick={guardar} disabled={guardando} className="w-full mt-5 py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50" style={{ backgroundColor: CRM_COLOR }}>
                 {guardando ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Guardar borrador

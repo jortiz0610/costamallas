@@ -3,6 +3,9 @@ import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { siguienteNumeroSeguro } from "@/lib/consecutivos";
+import {
+  getPoliticaComercial, descuentoEfectivoPct, evaluarPolitica,
+} from "@/lib/politica-comercial";
 
 export async function GET(req: NextRequest) {
   const user = await getUserFromRequest(req);
@@ -35,7 +38,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const {
     clienteId, items, notas, tieneInstalacion, validezDias, descuentoGlobal,
-    plantilla, ciudadInstalacion, direccionInstalacion,
+    plantilla, ciudadInstalacion, direccionInstalacion, anticipoPct,
   } = body;
 
   if (!clienteId) return NextResponse.json({ success: false, error: "clienteId requerido" }, { status: 400 });
@@ -73,6 +76,15 @@ export async function POST(req: NextRequest) {
   const iva = subtotalConDesc * IVA_PCT;
   const total = subtotalConDesc + iva;
 
+  // ── Política comercial ──
+  // El descuento efectivo suma el de línea y el global: al cliente le da
+  // igual dónde se aplicó, y un tope que solo mirara el global se
+  // saltaría poniendo el 30% línea por línea.
+  const politica = await getPoliticaComercial();
+  const anticipo = anticipoPct == null || anticipoPct === "" ? null : Number(anticipoPct);
+  const descPct = descuentoEfectivoPct(items, descGlobal, subtotal);
+  const veredicto = evaluarPolitica({ descuentoPct: descPct, anticipoPct: anticipo }, politica);
+
   // Consecutivo atómico. Antes era `count() + 1`, que repetía números
   // si se borraba una cotización y chocaba entre usuarios simultáneos.
   const numero = await siguienteNumeroSeguro("COT");
@@ -98,6 +110,10 @@ export async function POST(req: NextRequest) {
       plantilla: plantilla === "PROPUESTA" ? "PROPUESTA" : "EXPRESS",
       ciudadInstalacion: ciudadInstalacion || null,
       direccionInstalacion: direccionInstalacion || null,
+      descuentoPct: descPct,
+      anticipoPct: anticipo,
+      aprobacionEstado: veredicto.requiere ? "PENDIENTE" : "NO_REQUIERE",
+      aprobacionMotivo: veredicto.motivo,
       publicId,
       items: { create: itemsData },
     },
@@ -107,5 +123,17 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ success: true, data: cotizacion }, { status: 201 });
+  return NextResponse.json(
+    {
+      success: true,
+      data: cotizacion,
+      // Se avisa al crear, no al intentar enviar: el asesor tiene que
+      // saber que le falta un visto bueno antes de prometerle nada al
+      // cliente por teléfono.
+      aviso: veredicto.requiere
+        ? `Esta oferta necesita aprobación de un administrador para poder enviarse. ${veredicto.motivo}`
+        : undefined,
+    },
+    { status: 201 },
+  );
 }

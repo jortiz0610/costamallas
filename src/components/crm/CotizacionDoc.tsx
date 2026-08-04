@@ -57,6 +57,9 @@ export interface CotizacionDocData {
   descuento?: number;
   iva?: number;
   total: number;
+  /// Anticipo pactado. Sale escrito en la oferta para que el cliente no
+  /// se entere de que hay que abonar cuando ya dijo que sí.
+  anticipoPct?: number | null;
   plantilla?: string | null;
   ciudadInstalacion?: string | null;
   direccionInstalacion?: string | null;
@@ -252,6 +255,19 @@ function Totales({ data, grande = false }: { data: CotizacionDocData; grande?: b
           </span>
         </div>
       </div>
+      {/* El anticipo va en el documento, no en una conversación aparte:
+          enterarse de que hay que abonar después de decir que sí es la
+          forma más rápida de que un negocio se caiga. */}
+      {!!data.anticipoPct && data.anticipoPct > 0 && (
+        <div className="flex justify-between items-center px-5 py-2.5" style={{ backgroundColor: "#f7f6f0", borderTop: `2px solid ${AMARILLO}` }}>
+          <span className="text-[9px] font-black uppercase tracking-[0.15em]" style={{ color: TINTA }}>
+            Anticipo {data.anticipoPct}% para iniciar
+          </span>
+          <span className="text-[13px] font-black" style={{ color: TINTA }}>
+            {formatCOP((Number(data.total) * Number(data.anticipoPct)) / 100)}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

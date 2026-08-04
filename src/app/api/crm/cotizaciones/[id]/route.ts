@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { siguienteNumeroSeguro } from "@/lib/consecutivos";
+import {
+  getPoliticaComercial, descuentoEfectivoPct, evaluarPolitica,
+} from "@/lib/politica-comercial";
 
 type P = { params: Promise<{ id: string }> };
 
@@ -29,7 +32,7 @@ export async function PUT(req: NextRequest, { params }: P) {
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
 
   const body = await req.json();
-  const { estado, notas, items, plantilla, validezDias, descuentoGlobal, ciudadInstalacion, direccionInstalacion, tieneInstalacion } = body;
+  const { estado, notas, items, plantilla, validezDias, descuentoGlobal, ciudadInstalacion, direccionInstalacion, tieneInstalacion, anticipoPct } = body;
 
   // ── Edición del borrador ──
   // Solo mientras la cotización no se haya enviado: una oferta que el
@@ -75,6 +78,14 @@ export async function PUT(req: NextRequest, { params }: P) {
     const subtotalConDesc = subtotal * (1 - descGlobal / 100);
     const iva = subtotalConDesc * IVA_PCT;
 
+    // ── Política comercial ──
+    // Cualquier edición vuelve a evaluarse desde cero: una aprobación
+    // vale para la oferta que se aprobó, no para la que quede después.
+    const politica = await getPoliticaComercial();
+    const anticipo = anticipoPct == null || anticipoPct === "" ? null : Number(anticipoPct);
+    const descPct = descuentoEfectivoPct(items, descGlobal, subtotal);
+    const veredicto = evaluarPolitica({ descuentoPct: descPct, anticipoPct: anticipo }, politica);
+
     // Se reemplazan los ítems en bloque: es más simple y más seguro que
     // intentar casar cuáles cambiaron, y un borrador no tiene historial
     // que preservar.
@@ -93,13 +104,77 @@ export async function PUT(req: NextRequest, { params }: P) {
           ...(tieneInstalacion !== undefined && { tieneInstalacion: Boolean(tieneInstalacion) }),
           ciudadInstalacion: ciudadInstalacion || null,
           direccionInstalacion: direccionInstalacion || null,
+          descuentoPct: descPct,
+          anticipoPct: anticipo,
+          aprobacionEstado: veredicto.requiere ? "PENDIENTE" : "NO_REQUIERE",
+          aprobacionMotivo: veredicto.motivo,
+          ...(veredicto.requiere
+            ? {}
+            : { aprobadaPorId: null, aprobadaPorNombre: null, aprobadaEn: null, aprobacionNota: null }),
           items: { create: itemsData },
         },
         include: { items: { orderBy: { orden: "asc" } } },
       });
     });
 
-    return NextResponse.json({ success: true, data: guardada });
+    return NextResponse.json({
+      success: true,
+      data: guardada,
+      aviso: veredicto.requiere
+        ? `Esta oferta necesita aprobación de un administrador para poder enviarse. ${veredicto.motivo}`
+        : undefined,
+    });
+  }
+
+  // Aprobar la oferta la convierte en pedido. Si se salió de la política
+  // y nadie le dio el visto bueno, aquí se para: es el punto donde el
+  // descuento deja de ser una propuesta y pasa a ser un compromiso.
+  if (estado === "APROBADA") {
+    const actual = await prisma.cotizacion.findUnique({
+      where: { id },
+      select: { aprobacionEstado: true, aprobacionMotivo: true },
+    });
+    if (actual?.aprobacionEstado === "PENDIENTE") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Esta oferta está fuera de la política comercial y necesita el visto bueno de un administrador. ${actual.aprobacionMotivo ?? ""}`.trim(),
+        },
+        { status: 400 },
+      );
+    }
+    if (actual?.aprobacionEstado === "RECHAZADA") {
+      return NextResponse.json(
+        { success: false, error: "Un administrador rechazó las condiciones de esta oferta. Ajústalas antes de aprobarla." },
+        { status: 400 },
+      );
+    }
+  }
+
+  // El anticipo se puede cambiar sin tocar los ítems (es una condición de
+  // pago, no un precio), así que se vuelve a evaluar la política aquí
+  // también. Si no, bajarlo por esta vía se saltaría el tope.
+  let recalculo: Record<string, unknown> = {};
+  let avisoPolitica: string | undefined;
+  if (anticipoPct !== undefined) {
+    const actual = await prisma.cotizacion.findUnique({ where: { id }, select: { descuentoPct: true } });
+    const politica = await getPoliticaComercial();
+    const anticipo = anticipoPct === null || anticipoPct === "" ? null : Number(anticipoPct);
+    const veredicto = evaluarPolitica(
+      { descuentoPct: Number(actual?.descuentoPct ?? 0), anticipoPct: anticipo },
+      politica,
+    );
+    recalculo = {
+      anticipoPct: anticipo,
+      aprobacionEstado: veredicto.requiere ? "PENDIENTE" : "NO_REQUIERE",
+      aprobacionMotivo: veredicto.motivo,
+      ...(veredicto.requiere
+        ? {}
+        : { aprobadaPorId: null, aprobadaPorNombre: null, aprobadaEn: null, aprobacionNota: null }),
+    };
+    if (veredicto.requiere) {
+      avisoPolitica = `Esta oferta necesita aprobación de un administrador. ${veredicto.motivo}`;
+    }
   }
 
   const updated = await prisma.cotizacion.update({
@@ -108,11 +183,18 @@ export async function PUT(req: NextRequest, { params }: P) {
       ...(estado && { estado }),
       ...(notas !== undefined && { notas }),
       ...(plantilla && { plantilla: plantilla === "PROPUESTA" ? "PROPUESTA" : "EXPRESS" }),
+      ...recalculo,
     },
   });
 
-  // Si se aprueba, crear pedido automáticamente
-  if (estado === "APROBADA") {
+  // Si se aprueba, crear pedido automáticamente.
+  // Solo si no hay uno ya: guardar dos veces con el estado en APROBADA
+  // creaba un pedido nuevo cada vez, y el mismo negocio aparecía dos
+  // veces en el pipeline y en la plata del embudo.
+  const yaTienePedido =
+    estado === "APROBADA" && (await prisma.pedido.count({ where: { cotizacionId: id } })) > 0;
+
+  if (estado === "APROBADA" && !yaTienePedido) {
     const cotizacion = await prisma.cotizacion.findUnique({
       where: { id }, include: { items: true },
     });
@@ -147,5 +229,5 @@ export async function PUT(req: NextRequest, { params }: P) {
     }
   }
 
-  return NextResponse.json({ success: true, data: updated });
+  return NextResponse.json({ success: true, data: updated, aviso: avisoPolitica });
 }

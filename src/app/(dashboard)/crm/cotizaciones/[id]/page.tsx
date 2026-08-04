@@ -12,6 +12,7 @@ import toast from "react-hot-toast";
 import { useBrand } from "@/contexts/BrandContext";
 import { CotizacionDoc, type CotizacionDocData } from "@/components/crm/CotizacionDoc";
 import { PanelSeguimiento } from "@/components/crm/PanelSeguimiento";
+import { PanelPolitica } from "@/components/crm/PanelPolitica";
 import { DEFAULTS, type ConfigCotizacion } from "@/lib/cotizacion-textos";
 import { formatDate, cn } from "@/lib/utils";
 
@@ -100,6 +101,7 @@ function DetalleContent() {
     descuento: Number(data.descuento ?? 0),
     iva: Number(data.iva ?? 0),
     total: Number(data.total),
+    anticipoPct: data.anticipoPct == null ? null : Number(data.anticipoPct),
     plantilla,
     ciudadInstalacion: data.ciudadInstalacion,
     direccionInstalacion: data.direccionInstalacion,
@@ -166,6 +168,22 @@ function DetalleContent() {
                 </div>
               )}
             </div>
+
+            {/* Descuento, anticipo y visto bueno */}
+            <PanelPolitica
+              cotizacionId={id}
+              datos={{
+                descuentoPct: Number(data.descuentoPct ?? 0),
+                anticipoPct: data.anticipoPct == null ? null : Number(data.anticipoPct),
+                aprobacionEstado: data.aprobacionEstado ?? "NO_REQUIERE",
+                aprobacionMotivo: data.aprobacionMotivo ?? null,
+                aprobadaPorNombre: data.aprobadaPorNombre ?? null,
+                aprobadaEn: data.aprobadaEn ?? null,
+                aprobacionNota: data.aprobacionNota ?? null,
+                total: Number(data.total),
+                esBorrador: data.estado === "BORRADOR",
+              }}
+            />
 
             {/* Los tres toques posteriores al envío */}
             <PanelSeguimiento cotizacionId={id} />

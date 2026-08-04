@@ -63,6 +63,7 @@ export default async function CotizacionPublica({ params }: P) {
     descuento: Number(cotizacion.descuento),
     iva: Number(cotizacion.iva),
     total: Number(cotizacion.total),
+    anticipoPct: cotizacion.anticipoPct == null ? null : Number(cotizacion.anticipoPct),
     plantilla: cotizacion.plantilla,
     ciudadInstalacion: cotizacion.ciudadInstalacion,
     direccionInstalacion: cotizacion.direccionInstalacion,

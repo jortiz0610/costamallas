@@ -9,6 +9,7 @@ import Link from "next/link";
 
 interface Cotizacion {
   id: string; numero: string; estado: string; total: number; createdAt: string;
+  aprobacionEstado?: string;
   cliente: { nombre: string; empresa?: string };
   vendedor?: { nombre: string };
   _count: { items: number };
@@ -181,7 +182,11 @@ function CotizacionesContent() {
   const cambiarEstado = async (id: string, estado: string) => {
     const res = await fetch(`/api/crm/cotizaciones/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estado }) });
     const json = await res.json();
-    if (json.success) { toast.success(estado === "APROBADA" ? "Aprobada - Pedido creado" : `-> ${estado}`); qc.invalidateQueries({ queryKey: ["crm-cotizaciones"] }); }
+    // El error se muestra: una oferta que necesita visto bueno se rechaza
+    // aquí, y antes el botón no hacía nada sin decir por qué.
+    if (!json.success) return toast.error(json.error ?? "No se pudo cambiar el estado");
+    toast.success(estado === "APROBADA" ? "Aprobada - Pedido creado" : `-> ${estado}`);
+    qc.invalidateQueries({ queryKey: ["crm-cotizaciones"] });
   };
   return (
     <>
@@ -213,6 +218,18 @@ function CotizacionesContent() {
               <div className="flex-shrink-0"><p className="text-xs font-mono font-bold text-gray-500">{c.numero}</p><p className="text-[10px] text-gray-400">{new Date(c.createdAt).toLocaleDateString("es-CO")}</p></div>
               <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{c.cliente.nombre}</p>{c.cliente.empresa && <p className="text-xs text-gray-400">{c.cliente.empresa}</p>}</div>
               <Badge estado={c.estado} />
+              {/* Una oferta fuera de la política se ve desde la lista:
+                  es lo que un administrador entra a buscar. */}
+              {c.aprobacionEstado === "PENDIENTE" && (
+                <span className="text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap" style={{ backgroundColor: "#fef3c7", color: "#92400e" }}>
+                  Sin visto bueno
+                </span>
+              )}
+              {c.aprobacionEstado === "RECHAZADA" && (
+                <span className="text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap" style={{ backgroundColor: "#fee2e2", color: "#b91c1c" }}>
+                  Condiciones rechazadas
+                </span>
+              )}
               <p className="text-sm font-bold text-gray-900 dark:text-gray-100 w-32 text-right">{formatCOP(c.total)}</p>
               <div className="flex items-center gap-1.5">
                 {c.estado === "BORRADOR" && <button onClick={() => cambiarEstado(c.id,"ENVIADA")} className="px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Enviar</button>}

@@ -41,6 +41,25 @@ export async function POST(req: NextRequest, { params }: P) {
   });
   if (!cot) return NextResponse.json({ success: false, error: "La cotización no existe" }, { status: 404 });
 
+  // Una oferta fuera de la política comercial no sale sin visto bueno.
+  // Se para aquí y no al aprobar: mandarla ya es prometerle el precio al
+  // cliente, y desdecirse después cuesta más que la venta.
+  if (cot.aprobacionEstado === "PENDIENTE") {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Esta oferta necesita el visto bueno de un administrador antes de enviarse. ${cot.aprobacionMotivo ?? ""}`.trim(),
+      },
+      { status: 400 },
+    );
+  }
+  if (cot.aprobacionEstado === "RECHAZADA") {
+    return NextResponse.json(
+      { success: false, error: "Un administrador rechazó estas condiciones. Ajusta el descuento o el anticipo antes de enviarla." },
+      { status: 400 },
+    );
+  }
+
   const destino = cot.cliente.email?.trim();
   if (!destino) {
     return NextResponse.json(
