@@ -18,35 +18,35 @@ datasource db {
 // ─────────────────────────────────────────────
 
 model Usuario {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   nombre       String
-  email        String   @unique
-  password     String   // bcrypt hash — nunca texto plano
-  rol          Rol      @default(USUARIO)
-  activo       Boolean  @default(true)
+  email        String    @unique
+  password     String // bcrypt hash — nunca texto plano
+  rol          Rol       @default(USUARIO)
+  activo       Boolean   @default(true)
   /// Celular del asesor. Sale en la cotización y es el número al que
   /// llega el botón de WhatsApp que ve el cliente en la oferta.
   telefono     String?
   ultimoAcceso DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   // Solo para rol CLIENTE: ficha del CRM a la que está atado este login.
   // Sembli usa este vínculo para mostrarle únicamente SUS pedidos.
-  clienteId    String?
+  clienteId     String?
   clientePropio Cliente? @relation("LoginDelCliente", fields: [clienteId], references: [id], onDelete: SetNull)
 
-  logs          Log[]
+  logs              Log[]
   clientesAsignados Cliente[]
-  cotizaciones  Cotizacion[]
-  pedidos       Pedido[]
-  instalaciones Instalacion[]
-  nexusMensajes NexusMensaje[]
-  tareas        Tarea[]
+  cotizaciones      Cotizacion[]
+  pedidos           Pedido[]
+  instalaciones     Instalacion[]
+  nexusMensajes     NexusMensaje[]
+  tareas            Tarea[]
 
-  @@map("usuarios")
   @@index([email])
   @@index([clienteId])
+  @@map("usuarios")
 }
 
 enum Rol {
@@ -86,17 +86,17 @@ model Cliente {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  cotizaciones Cotizacion[]
-  pedidos      Pedido[]
-  tareas       Tarea[]
-  facturas     Factura[]
-  logins       Usuario[] @relation("LoginDelCliente")
+  cotizaciones   Cotizacion[]
+  pedidos        Pedido[]
+  tareas         Tarea[]
+  facturas       Factura[]
+  logins         Usuario[]           @relation("LoginDelCliente")
   conversaciones NexusConversacion[]
 
-  @@map("clientes")
   @@index([vendedorId])
   @@index([activo])
   @@index([estado])
+  @@map("clientes")
 }
 
 // ─────────────────────────────────────────────
@@ -104,48 +104,48 @@ model Cliente {
 // ─────────────────────────────────────────────
 
 model Factura {
-  id           String   @id @default(cuid())
-  numero       String   @unique
-  prefijo      String?
-  consecutivo  Int?
+  id          String  @id @default(cuid())
+  numero      String  @unique
+  prefijo     String?
+  consecutivo Int?
 
   clienteId    String
-  cliente      Cliente  @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+  cliente      Cliente @relation(fields: [clienteId], references: [id], onDelete: Restrict)
   pedidoId     String?
   cotizacionId String?
 
-  estado       String   @default("BORRADOR")
-  estadoDian   String   @default("NO_APLICA")
+  estado       String  @default("BORRADOR")
+  estadoDian   String  @default("NO_APLICA")
   cufe         String?
   proveedorRef String?
   qrUrl        String?
   xmlUrl       String?
   pdfUrl       String?
-  mensajeDian  String?  @db.Text
+  mensajeDian  String? @db.Text
 
-  subtotal     Decimal  @default(0) @db.Decimal(14, 2)
-  descuento    Decimal  @default(0) @db.Decimal(14, 2)
-  iva          Decimal  @default(0) @db.Decimal(14, 2)
-  total        Decimal  @default(0) @db.Decimal(14, 2)
+  subtotal  Decimal @default(0) @db.Decimal(14, 2)
+  descuento Decimal @default(0) @db.Decimal(14, 2)
+  iva       Decimal @default(0) @db.Decimal(14, 2)
+  total     Decimal @default(0) @db.Decimal(14, 2)
 
   formaPago      String?
   metodoPago     String?
-  saldoPendiente Decimal @default(0) @db.Decimal(14, 2)
+  saldoPendiente Decimal   @default(0) @db.Decimal(14, 2)
   fechaEmision   DateTime?
   fechaVence     DateTime?
 
-  notas        String?  @db.Text
-  items        ItemFactura[]
-  pagos        PagoFactura[]
+  notas String?       @db.Text
+  items ItemFactura[]
+  pagos PagoFactura[]
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@map("facturas")
   @@index([clienteId])
   @@index([estado])
   @@index([estadoDian])
   @@index([pedidoId])
+  @@map("facturas")
 }
 
 model ItemFactura {
@@ -162,8 +162,8 @@ model ItemFactura {
   unidad         String?
   orden          Int     @default(0)
 
-  @@map("items_factura")
   @@index([facturaId])
+  @@map("items_factura")
 }
 
 model PagoFactura {
@@ -176,8 +176,8 @@ model PagoFactura {
   fecha      DateTime @default(now())
   createdAt  DateTime @default(now())
 
-  @@map("pagos_factura")
   @@index([facturaId])
+  @@map("pagos_factura")
 }
 
 // ── Tareas y seguimientos (submódulo CRM) ──
@@ -186,8 +186,8 @@ model Tarea {
   titulo       String
   descripcion  String?   @db.Text
   tipo         String    @default("SEGUIMIENTO") // SEGUIMIENTO, LLAMADA, EMAIL, REUNION, COTIZACION, VISITA
-  prioridad    String    @default("NORMAL")      // BAJA, NORMAL, ALTA, URGENTE
-  estado       String    @default("PENDIENTE")   // PENDIENTE, EN_PROGRESO, COMPLETADA, CANCELADA
+  prioridad    String    @default("NORMAL") // BAJA, NORMAL, ALTA, URGENTE
+  estado       String    @default("PENDIENTE") // PENDIENTE, EN_PROGRESO, COMPLETADA, CANCELADA
   fechaVence   DateTime?
   completadaEn DateTime?
   clienteId    String?
@@ -197,11 +197,11 @@ model Tarea {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  @@map("tareas")
   @@index([estado])
   @@index([asignadoId])
   @@index([clienteId])
   @@index([fechaVence])
+  @@map("tareas")
 }
 
 // ── Proveedores y compras (submódulo ERP) ──
@@ -216,7 +216,7 @@ model Proveedor {
   ciudad       String?
   categorias   String[] @default([])
   notas        String?  @db.Text
-  leadTimeDias Int?     // tiempo de entrega estimado
+  leadTimeDias Int? // tiempo de entrega estimado
   activo       Boolean  @default(true)
 
   // ── Ficha comercial ──
@@ -226,22 +226,22 @@ model Proveedor {
   pais            String   @default("Colombia")
   // Segundo correo para copiar en los pedidos (compras, cartera…).
   emailAlterno    String?
-  condicionesPago String?  // "30 días", "contado", "50% anticipo"…
+  condicionesPago String? // "30 días", "contado", "50% anticipo"…
   moneda          String   @default("COP")
   /// Costamallas fabrica algunos productos. El proveedor marcado como
   /// propio identifica esos casos: sus productos NO entran en el KPI de
   /// "por reabastecer", porque no se le compran a nadie.
   esPropio        Boolean  @default(false)
-  calificacion    Int?     // 1 a 5, evaluación interna
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  calificacion    Int? // 1 a 5, evaluación interna
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  ordenes      OrdenCompra[]
-  productos    ProveedorProducto[]
+  ordenes   OrdenCompra[]
+  productos ProveedorProducto[]
 
-  @@map("proveedores")
   @@index([activo])
   @@index([esPropio])
+  @@map("proveedores")
 }
 
 /// Qué productos nos provee cada proveedor, con su referencia y precio.
@@ -255,67 +255,67 @@ model ProveedorProducto {
   producto    Producto  @relation(fields: [productoId], references: [id], onDelete: Cascade)
 
   /// Código con el que el proveedor identifica el producto en SU catálogo.
-  referencia    String?
-  precioCompra  Decimal? @db.Decimal(14, 2)
+  referencia   String?
+  precioCompra Decimal? @db.Decimal(14, 2)
   /// Cantidad mínima que acepta por pedido.
-  minimoPedido  Int?
-  leadTimeDias  Int?
-  preferido     Boolean  @default(false)
-  notas         String?  @db.Text
+  minimoPedido Int?
+  leadTimeDias Int?
+  preferido    Boolean  @default(false)
+  notas        String?  @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([proveedorId, productoId])
-  @@map("proveedor_productos")
   @@index([productoId])
   @@index([preferido])
+  @@map("proveedor_productos")
 }
 
 model OrdenCompra {
-  id           String   @id @default(cuid())
-  numero       String   @unique
-  proveedorId  String
-  proveedor    Proveedor @relation(fields: [proveedorId], references: [id], onDelete: Cascade)
-  estado       String   @default("BORRADOR") // BORRADOR, ENVIADA, RECIBIDA_PARCIAL, RECIBIDA, CANCELADA
-  total        Decimal  @default(0) @db.Decimal(14, 2)
-  notas        String?  @db.Text
-  items        Json     @default("[]")
+  id            String    @id @default(cuid())
+  numero        String    @unique
+  proveedorId   String
+  proveedor     Proveedor @relation(fields: [proveedorId], references: [id], onDelete: Cascade)
+  estado        String    @default("BORRADOR") // BORRADOR, ENVIADA, RECIBIDA_PARCIAL, RECIBIDA, CANCELADA
+  total         Decimal   @default(0) @db.Decimal(14, 2)
+  notas         String?   @db.Text
+  items         Json      @default("[]")
   fechaEsperada DateTime?
-  recibidaEn   DateTime?
+  recibidaEn    DateTime?
 
   // ── Envío al proveedor por correo ──
-  enviadaEn      DateTime?
-  enviadaAEmail  String?
+  enviadaEn     DateTime?
+  enviadaAEmail String?
   /// Error del último intento de envío. Sirve para reintentar sabiendo
   /// por qué falló, en vez de dejar la orden en un limbo silencioso.
-  errorEnvio     String?  @db.Text
-  creadaPorId    String?
+  errorEnvio    String?   @db.Text
+  creadaPorId   String?
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@map("ordenes_compra")
   @@index([proveedorId])
   @@index([estado])
+  @@map("ordenes_compra")
 }
 
 // ── Plantillas y automatización (submódulo Nexus) ──
 model PlantillaNexus {
-  id          String   @id @default(cuid())
-  nombre      String
-  categoria   String   @default("GENERAL") // GENERAL, SALUDO, COTIZACION, SEGUIMIENTO, DESPEDIDA, FAQ
-  canal       String   @default("todos")   // todos, whatsapp, email, instagram...
-  contenido   String   @db.Text
-  atajo       String?  // ej: /saludo
-  activo      Boolean  @default(true)
-  vecesUsada  Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  nombre     String
+  categoria  String   @default("GENERAL") // GENERAL, SALUDO, COTIZACION, SEGUIMIENTO, DESPEDIDA, FAQ
+  canal      String   @default("todos") // todos, whatsapp, email, instagram...
+  contenido  String   @db.Text
+  atajo      String? // ej: /saludo
+  activo     Boolean  @default(true)
+  vecesUsada Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  @@map("plantillas_nexus")
   @@index([categoria])
   @@index([activo])
+  @@map("plantillas_nexus")
 }
 
 model Cotizacion {
@@ -326,45 +326,106 @@ model Cotizacion {
   vendedorId       String?
   vendedor         Usuario? @relation(fields: [vendedorId], references: [id], onDelete: SetNull)
   estado           String   @default("BORRADOR")
-  subtotal         Decimal  @db.Decimal(14,2) @default(0)
-  descuento        Decimal  @db.Decimal(14,2) @default(0)
-  iva              Decimal  @db.Decimal(14,2) @default(0)
-  total            Decimal  @db.Decimal(14,2) @default(0)
+  subtotal         Decimal  @default(0) @db.Decimal(14, 2)
+  descuento        Decimal  @default(0) @db.Decimal(14, 2)
+  iva              Decimal  @default(0) @db.Decimal(14, 2)
+  total            Decimal  @default(0) @db.Decimal(14, 2)
   validezDias      Int      @default(30)
   notas            String?  @db.Text
   tieneInstalacion Boolean  @default(false)
 
   /// EXPRESS (1-2 hojas, para producto suelto, que es la mayoría) o
   /// PROPUESTA (dossier con portada, para cerramientos e instalaciones).
-  plantilla        String   @default("EXPRESS")
+  plantilla String @default("EXPRESS")
 
   // ── Enlace público que se le comparte al cliente ──
   /// Token del enlace. Es distinto del id para que nadie adivine una
   /// cotización ajena cambiando un número en la URL.
-  publicId         String?  @unique
-  vistaPrimeraEn   DateTime?
-  vistaUltimaEn    DateTime?
-  vistas           Int      @default(0)
+  publicId       String?   @unique
+  vistaPrimeraEn DateTime?
+  vistaUltimaEn  DateTime?
+  vistas         Int       @default(0)
 
   // ── Envío al cliente ──
-  enviadaEn        DateTime?
-  enviadaAEmail    String?
-  errorEnvio       String?  @db.Text
+  enviadaEn     DateTime?
+  enviadaAEmail String?
+  errorEnvio    String?   @db.Text
 
   /// Dónde se instala: define el recargo por desplazamiento y sale en el PDF.
   ciudadInstalacion    String?
   direccionInstalacion String?
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  // ── Seguimiento post-cotización ──
+  /// Se puede apagar por cotización: hay negocios donde el cliente pide
+  /// expresamente que no lo persigan, y un recordatorio automático ahí
+  /// hace más daño que bien.
+  seguimientoActivo Boolean @default(true)
 
-  items   ItemCotizacion[]
-  pedidos Pedido[]
+  // ── Política comercial (tope de descuento y anticipo) ──
+  /// Descuento concedido como porcentaje del subtotal. El monto por sí
+  /// solo no permite comparar contra un tope en porcentaje.
+  descuentoPct      Decimal   @default(0) @db.Decimal(5, 2)
+  /// Anticipo pactado. Nulo = se aplica el mínimo de la configuración.
+  anticipoPct       Decimal?  @db.Decimal(5, 2)
+  /// NO_REQUIERE · PENDIENTE · APROBADA · RECHAZADA
+  aprobacionEstado  String    @default("NO_REQUIERE")
+  /// Por qué quedó pidiendo visto bueno (descuento, anticipo o ambos).
+  aprobacionMotivo  String?   @db.Text
+  aprobadaPorId     String?
+  aprobadaPorNombre String?
+  aprobadaEn        DateTime?
+  aprobacionNota    String?   @db.Text
 
-  @@map("cotizaciones")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items        ItemCotizacion[]
+  pedidos      Pedido[]
+  seguimientos SeguimientoCotizacion[]
+
   @@index([clienteId])
   @@index([vendedorId])
   @@index([estado])
+  @@index([aprobacionEstado])
+  @@map("cotizaciones")
+}
+
+/// Los tres toques posteriores al envío de una oferta. Existen como
+/// tabla y no como columnas de la cotización porque hay que saber qué
+/// se mandó, cuándo, por dónde y si falló: un booleano "ya se contactó"
+/// no permite explicarle nada a nadie después.
+model SeguimientoCotizacion {
+  id           String     @id @default(cuid())
+  cotizacionId String
+  cotizacion   Cotizacion @relation(fields: [cotizacionId], references: [id], onDelete: Cascade)
+
+  /// 1 = confirmar recibido (automático) · 2 = llamada del asesor
+  /// (persona) · 3 = cierre por vencimiento (automático).
+  toque          Int
+  /// EMAIL · WHATSAPP · TAREA
+  canal          String    @default("EMAIL")
+  /// PENDIENTE · ENVIADO · HECHO · ERROR · OMITIDO
+  estado         String    @default("PENDIENTE")
+  programadoPara DateTime
+  ejecutadoEn    DateTime?
+  destino        String?
+  /// El texto que se envió. Queda guardado para poder explicar después
+  /// qué fue exactamente lo que recibió el cliente.
+  mensaje        String?   @db.Text
+  error          String?   @db.Text
+
+  /// Toque 2: la tarea que se le creó al asesor, y cuándo se le avisó a
+  /// gerencia que no la había atendido.
+  tareaId         String?
+  alertaEnviadaEn DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cotizacionId, toque])
+  @@index([estado])
+  @@index([programadoPara])
+  @@map("seguimientos_cotizacion")
 }
 
 model ItemCotizacion {
@@ -373,24 +434,24 @@ model ItemCotizacion {
   cotizacion     Cotizacion @relation(fields: [cotizacionId], references: [id], onDelete: Cascade)
   productoId     String?
   descripcion    String
-  cantidad       Decimal    @db.Decimal(10,2)
-  precioUnitario Decimal    @db.Decimal(14,2)
-  descuento      Decimal    @db.Decimal(5,2) @default(0)
-  subtotal       Decimal    @db.Decimal(14,2)
+  cantidad       Decimal    @db.Decimal(10, 2)
+  precioUnitario Decimal    @db.Decimal(14, 2)
+  descuento      Decimal    @default(0) @db.Decimal(5, 2)
+  subtotal       Decimal    @db.Decimal(14, 2)
   unidad         String?
   orden          Int        @default(0)
 
   /// PRODUCTO o INSTALACION. La instalación va como ítem aparte porque su
   /// precio no depende solo del producto, sino también de la ciudad.
-  tipo           String     @default("PRODUCTO")
+  tipo      String  @default("PRODUCTO")
   /// Foto que se muestra en la cotización. Se copia del catálogo al cotizar
   /// para que la oferta enviada no cambie si después se edita el producto.
-  imagenUrl      String?
+  imagenUrl String?
   /// Detalle largo (medidas, acabado, observaciones) que sale bajo el nombre.
-  detalle        String?    @db.Text
+  detalle   String? @db.Text
 
-  @@map("items_cotizacion")
   @@index([cotizacionId])
+  @@map("items_cotizacion")
 }
 
 // ── Catálogo de instalación (submódulo CRM) ──
@@ -404,34 +465,34 @@ model ServicioInstalacion {
   descripcion String?  @db.Text
   /// m2, ml (metro lineal), unidad, dia…
   unidad      String   @default("m2")
-  precioBase  Decimal  @db.Decimal(14,2) @default(0)
+  precioBase  Decimal  @default(0) @db.Decimal(14, 2)
   /// Categorías de producto a las que aplica, para sugerir solo lo que
   /// tiene sentido según lo que ya está cotizado.
   categorias  String[] @default([])
   /// Cantidad mínima facturable (una instalación de 2 m² no se cobra a 2 m²).
-  minimoCobro Decimal? @db.Decimal(10,2)
+  minimoCobro Decimal? @db.Decimal(10, 2)
   activo      Boolean  @default(true)
   orden       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@map("servicios_instalacion")
   @@index([activo])
+  @@map("servicios_instalacion")
 }
 
 /// Recargo por desplazamiento fuera de la ciudad base (viáticos).
 /// "No vale lo mismo instalar en Barranquilla que mandar el personal a
 /// Santa Marta, Cartagena o Montería."
 model RecargoCiudad {
-  id           String  @id @default(cuid())
-  ciudad       String  @unique
+  id           String   @id @default(cuid())
+  ciudad       String   @unique
   departamento String?
   /// Porcentaje sobre el valor de la instalación.
-  porcentaje   Decimal @db.Decimal(5,2) @default(0)
+  porcentaje   Decimal  @default(0) @db.Decimal(5, 2)
   /// Monto fijo adicional, para cuando el viático se cobra completo y no
   /// como porcentaje. Se suman los dos si ambos están puestos.
-  montoFijo    Decimal @db.Decimal(14,2) @default(0)
-  activo       Boolean @default(true)
+  montoFijo    Decimal  @default(0) @db.Decimal(14, 2)
+  activo       Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -439,44 +500,44 @@ model RecargoCiudad {
 }
 
 model Pedido {
-  id               String     @id @default(cuid())
-  numero           String     @unique
+  id               String      @id @default(cuid())
+  numero           String      @unique
   cotizacionId     String?
   cotizacion       Cotizacion? @relation(fields: [cotizacionId], references: [id], onDelete: SetNull)
   clienteId        String
-  cliente          Cliente    @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  cliente          Cliente     @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   vendedorId       String?
-  vendedor         Usuario?   @relation(fields: [vendedorId], references: [id], onDelete: SetNull)
-  estado           String     @default("NUEVO")
-  tieneInstalacion Boolean    @default(false)
+  vendedor         Usuario?    @relation(fields: [vendedorId], references: [id], onDelete: SetNull)
+  estado           String      @default("NUEVO")
+  tieneInstalacion Boolean     @default(false)
 
   /// De dónde viene el pedido: WEB (tienda), MANUAL (lo creó un asesor),
   /// COTIZACION (nació de una cotización aprobada), NEXUS (chat) o
   /// MARKETPLACE. Antes se deducía de `!tieneInstalacion`, lo que
   /// etiquetaba como "web" cualquier pedido telefónico sin instalación.
-  origen           String     @default("MANUAL")
+  origen    String  @default("MANUAL")
   /// Referencia en el sistema de origen (nº de pedido de WooCommerce, etc.).
-  origenRef        String?
+  origenRef String?
 
   /// Desde cuándo está en el estado actual. Sin esto, "días en etapa" hay
   /// que sacarlo de updatedAt, que cambia por cualquier edición y hace
   /// que un pedido estancado parezca recién movido.
-  estadoDesde      DateTime?
+  estadoDesde DateTime?
 
   fechaEntrega     DateTime?
   direccionEntrega String?
-  notas            String?    @db.Text
-  total            Decimal    @db.Decimal(14,2) @default(0)
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
+  notas            String?   @db.Text
+  total            Decimal   @default(0) @db.Decimal(14, 2)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  items        ItemPedido[]
-  instalacion  Instalacion?
+  items       ItemPedido[]
+  instalacion Instalacion?
 
-  @@map("pedidos")
   @@index([clienteId])
   @@index([vendedorId])
   @@index([estado])
+  @@map("pedidos")
 }
 
 model ItemPedido {
@@ -485,14 +546,14 @@ model ItemPedido {
   pedido         Pedido  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
   productoId     String?
   descripcion    String
-  cantidad       Decimal @db.Decimal(10,2)
-  precioUnitario Decimal @db.Decimal(14,2)
-  subtotal       Decimal @db.Decimal(14,2)
+  cantidad       Decimal @db.Decimal(10, 2)
+  precioUnitario Decimal @db.Decimal(14, 2)
+  subtotal       Decimal @db.Decimal(14, 2)
   unidad         String?
   orden          Int     @default(0)
 
-  @@map("items_pedido")
   @@index([pedidoId])
+  @@map("items_pedido")
 }
 
 model Instalacion {
@@ -511,17 +572,27 @@ model Instalacion {
   /// Evidencia de la obra: [{ url, titulo, momento: "ANTES"|"DESPUES" }].
   /// Es el respaldo cuando un cliente reclama garantía por algo que ya
   /// estaba dañado, o dice que no se hizo lo que se hizo.
-  fotos          Json      @default("[]")
+  fotos     Json @default("[]")
   /// Checklist de cierre: [{ texto, hecho }]. La obra no se marca como
   /// terminada con puntos sin cumplir.
-  checklist      Json      @default("[]")
+  checklist Json @default("[]")
 
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  // ── Acta de entrega ──
+  actaFirmadaEn      DateTime?
+  /// Quién recibió la obra en sitio: no siempre es quien compró.
+  actaRecibidoPor    String?
+  actaDocumento      String?
+  actaObservaciones  String?   @db.Text
+  /// Sello del aviso al coordinador de proyectos. Evita avisarle dos
+  /// veces por el mismo pedido.
+  avisoCoordinadorEn DateTime?
 
-  @@map("instalaciones")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([estado])
   @@index([tecnicoId])
+  @@map("instalaciones")
 }
 
 model RefreshToken {
@@ -532,9 +603,9 @@ model RefreshToken {
   createdAt DateTime @default(now())
   revoked   Boolean  @default(false)
 
-  @@map("refresh_tokens")
   @@index([token])
   @@index([usuarioId])
+  @@map("refresh_tokens")
 }
 
 // ─────────────────────────────────────────────
@@ -542,46 +613,46 @@ model RefreshToken {
 // ─────────────────────────────────────────────
 
 model Producto {
-  id          String         @id @default(cuid())
-  wcId        Int?           @unique
-  tipo        TipoProducto   @default(SIMPLE)
-  sku         String         @unique
+  id          String       @id @default(cuid())
+  wcId        Int?         @unique
+  tipo        TipoProducto @default(SIMPLE)
+  sku         String       @unique
   nombre      String
-  slug        String         @unique
-  publicado   Boolean        @default(false)
-  visibilidad String         @default("visible")
-  destacado   Boolean        @default(false)
+  slug        String       @unique
+  publicado   Boolean      @default(false)
+  visibilidad String       @default("visible")
+  destacado   Boolean      @default(false)
 
-  descCorta   String?        @db.Text
-  descripcion String?        @db.Text
+  descCorta   String? @db.Text
+  descripcion String? @db.Text
 
   // SEO (autogenerado con IA)
   seoTitulo      String?
-  seoDescripcion String?     @db.Text
-  seoKeywords    String[]    @default([])
-  seoTexto       String?     @db.Text
+  seoDescripcion String?  @db.Text
+  seoKeywords    String[] @default([])
+  seoTexto       String?  @db.Text
 
-  precioNormal  Decimal?     @db.Decimal(14, 2)
-  precioOferta  Decimal?     @db.Decimal(14, 2)
+  precioNormal Decimal? @db.Decimal(14, 2)
+  precioOferta Decimal? @db.Decimal(14, 2)
 
-  estadoImpuesto  String?
-  claseImpuesto   String?
+  estadoImpuesto String?
+  claseImpuesto  String?
 
-  enStock           Boolean  @default(true)
-  stock             Int      @default(0)
-  stockMinimo       Int      @default(15)
-  permiteBackorders String   @default("no")
+  enStock           Boolean @default(true)
+  stock             Int     @default(0)
+  stockMinimo       Int     @default(15)
+  permiteBackorders String  @default("no")
 
-  pesoKg  Decimal?           @db.Decimal(8, 3)
-  largoCm Decimal?           @db.Decimal(8, 2)
-  anchoCm Decimal?           @db.Decimal(8, 2)
-  altoCm  Decimal?           @db.Decimal(8, 2)
+  pesoKg  Decimal? @db.Decimal(8, 3)
+  largoCm Decimal? @db.Decimal(8, 2)
+  anchoCm Decimal? @db.Decimal(8, 2)
+  altoCm  Decimal? @db.Decimal(8, 2)
 
-  categorias  String[]
-  etiquetas   String[]
-  claseEnvio  String?
-  notaCompra  String?        @db.Text
-  permiteResenas Boolean     @default(true)
+  categorias     String[]
+  etiquetas      String[]
+  claseEnvio     String?
+  notaCompra     String?  @db.Text
+  permiteResenas Boolean  @default(true)
 
   // Campos ACF Generales
   acfSkuInterno        String?
@@ -598,17 +669,17 @@ model Producto {
   acfExtra             Json     @default("{}")
 
   // Control interno
-  intEstado          EstadoProducto @default(BORRADOR)
-  intResponsable     String?
-  intObservaciones   String?        @db.Text
-  intListoExportar   Boolean        @default(false)
-  intExportadoEn     DateTime?
+  intEstado        EstadoProducto @default(BORRADOR)
+  intResponsable   String?
+  intObservaciones String?        @db.Text
+  intListoExportar Boolean        @default(false)
+  intExportadoEn   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  imagenes   AcfImagen[]
-  errores    ErrorValidacion[]
+  imagenes    AcfImagen[]
+  errores     ErrorValidacion[]
   proveedores ProveedorProducto[]
 
   acfMM AcfMallasMetalicas?
@@ -617,11 +688,11 @@ model Producto {
   acfPL AcfPlasticas?
   acfSP AcfSeguridadPerimetral?
 
-  @@map("productos")
   @@index([sku])
   @@index([intEstado])
   @@index([publicado])
   @@index([categorias])
+  @@map("productos")
 }
 
 enum TipoProducto {
@@ -656,8 +727,8 @@ model AcfImagen {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@map("imagenes")
   @@index([productoId])
+  @@map("imagenes")
 }
 
 // ─────────────────────────────────────────────
@@ -686,11 +757,11 @@ model AcfBalcones {
   productoId String   @unique
   producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
 
-  materialMarco      String?
-  acabadoMarco       String?
-  tipoApertura       String?
-  resistenciaViento  String?
-  claseTermica       String?
+  materialMarco     String?
+  acabadoMarco      String?
+  tipoApertura      String?
+  resistenciaViento String?
+  claseTermica      String?
 
   @@map("acf_balcones")
 }
@@ -713,10 +784,10 @@ model AcfPlasticas {
   productoId String   @unique
   producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
 
-  material           String?
-  densidad           String?
-  porcentajeSombra   String?
-  temperaturaMax     String?
+  material         String?
+  densidad         String?
+  porcentajeSombra String?
+  temperaturaMax   String?
 
   @@map("acf_plasticas")
 }
@@ -726,11 +797,11 @@ model AcfSeguridadPerimetral {
   productoId String   @unique
   producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
 
-  claseSeguridadEn     String?
-  alturaMinimaRecom    String?
-  sistemaAnclaje       String?
-  resistenciaTraccion  String?
-  certificacionIEC     String?
+  claseSeguridadEn    String?
+  alturaMinimaRecom   String?
+  sistemaAnclaje      String?
+  resistenciaTraccion String?
+  certificacionIEC    String?
 
   @@map("acf_seguridad_perimetral")
 }
@@ -740,7 +811,7 @@ model AcfSeguridadPerimetral {
 // ─────────────────────────────────────────────
 
 model ErrorValidacion {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   productoId String?
   producto   Producto? @relation(fields: [productoId], references: [id], onDelete: SetNull)
 
@@ -757,10 +828,10 @@ model ErrorValidacion {
   createdAt  DateTime  @default(now())
   resolvedAt DateTime?
 
-  @@map("errores_validacion")
   @@index([productoId])
   @@index([severidad])
   @@index([estadoCorreccion])
+  @@map("errores_validacion")
 }
 
 enum SeveridadError {
@@ -783,12 +854,12 @@ enum EstadoCorreccion {
 // ─────────────────────────────────────────────
 
 model Log {
-  id         String   @id @default(cuid())
-  usuarioId  String?
-  usuario    Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  id        String   @id @default(cuid())
+  usuarioId String?
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
 
   accion          String
-  detalle         String?  @db.Text
+  detalle         String? @db.Text
   resultado       String?
   archivoGenerado String?
   totalFilas      Int?
@@ -798,10 +869,10 @@ model Log {
 
   createdAt DateTime @default(now())
 
-  @@map("logs")
   @@index([usuarioId])
   @@index([accion])
   @@index([createdAt])
+  @@map("logs")
 }
 
 // ─────────────────────────────────────────────
@@ -820,8 +891,8 @@ model Catalogo {
   updatedAt DateTime @updatedAt
 
   @@unique([tipo, valor])
-  @@map("catalogos")
   @@index([tipo])
+  @@map("catalogos")
 }
 
 enum TipoCatalogo {
@@ -840,10 +911,10 @@ enum TipoCatalogo {
 // ─────────────────────────────────────────────
 
 model Configuracion {
-  id        String  @id @default(cuid())
-  clave     String  @unique
-  valor     String  @db.Text   // cifrado con AES-256-GCM si encrypted=true
-  encrypted Boolean @default(false)
+  id          String  @id @default(cuid())
+  clave       String  @unique
+  valor       String  @db.Text // cifrado con AES-256-GCM si encrypted=true
+  encrypted   Boolean @default(false)
   descripcion String?
 
   updatedAt DateTime @updatedAt
@@ -856,21 +927,21 @@ model Configuracion {
 // ─────────────────────────────────────────────
 
 model WooCommerceSync {
-  id             String   @id @default(cuid())
-  tipo           String   // 'export' | 'import' | 'sync'
-  estado         String   // 'pendiente' | 'procesando' | 'completado' | 'error'
-  totalProductos Int      @default(0)
-  procesados     Int      @default(0)
-  errores        Int      @default(0)
+  id             String  @id @default(cuid())
+  tipo           String // 'export' | 'import' | 'sync'
+  estado         String // 'pendiente' | 'procesando' | 'completado' | 'error'
+  totalProductos Int     @default(0)
+  procesados     Int     @default(0)
+  errores        Int     @default(0)
   detalle        Json?
   archivoCSV     String?
 
   startedAt   DateTime  @default(now())
   completedAt DateTime?
 
-  @@map("woocommerce_sync")
   @@index([estado])
   @@index([startedAt])
+  @@map("woocommerce_sync")
 }
 
 // ─────────────────────────────────────────────
@@ -888,9 +959,9 @@ model Notificacion {
   createdAt DateTime  @default(now())
   leidaAt   DateTime?
 
-  @@map("notificaciones")
   @@index([leida])
   @@index([createdAt])
+  @@map("notificaciones")
 }
 
 enum TipoNotificacion {
@@ -915,81 +986,81 @@ model NexusConexion {
   config      Json     @default("{}")
   activo      Boolean  @default(true)
   webhookUrl  String?
-  asignadoId  String?  // usuario que atiende esta línea/canal (asignado por admin)
+  asignadoId  String? // usuario que atiende esta línea/canal (asignado por admin)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   conversaciones NexusConversacion[]
 
-  @@map("nexus_conexiones")
   @@index([canal])
   @@index([activo])
   @@index([asignadoId])
+  @@map("nexus_conexiones")
 }
 
 model NexusConversacion {
-  id          String        @id @default(cuid())
-  conexionId  String
-  conexion    NexusConexion @relation(fields: [conexionId], references: [id], onDelete: Cascade)
-  canal       String
-  remitente   String
-  emailRemit  String?
-  telRemit    String?
-  asunto      String?
-  estado      String        @default("ABIERTA")
-  prioridad   String        @default("NORMAL")
-  asignadoId  String?       // usuario asignado (por turno o transferido)
-  leida       Boolean       @default(false)
-  metadata    Json?
+  id         String        @id @default(cuid())
+  conexionId String
+  conexion   NexusConexion @relation(fields: [conexionId], references: [id], onDelete: Cascade)
+  canal      String
+  remitente  String
+  emailRemit String?
+  telRemit   String?
+  asunto     String?
+  estado     String        @default("ABIERTA")
+  prioridad  String        @default("NORMAL")
+  asignadoId String? // usuario asignado (por turno o transferido)
+  leida      Boolean       @default(false)
+  metadata   Json?
 
   /// Lo que el bot saca del primer mensaje: producto, ciudad, urgencia.
-  etiquetas   String[]      @default([])
+  etiquetas          String[]  @default([])
   /// Vínculo con el CRM: saber que quien escribe ya es cliente cambia
   /// por completo cómo se le atiende.
-  clienteId   String?
-  cliente     Cliente?      @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  clienteId          String?
+  cliente            Cliente?  @relation(fields: [clienteId], references: [id], onDelete: SetNull)
   /// Cuándo contestó un humano por primera vez. Es lo que permite medir
   /// el compromiso de responder en una hora.
   primeraRespuestaEn DateTime?
 
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   mensajes NexusMensaje[]
 
-  @@map("nexus_conversaciones")
   @@index([conexionId])
   @@index([estado])
   @@index([leida])
   @@index([asignadoId])
   @@index([createdAt])
+  @@map("nexus_conversaciones")
 }
 
 model NexusMensaje {
-  id              String            @id @default(cuid())
-  conversacionId  String
-  conversacion    NexusConversacion @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
-  agenteId        String?
-  agente          Usuario?          @relation(fields: [agenteId], references: [id], onDelete: SetNull)
-  origen          String
-  contenido       String            @db.Text
-  tipo            String            @default("texto")
-  metadata        Json?
-  leido           Boolean           @default(false)
+  id             String            @id @default(cuid())
+  conversacionId String
+  conversacion   NexusConversacion @relation(fields: [conversacionId], references: [id], onDelete: Cascade)
+  agenteId       String?
+  agente         Usuario?          @relation(fields: [agenteId], references: [id], onDelete: SetNull)
+  origen         String
+  contenido      String            @db.Text
+  tipo           String            @default("texto")
+  metadata       Json?
+  leido          Boolean           @default(false)
 
   /// RECIBIDO (entró del contacto) · ENVIADO · PENDIENTE · ERROR.
   /// Sin esto, que la API del canal rechazara el mensaje era invisible:
   /// el asesor veía su respuesta en pantalla y el cliente nunca la recibía.
-  estadoEnvio     String            @default("RECIBIDO")
-  errorEnvio      String?           @db.Text
+  estadoEnvio String  @default("RECIBIDO")
+  errorEnvio  String? @db.Text
   /// Id del mensaje en el canal (wamid en WhatsApp).
-  refExterna      String?
+  refExterna  String?
 
-  createdAt       DateTime          @default(now())
+  createdAt DateTime @default(now())
 
-  @@map("nexus_mensajes")
   @@index([conversacionId])
   @@index([createdAt])
+  @@map("nexus_mensajes")
 }
 
 // ─────────────────────────────────────────────
@@ -1001,8 +1072,8 @@ model ReporteError {
   usuarioId     String?
   usuarioNombre String
   usuarioRol    String
-  modulo        String              // ruta/ubicación (pathname)
-  accion        String?             // qué estaba haciendo
+  modulo        String // ruta/ubicación (pathname)
+  accion        String? // qué estaba haciendo
   descripcion   String?  @db.Text
   url           String?
   userAgent     String?
@@ -1010,7 +1081,7 @@ model ReporteError {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@map("reportes_error")
   @@index([estado])
   @@index([createdAt])
+  @@map("reportes_error")
 }
