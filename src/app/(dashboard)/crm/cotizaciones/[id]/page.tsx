@@ -11,6 +11,7 @@ import Link from "next/link";
 import toast from "react-hot-toast";
 import { useBrand } from "@/contexts/BrandContext";
 import { CotizacionDoc, type CotizacionDocData } from "@/components/crm/CotizacionDoc";
+import { PanelSeguimiento } from "@/components/crm/PanelSeguimiento";
 import { DEFAULTS, type ConfigCotizacion } from "@/lib/cotizacion-textos";
 import { formatDate, cn } from "@/lib/utils";
 
@@ -165,6 +166,9 @@ function DetalleContent() {
                 </div>
               )}
             </div>
+
+            {/* Los tres toques posteriores al envío */}
+            <PanelSeguimiento cotizacionId={id} />
 
             {/* Plantilla */}
             <div className="card p-5">

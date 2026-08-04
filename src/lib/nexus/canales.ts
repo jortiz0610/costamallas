@@ -156,6 +156,40 @@ export async function enviarPorCanal(conversacionId: string, texto: string): Pro
   }
 }
 
+/**
+ * Manda un WhatsApp a un número suelto, sin conversación de por medio.
+ *
+ * Lo usa el seguimiento post-cotización, que le escribe a un cliente que
+ * nunca ha entrado por el chat. Toma la primera conexión de WhatsApp
+ * activa que tenga credenciales.
+ *
+ * ⚠️ Hoy esto falla siempre y ESTÁ BIEN que falle: la cuenta de Meta no
+ * está aprobada. Devuelve el motivo para que quede escrito en el
+ * seguimiento, en vez de aparentar que el mensaje salió.
+ */
+export async function enviarWhatsAppDirecto(telefono: string, texto: string): Promise<ResultadoEnvio> {
+  if (!telefono) return { ok: false, error: "El cliente no tiene teléfono registrado." };
+
+  const conexiones = await prisma.nexusConexion.findMany({
+    where: { canal: "whatsapp", activo: true },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!conexiones.length) {
+    return { ok: false, error: "No hay ninguna conexión de WhatsApp activa en Nexus." };
+  }
+
+  for (const conexion of conexiones) {
+    const cfg = leerConfig(conexion.config);
+    if (!cfg.phoneNumberId || !cfg.token) continue;
+    return enviarWhatsApp(cfg, telefono, texto);
+  }
+
+  return {
+    ok: false,
+    error: "La conexión de WhatsApp no tiene Phone Number ID ni token: falta la aprobación de Meta.",
+  };
+}
+
 /** ¿Este canal puede responder hoy? Sirve para no ofrecer lo que no hay. */
 export async function canalPuedeEnviar(conexionId: string): Promise<{ puede: boolean; motivo?: string }> {
   const conexion = await prisma.nexusConexion.findUnique({ where: { id: conexionId } });
