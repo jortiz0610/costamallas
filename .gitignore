@@ -16,7 +16,10 @@ build/
 .env.production.local
 
 # Prisma
-prisma/migrations/
+# Las migraciones SI se versionan: son el historial de lo que se le hizo
+# a la base de produccion. Estaban ignoradas y por eso vivian solo en el
+# PC de quien las corrio (y en OneDrive, que revierte archivos). No
+# llevan secretos: son DDL.
 
 # Logs
 *.log

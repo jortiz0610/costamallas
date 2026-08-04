@@ -1,0 +1,2 @@
+-- AddClienteEstado
+ALTER TABLE "clientes" ADD COLUMN IF NOT EXISTS "estado" TEXT NOT NULL DEFAULT 'PROSPECTO';
