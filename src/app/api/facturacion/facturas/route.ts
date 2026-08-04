@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest, canWrite } from "@/lib/auth";
 import { siguienteNumeroInterno, getFacturacionConfig } from "@/lib/facturacion";
+import { getPlazosPago, calcularFechaVence } from "@/lib/plazos-pago";
 
 export async function GET(req: NextRequest) {
   const user = await getUserFromRequest(req);
@@ -53,6 +54,16 @@ export async function POST(req: NextRequest) {
   const total = subtotal - descTotal + ivaTotal;
   const numero = await siguienteNumeroInterno();
 
+  // La fecha de vencimiento sale sola de la forma de pago. Antes había
+  // que escribirla a mano y el formulario ni siquiera la pedía: la
+  // factura nacía sin fecha y la cartera tenía que estimarle la
+  // antigüedad con la de emisión.
+  const formaPago = b.formaPago ?? "CONTADO";
+  const plazos = await getPlazosPago();
+  const fechaVence = b.fechaVence
+    ? new Date(b.fechaVence)
+    : calcularFechaVence(formaPago, new Date(), plazos);
+
   const factura = await prisma.factura.create({
     data: {
       numero, clienteId, pedidoId: b.pedidoId ?? null, cotizacionId: b.cotizacionId ?? null,
@@ -60,8 +71,8 @@ export async function POST(req: NextRequest) {
       estadoDian: cfg.proveedor === "manual" ? "NO_APLICA" : "PENDIENTE",
       prefijo: cfg.prefijo,
       subtotal, descuento: descTotal, iva: ivaTotal, total, saldoPendiente: total,
-      formaPago: b.formaPago ?? "CONTADO", metodoPago: b.metodoPago ?? null,
-      fechaVence: b.fechaVence ? new Date(b.fechaVence) : null,
+      formaPago, metodoPago: b.metodoPago ?? null,
+      fechaVence,
       notas: b.notas ?? null,
       items: { create: itemsData },
     },

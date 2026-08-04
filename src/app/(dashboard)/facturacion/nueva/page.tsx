@@ -8,6 +8,7 @@ import { ArrowLeft, Loader2, Plus, Trash2, Search, X, FileText } from "lucide-re
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { formatCOP } from "@/lib/utils";
+import type { PlazoPago } from "@/lib/plazos-pago";
 
 const ERP_COLOR = "#185FA5";
 
@@ -23,7 +24,21 @@ function NuevaFacturaContent() {
   const [clienteBusq, setClienteBusq] = useState("");
   const [items, setItems] = useState<Item[]>([{ descripcion: "", cantidad: 1, precioUnitario: 0, ivaPct: 19 }]);
   const [notas, setNotas] = useState("");
+  const [formaPago, setFormaPago] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Las formas de pago y sus plazos salen de Configuración → Reglas
+  // comerciales. De ahí sale sola la fecha de vencimiento: este
+  // formulario ni siquiera pedía la forma de pago, y por eso las
+  // facturas nacían sin fecha con la que cobrarlas.
+  const { data: plazos = [] } = useQuery<PlazoPago[]>({
+    queryKey: ["plazos-pago"],
+    queryFn: async () => (await (await fetch("/api/configuracion/plazos")).json()).data ?? [],
+  });
+  const plazoSel = plazos.find(p => p.valor === (formaPago || plazos[0]?.valor));
+  const venceEl = plazoSel
+    ? new Date(Date.now() + plazoSel.dias * 86_400_000).toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" })
+    : null;
 
   const { data: pedidos = [] } = useQuery<PedidoOpt[]>({
     queryKey: ["pedidos-fact"], queryFn: async () => (await (await fetch("/api/crm/pedidos")).json()).data ?? [],
@@ -42,7 +57,10 @@ function NuevaFacturaContent() {
   const crear = async () => {
     setSaving(true);
     try {
-      const body = modo === "pedido" ? { pedidoId, notas } : { clienteId, items, notas };
+      const forma = formaPago || plazos[0]?.valor;
+      const body = modo === "pedido"
+        ? { pedidoId, notas, formaPago: forma }
+        : { clienteId, items, notas, formaPago: forma };
       if (modo === "pedido" && !pedidoId) { setSaving(false); return toast.error("Selecciona un pedido"); }
       if (modo === "manual" && !clienteId) { setSaving(false); return toast.error("Selecciona un cliente"); }
       const res = await fetch("/api/facturacion/facturas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -123,9 +141,23 @@ function NuevaFacturaContent() {
           </>
         )}
 
+        {/* Forma de pago: es lo que le pone fecha de vencimiento a la
+            factura, así que ya no es opcional ni va escrito en las notas. */}
+        <div className="card p-5">
+          <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Forma de pago</label>
+          <select className="input" value={formaPago || plazos[0]?.valor || ""} onChange={e => setFormaPago(e.target.value)}>
+            {plazos.map(p => <option key={p.valor} value={p.valor}>{p.label}</option>)}
+          </select>
+          <p className="text-[11px] text-muted mt-2">
+            {venceEl
+              ? <>La factura vencerá el <b>{venceEl}</b> ({plazoSel?.dias === 0 ? "contado" : `${plazoSel?.dias} días`}). Se recalcula al emitirla, contando desde la fecha de emisión.</>
+              : "Define las formas de pago en Configuración → Reglas comerciales."}
+          </p>
+        </div>
+
         <div className="card p-5">
           <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Notas</label>
-          <textarea className="input resize-none" rows={2} value={notas} onChange={e => setNotas(e.target.value)} placeholder="Condiciones, forma de pago…" />
+          <textarea className="input resize-none" rows={2} value={notas} onChange={e => setNotas(e.target.value)} placeholder="Lo particular de esta factura…" />
         </div>
       </div>
     </>

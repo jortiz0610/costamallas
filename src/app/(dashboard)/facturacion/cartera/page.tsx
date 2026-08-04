@@ -124,6 +124,9 @@ function CarteraContent() {
                   Se les calculó la antigüedad con la fecha de emisión para no dejarlas fuera del análisis.
                   Corrígelas para que el cobro sea exacto.
                 </p>
+                <Link href="/facturacion/sin-vencimiento" className="inline-block mt-1.5 font-semibold" style={{ color: ERP_COLOR }}>
+                  Corregirlas en lote →
+                </Link>
               </div>
             )}
 

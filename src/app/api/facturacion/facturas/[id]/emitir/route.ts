@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest, canWrite } from "@/lib/auth";
 import { emitirElectronica, getFacturacionConfig } from "@/lib/facturacion";
+import { getPlazosPago, calcularFechaVence } from "@/lib/plazos-pago";
 
 type P = { params: Promise<{ id: string }> };
 
@@ -29,10 +30,20 @@ export async function POST(req: NextRequest, { params }: P) {
     });
   }
 
+  // Al emitir empieza a correr el plazo de verdad. Si la factura no
+  // traía vencimiento, se calcula ahora desde la fecha de emisión; si
+  // alguien puso una a mano, no se le toca.
+  const emision = new Date();
+  let fechaVence = factura.fechaVence;
+  if (r.ok && !fechaVence) {
+    fechaVence = calcularFechaVence(factura.formaPago, emision, await getPlazosPago());
+  }
+
   await prisma.factura.update({
     where: { id },
     data: {
       estado: r.ok ? "EMITIDA" : factura.estado,
+      ...(r.ok && fechaVence ? { fechaVence } : {}),
       estadoDian: r.estadoDian,
       cufe: r.cufe ?? undefined,
       proveedorRef: r.proveedorRef ?? undefined,
@@ -41,7 +52,7 @@ export async function POST(req: NextRequest, { params }: P) {
       qrUrl: r.qrUrl ?? undefined,
       mensajeDian: r.mensaje ?? undefined,
       consecutivo,
-      fechaEmision: r.ok ? new Date() : undefined,
+      fechaEmision: r.ok ? emision : undefined,
     },
   });
 

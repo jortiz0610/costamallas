@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { Plus, FileText, Loader2, DollarSign, Clock, AlertTriangle, Eye, PieChart } from "lucide-react";
+import { Plus, FileText, Loader2, DollarSign, Clock, AlertTriangle, Eye, PieChart, CalendarClock } from "lucide-react";
 import Link from "next/link";
 import { formatCOP } from "@/lib/utils";
 
@@ -35,6 +35,8 @@ function FacturacionContent() {
   const porCobrar = activas.reduce((s, f) => s + Number(f.saldoPendiente), 0);
   const pagado = facturado - porCobrar;
   const vencidas = activas.filter(f => Number(f.saldoPendiente) > 0 && f.fechaVence && new Date(f.fechaVence) < new Date()).length;
+  // Sin fecha no se puede cobrar: no hay contra qué decir que venció.
+  const sinVencimiento = activas.filter(f => !f.fechaVence).length;
 
   return (
     <>
@@ -43,6 +45,13 @@ function FacturacionContent() {
           <Link href="/facturacion/cartera" className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 surface-2 text-soft">
             <PieChart size={13} /> Cartera
           </Link>
+          {/* Solo aparece si hay algo que corregir: un enlace que casi
+              siempre lleva a una lista vacía se deja de mirar. */}
+          {sinVencimiento > 0 && (
+            <Link href="/facturacion/sin-vencimiento" className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5" style={{ backgroundColor: "#fef3c7", color: "#92400e" }}>
+              <CalendarClock size={13} /> {sinVencimiento} sin vencimiento
+            </Link>
+          )}
           <Link href="/facturacion/nueva" className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: ERP_COLOR }}>
             <Plus size={13} /> Nueva factura
           </Link>
