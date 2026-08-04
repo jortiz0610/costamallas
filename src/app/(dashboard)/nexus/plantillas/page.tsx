@@ -97,6 +97,7 @@ function PlantillasContent() {
   const qc = useQueryClient();
   const [modal, setModal] = useState(false);
   const [filtroCat, setFiltroCat] = useState("");
+  const [cargandoSemilla, setCargandoSemilla] = useState(false);
 
   const { data: plantillas = [], isLoading } = useQuery<Plantilla[]>({
     queryKey: ["nexus-plantillas", filtroCat],
@@ -120,12 +121,35 @@ function PlantillasContent() {
     qc.invalidateQueries({ queryKey: ["nexus-plantillas"] });
   };
 
+  /** Carga el paquete de respuestas a lo que preguntan todos los días. */
+  const cargarSugeridas = async () => {
+    setCargandoSemilla(true);
+    try {
+      const res = await fetch("/api/nexus/plantillas", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ semilla: true }),
+      });
+      const j = await res.json();
+      if (!res.ok || !j.success) return toast.error(j.error ?? "No se pudieron cargar");
+      toast.success(
+        j.creadas > 0
+          ? `${j.creadas} plantillas creadas${j.omitidas ? ` · ${j.omitidas} ya estaban` : ""}`
+          : "Ya tenías todas las sugeridas",
+      );
+      qc.invalidateQueries({ queryKey: ["nexus-plantillas"] });
+    } finally { setCargandoSemilla(false); }
+  };
+
   return (
     <>
       <Topbar title="Plantillas & Automatización" actions={
-        <button onClick={() => setModal(true)} className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: NEXUS_COLOR }}>
-          <Plus size={13} /> Nueva plantilla
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={cargarSugeridas} disabled={cargandoSemilla} className="btn-secondary btn-sm">
+            {cargandoSemilla ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />} Cargar sugeridas
+          </button>
+          <button onClick={() => setModal(true)} className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: NEXUS_COLOR }}>
+            <Plus size={13} /> Nueva plantilla
+          </button>
+        </div>
       } />
       <div className="flex-1 overflow-y-auto page-bg p-6 space-y-5">
 
@@ -159,9 +183,18 @@ function PlantillasContent() {
           <div className="card p-12 text-center">
             <MessageSquareText size={28} className="mx-auto mb-2 text-muted" />
             <p className="text-sm text-muted">Sin plantillas aún</p>
-            <button onClick={() => setModal(true)} className="mt-4 px-4 py-2 rounded-xl text-sm font-semibold text-white inline-flex items-center gap-2" style={{ backgroundColor: NEXUS_COLOR }}>
-              <Plus size={14} /> Crear primera plantilla
-            </button>
+            <p className="text-xs text-muted mt-1 max-w-md mx-auto">
+              Hay 15 listas para lo que preguntan todos los días: precio, cómo medir, si instalan,
+              si envían a su ciudad, garantía y formas de pago.
+            </p>
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <button onClick={cargarSugeridas} disabled={cargandoSemilla} className="px-4 py-2 rounded-xl text-sm font-semibold text-white inline-flex items-center gap-2" style={{ backgroundColor: NEXUS_COLOR }}>
+                {cargandoSemilla ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Cargar las 15 sugeridas
+              </button>
+              <button onClick={() => setModal(true)} className="btn-secondary">
+                <Plus size={14} /> Crear una
+              </button>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -29,6 +29,10 @@ export async function GET(req: NextRequest) {
       conexion: { select: { nombre: true, canal: true } },
       mensajes: { orderBy: { createdAt: "desc" }, take: 1 },
       _count: { select: { mensajes: true } },
+      // Lo que hace útil la bandeja: saber si quien escribe ya es cliente
+      // antes de abrir la conversación. El nombre del asesor lo resuelve
+      // la pantalla con la lista de usuarios que ya tiene cargada.
+      cliente: { select: { id: true, nombre: true, empresa: true } },
     },
     take: 100,
   });

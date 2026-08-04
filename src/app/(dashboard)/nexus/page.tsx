@@ -40,6 +40,12 @@ interface Conversacion {
   conexion: { nombre: string; canal: string };
   mensajes: NexusMensaje[];
   _count: { mensajes: number };
+  /** Lo que dedujo el bot: producto, ciudad, urgencia, intención. */
+  etiquetas?: string[];
+  /** Si el que escribe ya está en el CRM. */
+  cliente?: { id: string; nombre: string; empresa?: string | null } | null;
+  asignado?: { nombre: string } | null;
+  primeraRespuestaEn?: string | null;
 }
 interface UsuarioLista { id: string; nombre: string; rol: string; }
 
@@ -74,7 +80,9 @@ function PrioridadDot({ prioridad }: { prioridad: string }) {
 
 // ── Panel de conversaciones (izq) ────────────────────────────────
 
-function ConversacionItem({ conv, activa, onClick }: { conv: Conversacion; activa: boolean; onClick: () => void }) {
+function ConversacionItem({ conv, activa, onClick, nombreAsignado }: {
+  conv: Conversacion; activa: boolean; onClick: () => void; nombreAsignado?: string;
+}) {
   const { brand } = useBrand();
   const ultimo = conv.mensajes[0];
   const meta = CANAL_META[conv.canal];
@@ -101,8 +109,34 @@ function ConversacionItem({ conv, activa, onClick }: { conv: Conversacion; activ
           <p className="text-[11px] text-slate-400 truncate flex-1">{conv.asunto ?? ultimo?.contenido ?? "…"}</p>
           {!conv.leida && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: brand.brandColor }} />}
         </div>
-        <div className="mt-1">
+
+        {/* Lo que el bot dedujo del primer mensaje. Es la diferencia entre
+            abrir una conversación a ciegas y saber de qué se trata antes. */}
+        {conv.etiquetas && conv.etiquetas.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {conv.etiquetas.slice(0, 3).map((e, i) => {
+              const urgente = e === "urgencia:alta";
+              return (
+                <span key={i}
+                  className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded", urgente ? "text-white" : "surface-3 text-muted")}
+                  style={urgente ? { backgroundColor: "#dc2626" } : {}}>
+                  {urgente ? "URGENTE" : e}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
           <CanalBadge canal={conv.canal} />
+          {conv.cliente && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600">
+              Ya es cliente
+            </span>
+          )}
+          {nombreAsignado && (
+            <span className="text-[9px] text-slate-400 truncate">· {nombreAsignado.split(" ")[0]}</span>
+          )}
         </div>
       </div>
     </div>
@@ -222,6 +256,32 @@ function ChatView({ conv, onMarcarResuelta }: { conv: Conversacion; onMarcarResu
           </span>
         </div>
       </div>
+
+      {/* Lectura del bot: lo que se sabe antes de leer el hilo entero */}
+      {(conv.etiquetas?.length || conv.cliente) && (
+        <div className="px-5 py-2.5 flex items-center gap-2 flex-wrap border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
+          <Sparkles size={12} className="text-muted flex-shrink-0" />
+          {conv.cliente && (
+            <Link href={`/crm/clientes/${conv.cliente.id}`}
+              className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 hover:underline">
+              {conv.cliente.empresa || conv.cliente.nombre} · ver en CRM
+            </Link>
+          )}
+          {(conv.etiquetas ?? []).map((e, i) => {
+            const urgente = e === "urgencia:alta";
+            return (
+              <span key={i}
+                className={cn("text-[10px] font-semibold px-2 py-0.5 rounded", urgente ? "text-white" : "surface-3 text-muted")}
+                style={urgente ? { backgroundColor: "#dc2626" } : {}}>
+                {urgente ? "URGENTE" : e}
+              </span>
+            );
+          })}
+          {conv.primeraRespuestaEn && (
+            <span className="text-[10px] text-emerald-600 ml-auto">Respondida</span>
+          )}
+        </div>
+      )}
 
       {/* Mensajes */}
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-slate-50/50 dark:bg-slate-950/50">
@@ -385,13 +445,28 @@ function NexusContent() {
     refetchInterval: 15_000,
   });
 
+  // Para mostrar de quién es cada conversación sin pedirle al servidor
+  // una relación que el modelo no tiene.
+  const { data: usuariosBandeja = [] } = useQuery<UsuarioLista[]>({
+    queryKey: ["usuarios-lista"],
+    queryFn: async () => (await (await fetch("/api/usuarios/lista")).json()).data ?? [],
+    staleTime: 300_000,
+  });
+
   const conversaciones: Conversacion[] = result?.data ?? [];
   const noLeidas: number = result?.noLeidas ?? 0;
 
-  const filtradas = conversaciones.filter(c =>
-    !busqueda || c.remitente.toLowerCase().includes(busqueda.toLowerCase()) ||
-    (c.asunto ?? "").toLowerCase().includes(busqueda.toLowerCase())
-  );
+  // La búsqueda incluye las etiquetas del bot: escribir "santa marta" o
+  // "balcones" encuentra la conversación aunque el cliente no lo haya
+  // escrito con esas palabras exactas.
+  const filtradas = conversaciones.filter(c => {
+    if (!busqueda) return true;
+    const q = busqueda.toLowerCase();
+    return c.remitente.toLowerCase().includes(q)
+      || (c.asunto ?? "").toLowerCase().includes(q)
+      || (c.etiquetas ?? []).some(e => e.toLowerCase().includes(q))
+      || (c.cliente?.empresa ?? "").toLowerCase().includes(q);
+  });
 
   const marcarResuelta = async () => {
     if (!convActiva) return;
@@ -487,6 +562,7 @@ function NexusContent() {
             ) : (
               filtradas.map(c => (
                 <ConversacionItem key={c.id} conv={c} activa={convActiva?.id === c.id}
+                  nombreAsignado={usuariosBandeja.find(u => u.id === c.asignadoId)?.nombre}
                   onClick={() => setConvActiva(c)} />
               ))
             )}
