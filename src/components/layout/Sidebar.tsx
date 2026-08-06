@@ -24,6 +24,7 @@ const MARKETING_ITEMS = [
   { section: "Análisis" },
   { href: "/marketing/campanas", label: "Campañas", icon: Megaphone },
   { href: "/marketing/atribucion", label: "Atribución de leads", icon: Target },
+  { href: "/marketing/retorno", label: "Retorno real", icon: TrendingUp },
   { href: "/marketing/reportes", label: "Reportes", icon: TrendingUp },
   { section: "Conecta tus cuentas" },
   { href: "/configuracion?tab=marketing", label: "Conexiones de Ads", icon: Radio },
