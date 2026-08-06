@@ -6,7 +6,7 @@ import {
   AlertTriangle, Settings, LogOut, Users, UserCircle, ClipboardList,
   ShoppingCart, Wrench, Kanban, ChevronDown, ShieldCheck, BarChart2,
   MessageSquare, Truck, CheckSquare, MessageSquareText, Zap,
-  Megaphone, Target, TrendingUp, Radio, Receipt, PieChart, Star,
+  Megaphone, Target, TrendingUp, Radio, Receipt, PieChart, Star, Timer,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -65,6 +65,7 @@ const NEXUS_ITEMS = [
   { href: "/nexus", label: "Inbox", icon: MessageSquare, alertKey: "nexus" },
   { href: "/nexus/plantillas", label: "Plantillas", icon: MessageSquareText },
   { href: "/nexus/flujos", label: "Flujos & Automatización", icon: Zap },
+  { href: "/nexus/tiempos", label: "Tiempo de respuesta", icon: Timer },
   { section: "Configura tus canales" },
   { href: "/configuracion?tab=canales", label: "Conexiones", icon: Settings },
 ];
