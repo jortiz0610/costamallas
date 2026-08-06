@@ -5,8 +5,15 @@
 > cómo está construido, dónde está alojado y cómo se conecta con los servicios externos
 > (Vercel, Supabase, WooCommerce, FTP, IA, plataformas de Ads).
 >
-> **Última actualización:** 2026-06-03 · Commit de referencia: `a351c45`
+> **Última actualización:** 2026-08-05 · Commit de referencia: `10d3a49`
 > _Mantén este archivo actualizado cuando cambie la arquitectura o las integraciones._
+>
+> **Antes de tocar nada, lee también:**
+> - `PENDIENTES-GERENCIA.md` — los datos comerciales que faltan (plazos de pago,
+>   precios de instalación, enlace de reseñas…). Varios módulos están construidos
+>   pero esperando uno de esos datos.
+> - `§12 Cómo se trabaja en este repo` — las trampas que ya costaron tiempo
+>   (migraciones, build, OneDrive, Sidebar). No las redescubras.
 
 ---
 
@@ -17,15 +24,30 @@
 perimetral, en Colombia).
 
 Centraliza:
-- **Productos (PIM):** catálogo con campos técnicos (ACF) específicos por categoría.
-- **CRM:** clientes, cotizaciones, pedidos, instalaciones, tareas, pipeline de ventas.
-- **Compras/ERP:** proveedores y órdenes de compra, control de stock.
+- **Productos (PIM):** catálogo con campos técnicos (ACF) específicos por categoría,
+  filtros de trabajo (sin imagen, sin precio, sin SEO…) y guía de completitud.
+- **CRM:** clientes, **cotización 2.0** (dos plantillas, enlace público, envío por
+  correo y seguimiento de aperturas), pedidos, **pipeline** con valor y días por
+  etapa, **embudo** con la tasa de cierre, **instalaciones** con calendario,
+  evidencia fotográfica y acta de entrega, tareas.
+- **Política comercial:** tope de descuento y anticipo mínimo, con aprobación de
+  administrador y registro de quién autorizó qué.
+- **Seguimiento post-cotización:** los tres toques posteriores al envío de una
+  oferta (§3.7).
+- **Compras/ERP:** proveedores con sus productos, órdenes de compra con envío por
+  correo y recepción de mercancía que suma stock, control de inventario.
+- **Facturación:** facturas, pagos, **cartera por antigüedad**, recordatorios de
+  cobro y adaptador (sin conectar) para facturación electrónica DIAN.
+- **Postventa:** políticas públicas (`/politicas`) y QR de encuesta de satisfacción.
 - **Imágenes:** biblioteca con subida por **FTP** al hosting del catálogo.
-- **Sincronización con la tienda WooCommerce** (costamallas.com): exportar productos e
-  importar pedidos.
+- **Sincronización con la tienda WooCommerce** (costamallas.com): exportar productos
+  (incluidos ficha técnica ACF y metadatos de **Yoast SEO**) e importar pedidos.
 - **Marketing:** conexiones OAuth con Google/Meta/TikTok Ads, campañas, atribución UTM, leads.
-- **Nexus:** hub omnicanal (conversaciones, plantillas, conexiones, webhooks).
-- **Asistente de IA** flotante (OpenAI o Anthropic, configurable).
+- **Nexus:** hub omnicanal — entrada por webhook, reparto por turno entre asesores,
+  bot que califica el primer mensaje y salida real por WhatsApp Cloud API
+  (pendiente de la aprobación de Meta).
+- **Asistente de IA** flotante: el agente **Sembli**, con herramientas y jerarquía
+  de acceso por rol.
 - **Cotizador web público** (`/cotizar`) que captura leads desde la web.
 
 El idioma del producto, el código (nombres de modelos/campos) y la UI es **español**.
@@ -65,6 +87,17 @@ externos**; el código local no funciona sin ellos.
 - `next.config.ts` define cabeceras de seguridad (CSP, HSTS, X-Frame-Options, etc.) y
   los `remotePatterns` de imágenes permitidas (`costamallas.com`, `*.woocommerce.com`).
 
+⚠️ **El plan es Hobby, y eso condiciona el diseño:**
+- **Máximo 2 cron jobs y solo frecuencia diaria.** Un cron más frecuente que diario
+  no falla suave: **rompe el deploy entero** y el auto-deploy se cae en silencio.
+  Los dos cupos están usados (`vercel.json`):
+  `/api/cron/sync-woo` a las 06:00 UTC y `/api/cron/diario` a las 13:00 UTC
+  (= 8 a.m. en Colombia). **Todo lo que haya que correr una vez al día tiene que
+  entrar dentro de `/api/cron/diario`, no como un cron nuevo.**
+- Las funciones cortan a los **60 s**.
+- El plan Hobby **prohíbe el uso comercial**. Esto es un portal de una empresa que
+  factura: hay que pasar a Pro. Es una decisión del dueño, no un pendiente técnico.
+
 ### 3.2 Supabase — Base de datos PostgreSQL
 - La base de datos es **PostgreSQL alojada en Supabase**.
 - Prisma usa **dos URLs** (patrón estándar de Supabase + PgBouncer):
@@ -75,8 +108,10 @@ externos**; el código local no funciona sin ellos.
 - El commit `7d5bf52 fix: pgbouncer url` confirma que hubo que ajustar la URL del pooler.
 - **No hay Supabase Auth ni Supabase Storage**: solo se usa Supabase como Postgres. La
   autenticación es propia (JWT) y las imágenes van por FTP (no a Supabase Storage).
-- Para aplicar el esquema: `npm run prisma:push` (o `prisma:migrate`). Migraciones en
-  `prisma/migrations/`.
+- **Las migraciones se aplican a mano, con un script propio.** Ver §12: ni
+  `prisma db execute` ni un script suelto de Prisma funcionan contra esta base.
+  Migraciones en `prisma/migrations/` (sí se versionan; hasta agosto de 2026
+  estaban en `.gitignore` y vivían solo en el PC de quien las corrió).
 
 ### 3.3 WooCommerce — Tienda (costamallas.com)
 - Integración con la **REST API v3** de WooCommerce (`/wp-json/wc/v3/...`), cliente en
@@ -143,7 +178,50 @@ comprobaciones del límite de seguridad contra la BD real (escalada de privilegi
 fuga de campos internos al cliente, aislamiento entre clientes).
 **Prueba real (sí gasta):** `npx tsx scripts/probar-sembli.ts`.
 
-### 3.6 Marketing — OAuth de Ads (Google / Meta / TikTok)
+### 3.6 Correo saliente (SMTP)
+
+- Cliente en `src/lib/correo.ts`, sobre **nodemailer**. Lo usan las órdenes de
+  compra a proveedores, el envío de la cotización, los recordatorios de cartera,
+  el seguimiento post-cotización y el aviso al coordinador de obras.
+- Las credenciales van **cifradas en `configuracion`** (`smtp_host`, `smtp_port`,
+  `smtp_secure`, `smtp_user`, `smtp_password`, `smtp_from_name`,
+  `smtp_from_email`) y se editan en **Configuración → Correo**.
+- ⚠️ **Hay que cargarlas desde el portal EN PRODUCCIÓN.** Lo que se cifra en local
+  no se puede descifrar en Vercel: la `ENCRYPTION_KEY` es distinta. Si pasa,
+  `getConfigCorreo()` lo trata como "sin configurar" en vez de tumbar el módulo, y
+  `estadoCorreo()` devuelve `descifra: false` para poder decirlo en pantalla.
+- **Hoy NO está configurado.** Todo lo que manda correo lo dice en pantalla con el
+  motivo, y no simula haber enviado.
+- Los errores de SMTP se traducen a castellano entendible antes de mostrarlos.
+
+### 3.7 Seguimiento post-cotización
+
+Los tres toques que pidió la gerencia para subir la tasa de cierre del 10 % al 28 %.
+Motor en `src/lib/seguimiento.ts`, textos en `seguimiento-textos.ts` (sin Prisma,
+para que la pantalla de configuración no arrastre Postgres al navegador).
+
+| Toque | Cuándo | Quién |
+|-------|--------|-------|
+| 1 · confirmar que llegó | 24 h después de enviar | automático (correo) |
+| 2 · llamada | tarea a las 48 h, plazo hasta las 72 h | **una persona** |
+| 3 · aviso de vencimiento | 1 día antes de vencer la oferta | automático (correo) |
+
+- Si el asesor no marca el toque 2 dentro del plazo, se avisa a los ADMIN del
+  portal (notificación + correo). **Una sola vez**: un aviso diario se deja de leer.
+  Antes de acusar a nadie se comprueba la tarea, por si la cerró desde `/crm/tareas`.
+- **Diseñado para una corrida diaria** (limitación de Hobby): cada toque se dispara
+  cuando "ya pasó su hora", no en una ventana estrecha. Si el cron se salta un día,
+  al siguiente se pone al corriente.
+- Sin SMTP, el toque queda **PENDIENTE con el motivo**, no como enviado: se
+  reintenta cada día y sale solo cuando se carguen las credenciales.
+- WhatsApp: el texto se arma y se guarda, pero el envío se registra como fallido con
+  el motivo real. `enviarWhatsAppDirecto()` (en `nexus/canales.ts`) funciona el día
+  que Meta apruebe, sin tocar nada.
+- Se puede apagar por cotización (`cotizaciones.seguimientoActivo`).
+- Diagnóstico sin tocar la base: `npx tsx scripts/revisar-seguimiento.ts` (solo
+  lectura, modo simulacro) o el botón "Ver qué haría hoy" en Configuración.
+
+### 3.8 Marketing — OAuth de Ads (Google / Meta / TikTok)
 - Framework OAuth en `src/lib/marketing-oauth.ts`. URLs de auth/token y scopes por plataforma.
 - `clientId`/`secret`/`accountId`/`token` se guardan **cifrados en `configuracion`**
   (claves `mkt_oauth_<plataforma>_<campo>`). El `secret` y el `token` se cifran; el resto no.
@@ -158,9 +236,16 @@ fuga de campos internos al cliente, aislamiento entre clientes).
 costamallas-erp/
 ├── prisma/
 │   ├── schema.prisma            # Modelo de datos (PostgreSQL). Fuente de verdad del dominio.
-│   └── migrations/              # Migraciones SQL
+│   └── migrations/              # Migraciones SQL, aplicadas a mano (ver §12)
 ├── scripts/
-│   └── seed.ts                  # Datos iniciales (admin, catálogos, config, productos demo)
+│   ├── seed.ts                  # Datos iniciales (admin, catálogos, config, productos demo)
+│   ├── aplicar-migracion.ts     # ⭐ Aplica un .sql sentencia por sentencia (ver §12)
+│   ├── activar-sembli.ts        # Carga y cifra la API key de Anthropic
+│   ├── verificar-sembli.ts      # 26 comprobaciones del límite de acceso (no gasta tokens)
+│   ├── probar-sembli.ts         # Prueba real del agente (SÍ gasta tokens)
+│   ├── revisar-seguimiento.ts   # Simulacro del seguimiento contra la base (solo lectura)
+│   ├── revisar-fotos.ts         # Qué imágenes del catálogo están rotas (solo lectura)
+│   └── generar-iconos-pwa.ts
 ├── docs/
 │   └── SETUP.md                 # Guía de instalación paso a paso
 ├── src/
@@ -169,6 +254,8 @@ costamallas-erp/
 │   │   ├── (auth)/login/        # Página de login (pública)
 │   │   ├── (dashboard)/         # Portal protegido (todas las páginas internas)
 │   │   ├── cotizar/             # Cotizador web PÚBLICO (captura leads)
+│   │   ├── cotizacion/[token]/  # La oferta que ve el cliente, PÚBLICA (noindex)
+│   │   ├── politicas/           # Políticas PÚBLICAS (envíos, devoluciones, datos)
 │   │   └── api/                 # Backend (route handlers). Ver §6
 │   ├── components/              # crm, dashboard, erp, layout, productos
 │   ├── contexts/BrandContext.tsx# Tema (dark mode) y color de marca
@@ -179,7 +266,19 @@ costamallas-erp/
 │   │   ├── prisma.ts            # Singleton de PrismaClient
 │   │   ├── woocommerce.ts       # Cliente WC REST v3
 │   │   ├── ftp.ts               # Subida de imágenes
-│   │   ├── ai.ts                # OpenAI / Anthropic
+│   │   ├── ai.ts                # Motor viejo de IA (se está migrando a sembli/)
+│   │   ├── sembli/              # El agente: modelos, alcance, herramientas, bucle
+│   │   ├── nexus/               # Canales de salida, reparto por turno, bot, plantillas
+│   │   ├── correo.ts            # SMTP (nodemailer), credenciales cifradas
+│   │   ├── seguimiento.ts       # Los 3 toques post-cotización (+ seguimiento-textos.ts)
+│   │   ├── politica-comercial.ts# Tope de descuento y anticipo mínimo
+│   │   ├── plazos-pago.ts       # Formas de pago → fecha de vencimiento de la factura
+│   │   ├── postventa.ts         # Políticas públicas y encuesta (+ postventa-defaults.ts)
+│   │   ├── instalaciones.ts     # Aviso al coordinador cuando se cierra una venta
+│   │   ├── cotizacion-config.ts # Contenido de la cotización (+ cotizacion-textos.ts)
+│   │   ├── facturacion.ts       # Consecutivos y adaptador DIAN (sin conectar)
+│   │   ├── consecutivos.ts      # Contador atómico compartido (COT, PED, FAC…)
+│   │   ├── marca.ts             # Datos de empresa para documentos del servidor
 │   │   ├── marketing-oauth.ts   # OAuth Google/Meta/TikTok Ads
 │   │   ├── marketing.ts         # KPIs de marketing (ROAS, CPC, CPL, CTR…)
 │   │   ├── twofa.ts             # 2FA TOTP + dispositivos confiables (7 días)
@@ -208,10 +307,17 @@ headers en vez de re-verificar el token.
   con clave `2fa:<userId>` (no hay tabla dedicada).
 - **Middleware (`src/middleware.ts`):**
   - Rate limit por IP+ruta en todas las `/api/` (200 req/ventana; login = 10/min).
-  - Rutas públicas: `/login`, `/api/auth/login`, `/cotizar`, `/api/public`, `/api/marketing/oauth`.
+  - Rutas públicas: `/login`, `/api/auth/login`, `/cotizar`, `/api/public`,
+    `/api/marketing/oauth`, `/api/cron`, `/cotizacion`, `/politicas`.
   - API sin auth → `401`; página sin auth → redirect a `/login`.
-- **Roles (`enum Rol`):** `SUPERADMIN, ADMIN, USUARIO, VENDEDOR, PRODUCCION, BODEGA, SOLO_LECTURA`.
-  `canWrite()` = cualquiera excepto `SOLO_LECTURA`.
+- **Roles (`enum Rol`):** `SUPERADMIN, ADMIN, USUARIO, VENDEDOR, PRODUCCION, BODEGA,
+  SOLO_LECTURA, CLIENTE`. `canWrite()` = cualquiera excepto `SOLO_LECTURA`.
+  ⚠️ Ojo: `isAdmin()` de `lib/auth.ts` compara **solo** con `ADMIN` y deja fuera a
+  `SUPERADMIN`. Para permisos nuevos usa `esAdmin()` de `lib/permisos.ts`, que sí
+  incluye a los dos.
+- **Lo público lleva `noindex`:** `/cotizacion` tiene su propio layout con
+  noindex/nofollow (una oferta lleva nombre, productos y precios del cliente) y el
+  `robots.txt` del portal es `Disallow: /` completo.
 - **Cifrado:** datos sensibles (credenciales WC, tokens OAuth, API key de IA, secreto 2FA) se
   cifran con **AES-256-GCM** (`ENCRYPTION_KEY`, 32 bytes hex). Formato `iv:authTag:ciphertext`.
 - **Cabeceras HTTP de seguridad** definidas en `next.config.ts` (CSP, HSTS, X-Frame-Options…).
@@ -222,21 +328,39 @@ headers en vez de re-verificar el token.
 ## 6. Módulos y rutas API
 
 Páginas (bajo `(dashboard)` salvo indicación): inicio, `categorias`, `compras`,
-`configuracion`, `crm` (+ `clientes`, `cotizaciones`, `cotizador`, `pedidos`, `instalaciones`,
-`pipeline`, `tareas`), `errores`, `exportar`, `imagenes`, `importar`, `marketing`
-(+ `atribucion`, `campanas`, `reportes`), `nexus` (+ `flujos`, `plantillas`), `productos`
-(+ `nuevo`, `[id]`), `reportes`, `sistema/seguridad`, `stock`, `usuarios`.
-Públicas: `(auth)/login` y `cotizar`.
+`configuracion`, `crm` (+ `clientes`, `cotizaciones` [+ `nueva`, `[id]`], `embudo`,
+`pedidos`, `instalaciones` [+ `[id]/acta`], `pipeline`, `tareas`), `errores`,
+`exportar`, `facturacion` (+ `nueva`, `[id]`, `cartera`, `sin-vencimiento`),
+`imagenes`, `importar`, `marketing` (+ `atribucion`, `campanas`, `reportes`),
+`nexus` (+ `flujos`, `plantillas`), `postventa`, `productos` (+ `nuevo`, `[id]`),
+`reportes`, `sistema/{seguridad,reportes}`, `stock`, `usuarios`, `woocommerce`.
+`crm/cotizador` quedó como redirección al cotizador único.
+
+**Públicas:** `(auth)/login`, `cotizar`, `cotizacion/[token]`, `cotizacion/demo`
+y `politicas`.
+
+**Configuración** es una sola página con pestañas: Empresa · IA · Correo ·
+Cotización · **Seguimiento** · **Reglas comerciales** · **Postventa** ·
+Instalación · Facturación · Canales & Redes · Conexiones Ads · WooCommerce ·
+Falabella · MercadoLibre · Usuarios WP. Las pestañas viven en
+`src/components/configuracion/Tab*.tsx`.
 
 Endpoints API (`src/app/api/`):
-`ai/{chat,config}` · `auth/{login,logout,me}` · `catalogos` · `compras/proveedores` ·
-`configuracion/empresa` · `crm/{clientes,cotizaciones,instalaciones,pedidos,tareas}` (+ `[id]`) ·
-`dashboard/kpis` · `exportar/woocommerce` · `health` · `imagenes` (+ `upload`) · `logs` ·
+`ai/{chat,config,ficha,producto,seo,nexus-reply}` · `auth/{login,logout,me}` ·
+`catalogos` · `categorias/campos` ·
+`compras/{proveedores,ordenes}` (+ `[id]`, `[id]/enviar`, `[id]/productos`) ·
+`configuracion/{empresa,correo,cotizacion,seguimiento,comercial,plazos,postventa,instalacion}` ·
+`crm/{clientes,cotizaciones,pedidos,tareas,instalaciones,instalacion-catalogo,embudo}`
+(+ `cotizaciones/[id]/{enviar,seguimiento,aprobacion}`) ·
+`cron/{sync-woo,diario}` · `dashboard/kpis` · `exportar/woocommerce` ·
+`facturacion/{config,cartera,sin-vencimiento,facturas}` (+ `[id]/{emitir,pago,recordatorio}`) ·
+`health` · `imagenes` (+ `upload`, `limpiar-rotas`) · `logs` ·
 `marketing/{campanas,conexiones,leads,oauth/[plataforma],oauth/callback}` ·
-`nexus/{conexiones,conversaciones,mensajes,plantillas,webhook/[canal]}` · `notificaciones` ·
-`productos` (+ `[id]`, `[id]/ficha`) · `public/{lead,productos}` · `sistema/health` ·
-`stock/alertas` · `usuarios` (+ `[id]`, `[id]/2fa`) ·
-`woocommerce/{import,import-orders,test}`.
+`nexus/{conexiones,conversaciones,mensajes,plantillas,flujos,estado,webhook/[canal]}` ·
+`notificaciones` · `postventa/qr` · `productos` (+ `[id]`, `[id]/ficha`) ·
+`public/{lead,productos}` · `reportes-error` · `sembli/chat` · `sistema/health` ·
+`stock` (+ `alertas`) · `usuarios` (+ `lista`, `[id]`, `[id]/2fa`) ·
+`woocommerce/{import,import-orders,test,diagnostico}` · `wordpress/test`.
 
 ---
 
@@ -257,6 +381,13 @@ Plantilla en `.env.example`. En **local** van en `.env.local`; en **producción*
 | `NODE_ENV` | `development` / `production` | — |
 | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | Límite de requests | — |
 | `FTP_HOST` / `FTP_USER` / `FTP_PASSWORD` / `FTP_BASE_PATH` / `FTP_BASE_URL` | Subida de imágenes a Hostinger | Hostinger (cuenta FTP) |
+| `CRON_SECRET` | Autoriza a Vercel Cron a llamar `/api/cron/*` | Cualquier cadena larga aleatoria |
+
+⚠️ **`NEXT_PUBLIC_APP_URL` no es cosmética.** Es la base de los enlaces que se
+mandan por correo (la cotización pública, el seguimiento, el aviso al coordinador).
+Si está mal, el cliente recibe un enlace que no abre. `NEXTAUTH_URL` y `VERCEL_URL`
+**no existen en este proyecto**: hubo que corregir un webhook que se armaba con
+ellas y quedaba apuntando a localhost.
 
 > Credenciales de **WooCommerce, OAuth de Ads y la API key de IA** NO son variables de entorno
 > en producción: se configuran desde el portal y se guardan **cifradas en la tabla `configuracion`**.
@@ -268,19 +399,30 @@ Plantilla en `.env.example`. En **local** van en `.env.local`; en **producción*
 Esquema completo y autoritativo: **`prisma/schema.prisma`**. Tablas principales (`@@map`):
 
 - **Auth:** `usuarios`, `refresh_tokens`.
-- **CRM/Ventas:** `clientes`, `tareas`, `cotizaciones` + `items_cotizacion`, `pedidos` +
-  `items_pedido`, `instalaciones`.
-- **Compras:** `proveedores`, `ordenes_compra`.
+- **CRM/Ventas:** `clientes`, `tareas`, `cotizaciones` + `items_cotizacion`,
+  `seguimientos_cotizacion`, `pedidos` + `items_pedido`, `instalaciones`,
+  `servicios_instalacion`, `recargos_ciudad`.
+- **Facturación:** `facturas` + `items_factura` + `pagos_factura`.
+- **Compras:** `proveedores`, `proveedor_productos`, `ordenes_compra`.
 - **Productos (PIM):** `productos` (campos WooCommerce + ACF + control interno) e imágenes
   (`imagenes`). Fichas técnicas ACF por categoría: `acf_mallas_metalicas`, `acf_balcones`,
   `acf_nylon`, `acf_plasticas`, `acf_seguridad_perimetral`.
 - **Soporte:** `catalogos` (categorías, marcas, unidades…), `configuracion` (clave/valor, con
   `encrypted`), `errores_validacion`, `logs`, `notificaciones`, `woocommerce_sync`.
 - **Nexus:** `nexus_conexiones`, `nexus_conversaciones`, `nexus_mensajes`, `plantillas_nexus`.
+- **Soporte extra:** `reportes_error`.
 
 Notas: IDs `cuid()`. Importes `Decimal(14,2)`. Un `producto` se mapea a WooCommerce por `wcId`.
 La tabla **`configuracion`** es un almacén genérico clave/valor que guarda desde umbrales de
-stock hasta secretos cifrados (WC, OAuth, IA, 2FA).
+stock hasta secretos cifrados (WC, OAuth, IA, 2FA, SMTP). Prefijos de sus claves:
+`empresa_*` · `wc_*` · `ai_*` · `smtp_*` · `cot_*` (contenido de la cotización) ·
+`seg_*` (seguimiento) · `com_*` (política comercial) · `fact_*` (facturación y
+plazos) · `post_*` (postventa) · `inst_*` (coordinador de obras) · `mkt_oauth_*`.
+
+**Los consecutivos son atómicos** (`lib/consecutivos.ts`). Antes eran `count() + 1`,
+que repetía número al borrar un registro y entregaba el mismo a dos usuarios
+simultáneos. En facturación eso no es solo un error técnico: un consecutivo
+repetido o con saltos es un problema ante la DIAN.
 
 ---
 
@@ -314,7 +456,62 @@ El repo se construyó intensivamente entre el **2026-06-01 y el 2026-06-03**:
   ficha técnica FTP, 2FA + dispositivos confiables, sync de pedidos WooCommerce, módulo
   Marketing (OAuth Ads, UTM, atribución), pipeline drag&drop, navegación móvil tipo app.
 
-Último commit de referencia de este documento: **`a351c45`**.
+Después vinieron sesiones más espaciadas, cada una con un tema:
+- **jul:** el agente **Sembli** (herramientas + jerarquía de acceso), rol `CLIENTE`.
+- **1-ago:** correo SMTP desde el portal · órdenes de compra a proveedores ·
+  cartera por antigüedad y recordatorios · **cotización 2.0** (cotizador único,
+  dos plantillas, instalación con precio, enlace público, envío) · **pipeline**
+  con valor y días en etapa · **instalaciones** con calendario y evidencia.
+- **2-ago:** recepción de mercancía que suma stock · **embudo** con la tasa de
+  cierre · filtros de trabajo del catálogo · ficha técnica y **Yoast SEO** que sí
+  llegan a WooCommerce.
+- **3-ago:** **Nexus** de verdad — salida por WhatsApp Cloud API, reparto por
+  turno, bot que califica, plantillas y flujos reales.
+- **5-ago:** **seguimiento post-cotización** (3 toques) · **tope de descuento y
+  anticipo** con aprobación · **fecha de vencimiento** de facturas + corrección en
+  lote · **postventa** (políticas públicas y QR de encuesta) · **aviso al
+  coordinador** y **acta de entrega** de instalación.
+
+Último commit de referencia de este documento: **`10d3a49`**.
+
+---
+
+## 10.1 Lo que está construido pero NO funciona todavía (y por qué)
+
+Esto es lo que más se malinterpreta al leer el código: hay módulos completos
+esperando un dato que no depende del código. **Ninguno simula funcionar**: todos
+lo dicen en pantalla con el motivo.
+
+| Módulo | Qué falta | Qué pasa mientras tanto |
+|--------|-----------|--------------------------|
+| Todo lo que manda correo | Cargar SMTP **desde el portal en producción** | Los toques del seguimiento quedan PENDIENTES con el motivo y se reintentan cada día; los demás avisan en pantalla |
+| WhatsApp / Nexus | Aprobación de Meta | El texto se arma y se guarda; el envío se registra como fallido con el motivo real |
+| Catálogo de instalación | El Excel de precios de gerencia | El asesor cotiza la instalación "a convenir" o a mano |
+| QR de encuesta | El enlace de reseñas de Google | No se genera ningún QR (uno impreso que no funciona no se puede corregir) |
+| Facturación electrónica | Elegir proveedor (Factus/Siigo/Alegra) | Modo "manual": la factura se emite sin ir a la DIAN |
+| Marketplaces | Cuentas de vendedor | Pestañas de configuración vacías |
+| Plazos de pago reales | Confirmación de gerencia | Contado 0 / crédito 30 como valor de arranque |
+
+Detalle y preguntas concretas en **`PENDIENTES-GERENCIA.md`**.
+
+---
+
+## 10.2 Estado real de los datos (2026-08-05)
+
+Medido contra la base de producción, en solo lectura. Importa porque el código
+puede estar bien y aun así no verse funcionar:
+
+- **3 cotizaciones** (1 aprobada, 2 borradores). **Ninguna en estado ENVIADA**, así
+  que el seguimiento no tiene sobre qué actuar todavía: el reloj arranca cuando se
+  envía una oferta *desde el portal*.
+- **1 factura**, anulada y sin fecha de vencimiento.
+- **0 instalaciones** y 0 pedidos con instalación.
+- **19 pedidos** (10 entregados, 7 cancelados, 1 listo, 1 confirmado).
+- **3 usuarios activos**: 1 SUPERADMIN y 2 ADMIN. No hay usuarios con rol VENDEDOR,
+  así que hoy el "asesor" de una cotización es un administrador — el aviso del
+  toque 2 le llegaría a la misma persona que no llamó.
+- **63 productos sin SEO y 63 sin ficha técnica**, sobre unos 60 y pico en total. El
+  generador de SEO existe desde la Fase 2 y no se ha usado.
 
 ---
 
@@ -340,4 +537,54 @@ El repo se construyó intensivamente entre el **2026-06-01 y el 2026-06-03**:
   **cada push a `main` dispara un deploy en Vercel**. Nada de commits de ruido ("trigger deploy",
   "wip", etc.). Si el cambio no necesita publicarse aún, dejarlo sin commitear.
 - **Idioma:** mantener nombres de modelos, campos, rutas y UI en español (consistencia).
+- **No inventar datos comerciales.** Precios, plazos, garantías y políticas salen de
+  la cotización real de SIIGO y de los documentos en
+  `Files/Archivos base de empresa/`. Si un dato no existe, se deja el hueco y se
+  anota en `PENDIENTES-GERENCIA.md`: un plazo inventado en una política publicada es
+  peor que un campo vacío.
+- **Marcar lo no verificado.** En los commits se dice explícitamente qué se probó y
+  qué no ("verificado con tsc y build; no probado con sesión iniciada").
+
+---
+
+## 12. Cómo se trabaja en este repo (aprendido a los golpes)
+
+Cuatro cosas que ya costaron tiempo. No las redescubras.
+
+### Migraciones
+
+```bash
+npx tsx scripts/aplicar-migracion.ts prisma/migrations/<carpeta>/migration.sql
 ```
+
+- `prisma db execute` **se queda colgado** contra el pooler de Supabase.
+- Un script suelto de Prisma carga `.env` (host directo, **solo IPv6**, que desde
+  muchas redes no responde) en vez de `.env.local` (el pooler, que es lo que usa la
+  app). `aplicar-migracion.ts` fuerza el valor correcto; los scripts de `scripts/`
+  hacen lo mismo al arrancar.
+- El SQL debe ser **idempotente** (`IF NOT EXISTS`) y **aditivo**. Nunca DDL
+  destructivo: esto se aplica sobre la base de producción, que es la única que hay.
+- Después: actualizar `prisma/schema.prisma` a mano y `npx prisma generate`.
+
+### Build
+
+**Borra `.next` antes de cada `npm run build`.** OneDrive corrompe la carpeta y el
+build falla con `EINVAL readlink`. No es el código. Si `Remove-Item` se queja de que
+un archivo está en uso, insiste o cierra lo que tenga abierto el directorio.
+
+### `src/components/layout/Sidebar.tsx`
+
+Tiene **finales de línea mezclados**. Si lo editas con una herramienta normal, el
+diff se infla a 500+ líneas y se vuelve irrevisable. Párchalo con reemplazos
+puntuales de texto (`[System.IO.File]::ReadAllText` + `.Replace` + `WriteAllText` en
+PowerShell) y comprueba con `git diff --stat` que el diff sean unas pocas líneas.
+
+### Probar
+
+- **No pruebes con sesión iniciada.** Entrar al portal escribe en la BD de
+  producción (último acceso, logs, aperturas de cotización).
+- Lo que sí se puede: `npx tsc --noEmit`, `npm run build`, la ruta pública
+  `/cotizacion/demo`, `/politicas`, y los scripts de solo lectura
+  (`revisar-seguimiento.ts`, `revisar-fotos.ts`, `verificar-sembli.ts`).
+- Verificar el deploy: `api.vercel.com/v6/deployments` con `VERCEL_TOKEN`, y
+  comprobar que el commit quedó en estado `READY`.
