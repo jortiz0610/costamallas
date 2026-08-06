@@ -248,6 +248,8 @@ costamallas-erp/
 │   ├── revisar-seguimiento.ts   # Simulacro del seguimiento contra la base (solo lectura)
 │   ├── revisar-fotos.ts         # Qué imágenes del catálogo están rotas (solo lectura)
 │   ├── probar-tiempos.ts        # 15 comprobaciones del reloj hábil (lógica pura, sin BD)
+│   ├── verificar-comercial.ts   # 14 invariantes de lo comercial contra la BD (solo lectura)
+│   ├── crear-usuario.ts         # Alta de usuario con contraseña temporal aleatoria
 │   └── generar-iconos-pwa.ts
 ├── docs/
 │   └── SETUP.md                 # Guía de instalación paso a paso
@@ -334,7 +336,7 @@ Páginas (bajo `(dashboard)` salvo indicación): inicio, `categorias`, `compras`
 `configuracion`, `crm` (+ `clientes`, `cotizaciones` [+ `nueva`, `[id]`], `embudo`,
 `pedidos`, `instalaciones` [+ `[id]/acta`], `pipeline`, `tareas`), `errores`,
 `exportar`, `facturacion` (+ `nueva`, `[id]`, `cartera`, `sin-vencimiento`),
-`imagenes`, `importar`, `marketing` (+ `atribucion`, `campanas`, `reportes`),
+`imagenes`, `importar`, `marketing` (+ `atribucion`, `campanas`, `reportes`, `retorno`),
 `nexus` (+ `flujos`, `plantillas`, `tiempos`), `postventa`, `productos` (+ `nuevo`, `[id]`),
 `reportes`, `sistema/{seguridad,reportes}`, `stock`, `usuarios`, `woocommerce`.
 `crm/cotizador` quedó como redirección al cotizador único.
@@ -358,7 +360,7 @@ Endpoints API (`src/app/api/`):
 `cron/{sync-woo,diario}` · `dashboard/kpis` · `exportar/woocommerce` ·
 `facturacion/{config,cartera,sin-vencimiento,facturas}` (+ `[id]/{emitir,pago,recordatorio}`) ·
 `health` · `imagenes` (+ `upload`, `limpiar-rotas`) · `logs` ·
-`marketing/{campanas,conexiones,leads,oauth/[plataforma],oauth/callback}` ·
+`marketing/{campanas,conexiones,leads,retorno,oauth/[plataforma],oauth/callback}` ·
 `nexus/{conexiones,conversaciones,mensajes,plantillas,flujos,estado,tiempos,webhook/[canal]}` ·
 `notificaciones` · `postventa/qr` · `productos` (+ `[id]`, `[id]/ficha`) ·
 `public/{lead,productos}` · `reportes-error` · `sembli/chat` · `sistema/health` ·
@@ -515,8 +517,19 @@ puede estar bien y aun así no verse funcionar:
 - **3 usuarios activos**: 1 SUPERADMIN y 2 ADMIN. No hay usuarios con rol VENDEDOR,
   así que hoy el "asesor" de una cotización es un administrador — el aviso del
   toque 2 le llegaría a la misma persona que no llamó.
-- **63 productos sin SEO y 63 sin ficha técnica**, sobre unos 60 y pico en total. El
-  generador de SEO existe desde la Fase 2 y no se ha usado.
+- **63 productos sin SEO y 63 sin ficha técnica**, sobre 60 productos activos. El
+  generador de SEO existe desde la Fase 2 y no se ha usado. **No hay acción masiva**:
+  `/api/ai/seo` va de a un producto y ni siquiera guarda (devuelve el texto para que
+  una persona lo revise), así que hacerlos todos es abrir 63 fichas a mano.
+- **Una imagen principal rota en producción**: `103-2KIT-GVENT-MASCOTAS` ("Kit Malla
+  para Gatos"), publicado en la tienda con `wcId` 5830, tiene 2 de sus 5 imágenes
+  caídas y una de ellas es la principal. Detectado con `scripts/revisar-fotos.ts` el
+  2026-08-06. Ojo: una imagen que da 404 también rompe la sincronización del
+  producto entero con WooCommerce.
+- **El módulo de marketing mide a mano.** `leads`, `conversiones` e `ingresos` de cada
+  campaña se teclean en un JSON dentro de `configuracion`. La inversión seguirá siendo
+  manual (viene de la plataforma de anuncios), pero la plata cerrada ya se calcula sola
+  en `/marketing/retorno`.
 
 ---
 
