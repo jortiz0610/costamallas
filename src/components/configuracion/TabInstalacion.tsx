@@ -8,9 +8,9 @@
 // quedaba discriminada. Aquí se define una vez y el asesor solo la elige.
 // ============================================================
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Loader2, Check, Wrench, MapPin, X } from "lucide-react";
+import { Plus, Trash2, Loader2, Check, Wrench, MapPin, X, BellRing, AlertTriangle } from "lucide-react";
 import toast from "react-hot-toast";
 import { formatCOP } from "@/lib/utils";
 
@@ -25,6 +25,107 @@ export interface RecargoCiudad {
 }
 
 const UNIDADES = ["m2", "ml", "unidad", "dia", "global"];
+
+/**
+ * A quién se le avisa cuando se cierra una venta con instalación.
+ *
+ * Antes no se avisaba a nadie: una venta cerrada el viernes por la tarde
+ * la descubría el coordinador cuando el cliente llamaba preguntando
+ * cuándo van.
+ */
+function CoordinadorObras() {
+  const [cfg, setCfg] = useState({ coordinadorId: "", coordinadorEmail: "", avisarAlCerrar: true });
+  const [guardando, setGuardando] = useState(false);
+
+  const { data, refetch } = useQuery<{
+    data: typeof cfg;
+    usuarios: { id: string; nombre: string; email: string; rol: string }[];
+    listo: { correo: boolean };
+  }>({
+    queryKey: ["config-instalacion"],
+    queryFn: async () => (await (await fetch("/api/configuracion/instalacion")).json()),
+  });
+
+  useEffect(() => { if (data?.data) setCfg(data.data); }, [data]);
+
+  const guardar = async () => {
+    setGuardando(true);
+    try {
+      const res = await fetch("/api/configuracion/instalacion", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cfg),
+      });
+      const j = await res.json();
+      if (!res.ok || !j.success) return toast.error(j.error ?? "No se pudo guardar");
+      toast.success("Coordinador guardado");
+      refetch();
+    } finally { setGuardando(false); }
+  };
+
+  const usuarios = data?.usuarios ?? [];
+  const sinDestino = !cfg.coordinadorId && !cfg.coordinadorEmail;
+
+  return (
+    <div className="card p-5 space-y-4">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-widest text-muted flex items-center gap-1.5">
+          <BellRing size={12} /> Coordinador de proyectos
+        </p>
+        <p className="text-[11px] text-muted mt-1">
+          Cuando se cierra una venta con instalación, la obra se crea sola y se le avisa. Antes se enteraba
+          cuando el cliente llamaba preguntando cuándo van.
+        </p>
+      </div>
+
+      <label className="flex items-center gap-2 text-xs text-soft">
+        <input type="checkbox" checked={cfg.avisarAlCerrar}
+          onChange={e => setCfg(p => ({ ...p, avisarAlCerrar: e.target.checked }))} />
+        Avisar al cerrar una venta con instalación
+      </label>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Usuario del portal</label>
+          <select className="input" value={cfg.coordinadorId}
+            onChange={e => setCfg(p => ({ ...p, coordinadorId: e.target.value }))}>
+            <option value="">Sin asignar</option>
+            {usuarios.map(u => <option key={u.id} value={u.id}>{u.nombre} · {u.rol}</option>)}
+          </select>
+          <p className="text-[10px] text-muted mt-1">Se usa su correo. Si cambia, no hay que actualizar nada aquí.</p>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Correo adicional</label>
+          <input className="input" value={cfg.coordinadorEmail}
+            onChange={e => setCfg(p => ({ ...p, coordinadorEmail: e.target.value }))}
+            placeholder="obras@…" />
+          <p className="text-[10px] text-muted mt-1">Por si quien coordina no tiene login en el portal.</p>
+        </div>
+      </div>
+
+      {cfg.avisarAlCerrar && sinDestino && (
+        <div className="flex items-start gap-1.5 text-[11px] p-2.5 rounded-lg text-amber-700 bg-amber-50 dark:text-amber-400 dark:bg-amber-500/10">
+          <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
+          <span>
+            No hay a quién escribirle: la obra se crea y queda la notificación dentro del portal, pero no sale
+            ningún correo.
+          </span>
+        </div>
+      )}
+      {cfg.avisarAlCerrar && !sinDestino && data && !data.listo.correo && (
+        <div className="flex items-start gap-1.5 text-[11px] p-2.5 rounded-lg text-amber-700 bg-amber-50 dark:text-amber-400 dark:bg-amber-500/10">
+          <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
+          <span>
+            El correo saliente todavía no está configurado (pestaña Correo). Por ahora el aviso solo queda como
+            notificación dentro del portal.
+          </span>
+        </div>
+      )}
+
+      <button onClick={guardar} disabled={guardando} className="btn-secondary w-full justify-center">
+        {guardando ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Guardar coordinador
+      </button>
+    </div>
+  );
+}
 
 export function TabInstalacion() {
   const qc = useQueryClient();
@@ -81,6 +182,8 @@ export function TabInstalacion() {
           </p>
         </div>
       </div>
+
+      <CoordinadorObras />
 
       {/* ── Servicios ── */}
       <div className="card p-5">

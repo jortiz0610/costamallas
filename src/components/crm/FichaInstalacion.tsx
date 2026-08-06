@@ -12,8 +12,9 @@
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  X, Loader2, Camera, Check, Plus, Trash2, MapPin, User, Phone, CheckCircle2,
+  X, Loader2, Camera, Check, Plus, Trash2, MapPin, User, Phone, CheckCircle2, FileSignature,
 } from "lucide-react";
+import Link from "next/link";
 import toast from "react-hot-toast";
 import { formatCOP, formatDate, cn } from "@/lib/utils";
 
@@ -216,6 +217,15 @@ export function FichaInstalacion({ inst, onClose }: { inst: InstalacionFicha; on
               </div>
             )}
           </div>
+
+          {/* El acta de entrega. Se puede imprimir en blanco y llenar a
+              mano en la obra: el técnico casi nunca lleva computador. */}
+          <Link
+            href={`/crm/instalaciones/${inst.id}/acta`}
+            className="w-full py-2.5 rounded-xl surface-2 text-xs font-semibold text-soft flex items-center justify-center gap-2"
+          >
+            <FileSignature size={13} /> Acta de entrega
+          </Link>
 
           {/* Acciones */}
           {!cerrada ? (

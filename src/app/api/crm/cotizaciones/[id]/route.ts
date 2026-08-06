@@ -5,6 +5,7 @@ import { siguienteNumeroSeguro } from "@/lib/consecutivos";
 import {
   getPoliticaComercial, descuentoEfectivoPct, evaluarPolitica,
 } from "@/lib/politica-comercial";
+import { avisarInstalacionNueva } from "@/lib/instalaciones";
 
 type P = { params: Promise<{ id: string }> };
 
@@ -194,6 +195,8 @@ export async function PUT(req: NextRequest, { params }: P) {
   const yaTienePedido =
     estado === "APROBADA" && (await prisma.pedido.count({ where: { cotizacionId: id } })) > 0;
 
+  let avisoInstalacion: string | undefined;
+
   if (estado === "APROBADA" && !yaTienePedido) {
     const cotizacion = await prisma.cotizacion.findUnique({
       where: { id }, include: { items: true },
@@ -202,7 +205,7 @@ export async function PUT(req: NextRequest, { params }: P) {
       // Consecutivo atómico compartido: aquí también estaba el `count + 1`
       // que repetía número si se borraba un pedido.
       const numero = await siguienteNumeroSeguro("PED");
-      await prisma.pedido.create({
+      const pedido = await prisma.pedido.create({
         data: {
           numero,
           cotizacionId: id,
@@ -226,8 +229,32 @@ export async function PUT(req: NextRequest, { params }: P) {
           },
         },
       });
+
+      // Venta cerrada con instalación: se crea la obra y se le avisa al
+      // coordinador. Antes se enteraba cuando el cliente llamaba
+      // preguntando cuándo van.
+      //
+      // Si el aviso falla NO se tumba la aprobación: el negocio ya se
+      // cerró y perder eso por un correo sería absurdo. Queda en el log.
+      if (cotizacion.tieneInstalacion) {
+        const r = await avisarInstalacionNueva(pedido.id);
+        avisoInstalacion = r.detalle;
+        await prisma.log.create({
+          data: {
+            usuarioId: user.sub,
+            accion: "INSTALACION_AVISO_COORDINADOR",
+            detalle: `${pedido.numero}: ${r.detalle}`,
+            resultado: r.ok ? "OK" : "ERROR",
+          },
+        }).catch(() => undefined);
+      }
     }
   }
 
-  return NextResponse.json({ success: true, data: updated, aviso: avisoPolitica });
+  return NextResponse.json({
+    success: true,
+    data: updated,
+    aviso: avisoPolitica,
+    avisoInstalacion,
+  });
 }

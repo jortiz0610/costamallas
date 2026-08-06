@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { siguienteNumeroSeguro } from "@/lib/consecutivos";
+import { avisarInstalacionNueva } from "@/lib/instalaciones";
 
 const ESTADOS_PEDIDO = ["NUEVO","CONFIRMADO","EN_PRODUCCION","LISTO","DESPACHADO","ENTREGADO","INSTALADO","CANCELADO"];
 
@@ -88,5 +89,21 @@ export async function POST(req: NextRequest) {
     await prisma.cotizacion.update({ where: { id: cotizacionId }, data: { estado: "APROBADA" } });
   }
 
-  return NextResponse.json({ success: true, data: pedido, stockWarnings }, { status: 201 });
+  // Venta cerrada con instalación: se le avisa al coordinador. Vale lo
+  // mismo si el pedido se creó a mano que si nació de una cotización.
+  let avisoInstalacion: string | undefined;
+  if (pedido.tieneInstalacion) {
+    const r = await avisarInstalacionNueva(pedido.id);
+    avisoInstalacion = r.detalle;
+    await prisma.log.create({
+      data: {
+        usuarioId: user.sub,
+        accion: "INSTALACION_AVISO_COORDINADOR",
+        detalle: `${pedido.numero}: ${r.detalle}`,
+        resultado: r.ok ? "OK" : "ERROR",
+      },
+    }).catch(() => undefined);
+  }
+
+  return NextResponse.json({ success: true, data: pedido, stockWarnings, avisoInstalacion }, { status: 201 });
 }
