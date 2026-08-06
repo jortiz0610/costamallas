@@ -6,7 +6,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import {
   Settings, Link2, Check, X, Loader2, Eye, EyeOff, Building2, Palette, Upload, ImageIcon,
   ShoppingBag, Store, Users, Globe, Smartphone, Instagram, Facebook, Mail, MessageSquare,
-  Plus, PlugZap, ChevronDown, BookOpen, Radio, Sparkles, Route, Percent,
+  Plus, PlugZap, ChevronDown, BookOpen, Radio, Sparkles, Route, Percent, Star,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useBrand } from "@/contexts/BrandContext";
@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { TabCotizacion } from "@/components/configuracion/TabCotizacion";
 import { TabSeguimiento } from "@/components/configuracion/TabSeguimiento";
 import { TabComercial } from "@/components/configuracion/TabComercial";
+import { TabPostventa } from "@/components/configuracion/TabPostventa";
 import { TabInstalacion } from "@/components/configuracion/TabInstalacion";
 import { CredencialesCanal, type ConexionCanal } from "@/components/configuracion/CredencialesCanal";
 
@@ -1126,6 +1127,7 @@ const TABS = [
   { id: "cotizacion",   label: "Cotización",    icon: BookOpen    },
   { id: "seguimiento",  label: "Seguimiento",   icon: Route       },
   { id: "comercial",    label: "Reglas comerciales", icon: Percent },
+  { id: "postventa",    label: "Postventa",     icon: Star        },
   { id: "instalacion",  label: "Instalación",   icon: PlugZap     },
   { id: "facturacion",  label: "Facturación",   icon: Building2   },
   { id: "canales",      label: "Canales & Redes", icon: Radio     },
@@ -1174,6 +1176,7 @@ function ConfiguracionContent() {
           {tab === "cotizacion"   && <TabCotizacion />}
           {tab === "seguimiento"  && <TabSeguimiento />}
           {tab === "comercial"    && <TabComercial />}
+          {tab === "postventa"    && <TabPostventa />}
           {tab === "instalacion"  && <TabInstalacion />}
           {tab === "facturacion"  && <TabFacturacion />}
           {tab === "canales"      && <TabCanales />}

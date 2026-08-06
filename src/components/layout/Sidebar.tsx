@@ -6,7 +6,7 @@ import {
   AlertTriangle, Settings, LogOut, Users, UserCircle, ClipboardList,
   ShoppingCart, Wrench, Kanban, ChevronDown, ShieldCheck, BarChart2,
   MessageSquare, Truck, CheckSquare, MessageSquareText, Zap,
-  Megaphone, Target, TrendingUp, Radio, Receipt, PieChart,
+  Megaphone, Target, TrendingUp, Radio, Receipt, PieChart, Star,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -57,6 +57,8 @@ const CRM_ITEMS = [
   { section: "Producción" },
   { href: "/crm/pipeline", label: "Pipeline", icon: Kanban },
   { href: "/crm/instalaciones", label: "Instalaciones", icon: Wrench },
+  { section: "Postventa" },
+  { href: "/postventa", label: "Encuesta y políticas", icon: Star },
 ];
 
 const NEXUS_ITEMS = [

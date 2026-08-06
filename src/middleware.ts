@@ -10,9 +10,12 @@ import { rateLimit } from "@/lib/rate-limit";
 // /api/cron: la propia ruta valida el CRON_SECRET (Vercel Cron no envía cookie de sesión)
 // /cotizacion: la cotización que se le comparte al cliente. Es pública a
 //   propósito, pero se llega por un token largo, no por el id.
+// /politicas: envíos, devoluciones y tratamiento de datos. Tiene que
+//   poder leerse sin cuenta — se enlaza desde la cotización del cliente —
+//   y no lleva datos de nadie.
 const PUBLIC_PATHS = [
   "/login", "/api/auth/login", "/cotizar", "/api/public",
-  "/api/marketing/oauth", "/api/cron", "/cotizacion",
+  "/api/marketing/oauth", "/api/cron", "/cotizacion", "/politicas",
 ];
 const API_RATE_LIMIT = 200;
 

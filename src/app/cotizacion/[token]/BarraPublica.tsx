@@ -3,7 +3,7 @@
 // Barra de la cotización pública. No se imprime: solo sirve para que el
 // cliente descargue el PDF o le escriba al asesor.
 
-import { Printer, MessageCircle } from "lucide-react";
+import { Printer, MessageCircle, FileText } from "lucide-react";
 
 const AMARILLO = "#ffdd00";
 const NEGRO = "#11110f";
@@ -25,6 +25,16 @@ export function BarraPublica({ numero, vencida, venceEl, asesor, telefono }: {
             {asesor && ` · ${asesor}`}
           </p>
         </div>
+
+        {/* Las políticas, a un clic desde la oferta. Antes había que
+            pedírselas al asesor, que las explicaba de memoria. */}
+        <a
+          href="/politicas" target="_blank" rel="noreferrer"
+          className="px-3 py-2 text-xs font-bold uppercase tracking-wide flex items-center gap-1.5"
+          style={{ color: "rgba(255,255,255,.75)", border: "1px solid rgba(255,255,255,.25)" }}
+        >
+          <FileText size={13} /> Políticas
+        </a>
 
         {waLink && (
           <a
