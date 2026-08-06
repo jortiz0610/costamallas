@@ -9,6 +9,7 @@
 > _Mantén este archivo actualizado cuando cambie la arquitectura o las integraciones._
 >
 > **Antes de tocar nada, lee también:**
+> - `PLAN-FASES.md` — las 5 fases del proyecto, qué hay cerrado y qué falta.
 > - `PENDIENTES-GERENCIA.md` — los datos comerciales que faltan (plazos de pago,
 >   precios de instalación, enlace de reseñas…). Varios módulos están construidos
 >   pero esperando uno de esos datos.
@@ -44,8 +45,9 @@ Centraliza:
   (incluidos ficha técnica ACF y metadatos de **Yoast SEO**) e importar pedidos.
 - **Marketing:** conexiones OAuth con Google/Meta/TikTok Ads, campañas, atribución UTM, leads.
 - **Nexus:** hub omnicanal — entrada por webhook, reparto por turno entre asesores,
-  bot que califica el primer mensaje y salida real por WhatsApp Cloud API
-  (pendiente de la aprobación de Meta).
+  bot que califica el primer mensaje, salida real por WhatsApp Cloud API
+  (pendiente de la aprobación de Meta) e informe del **tiempo de respuesta**
+  medido en horario hábil, que es donde se verifica el compromiso de la hora.
 - **Asistente de IA** flotante: el agente **Sembli**, con herramientas y jerarquía
   de acceso por rol.
 - **Cotizador web público** (`/cotizar`) que captura leads desde la web.
@@ -245,6 +247,7 @@ costamallas-erp/
 │   ├── probar-sembli.ts         # Prueba real del agente (SÍ gasta tokens)
 │   ├── revisar-seguimiento.ts   # Simulacro del seguimiento contra la base (solo lectura)
 │   ├── revisar-fotos.ts         # Qué imágenes del catálogo están rotas (solo lectura)
+│   ├── probar-tiempos.ts        # 15 comprobaciones del reloj hábil (lógica pura, sin BD)
 │   └── generar-iconos-pwa.ts
 ├── docs/
 │   └── SETUP.md                 # Guía de instalación paso a paso
@@ -332,7 +335,7 @@ Páginas (bajo `(dashboard)` salvo indicación): inicio, `categorias`, `compras`
 `pedidos`, `instalaciones` [+ `[id]/acta`], `pipeline`, `tareas`), `errores`,
 `exportar`, `facturacion` (+ `nueva`, `[id]`, `cartera`, `sin-vencimiento`),
 `imagenes`, `importar`, `marketing` (+ `atribucion`, `campanas`, `reportes`),
-`nexus` (+ `flujos`, `plantillas`), `postventa`, `productos` (+ `nuevo`, `[id]`),
+`nexus` (+ `flujos`, `plantillas`, `tiempos`), `postventa`, `productos` (+ `nuevo`, `[id]`),
 `reportes`, `sistema/{seguridad,reportes}`, `stock`, `usuarios`, `woocommerce`.
 `crm/cotizador` quedó como redirección al cotizador único.
 
@@ -356,7 +359,7 @@ Endpoints API (`src/app/api/`):
 `facturacion/{config,cartera,sin-vencimiento,facturas}` (+ `[id]/{emitir,pago,recordatorio}`) ·
 `health` · `imagenes` (+ `upload`, `limpiar-rotas`) · `logs` ·
 `marketing/{campanas,conexiones,leads,oauth/[plataforma],oauth/callback}` ·
-`nexus/{conexiones,conversaciones,mensajes,plantillas,flujos,estado,webhook/[canal]}` ·
+`nexus/{conexiones,conversaciones,mensajes,plantillas,flujos,estado,tiempos,webhook/[canal]}` ·
 `notificaciones` · `postventa/qr` · `productos` (+ `[id]`, `[id]/ficha`) ·
 `public/{lead,productos}` · `reportes-error` · `sembli/chat` · `sistema/health` ·
 `stock` (+ `alertas`) · `usuarios` (+ `lista`, `[id]`, `[id]/2fa`) ·
@@ -470,7 +473,9 @@ Después vinieron sesiones más espaciadas, cada una con un tema:
 - **5-ago:** **seguimiento post-cotización** (3 toques) · **tope de descuento y
   anticipo** con aprobación · **fecha de vencimiento** de facturas + corrección en
   lote · **postventa** (políticas públicas y QR de encuesta) · **aviso al
-  coordinador** y **acta de entrega** de instalación.
+  coordinador** y **acta de entrega** de instalación · **tiempo de respuesta de
+  Nexus** (el compromiso de la hora, en horario hábil) · el plan de fases por fin
+  escrito en `PLAN-FASES.md`.
 
 Último commit de referencia de este documento: **`10d3a49`**.
 
