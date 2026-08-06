@@ -1,12 +1,19 @@
 // ============================================================
 // GET/POST /api/cron/diario — la corrida diaria del portal
 // ------------------------------------------------------------
-// Hoy hace una sola cosa: el seguimiento post-cotización. Existe como
-// ruta "diaria" y no como "/api/cron/seguimiento" por una limitación
-// concreta del plan: **Vercel Hobby permite 2 crons y solo frecuencia
-// diaria**. Ya hay uno (sync-woo), así que este es el último cupo. Todo
-// lo demás que haya que correr una vez al día tiene que entrar aquí
-// dentro, no como un cron nuevo.
+// Hace dos cosas:
+//   1. Vencer lo que caducó (cotizaciones y facturas).
+//   2. El seguimiento post-cotización.
+//
+// En ese orden a propósito: primero se vence y después se hace el
+// seguimiento, para no perseguir una oferta que ya caducó esta misma
+// madrugada.
+//
+// Existe como ruta "diaria" y no como "/api/cron/seguimiento" por una
+// limitación concreta del plan: **Vercel Hobby permite 2 crons y solo
+// frecuencia diaria**. Ya hay uno (sync-woo), así que este es el último
+// cupo. Todo lo demás que haya que correr una vez al día tiene que
+// entrar aquí dentro, no como un cron nuevo.
 //
 // Un cron más frecuente que diario no falla suave: rompe el deploy
 // entero y el auto-deploy se cae en silencio.
@@ -20,6 +27,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
 import { correrSeguimientos } from "@/lib/seguimiento";
+import { marcarVencidos } from "@/lib/vencimientos";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -41,12 +49,17 @@ async function handle(req: NextRequest) {
   const inicio = Date.now();
 
   try {
+    // Primero vencer, después perseguir: si no, el seguimiento le manda
+    // el "su oferta vence mañana" a una que caducó anoche.
+    const vencimientos = await marcarVencidos({ dry });
     const seguimiento = await correrSeguimientos({ dry });
+
     return NextResponse.json({
       success: true,
       data: {
         dryRun: dry,
         duracionMs: Date.now() - inicio,
+        vencimientos,
         seguimiento,
       },
     });

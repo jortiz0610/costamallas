@@ -126,8 +126,20 @@ export function hasRole(user: JWTPayload, ...roles: Rol[]): boolean {
   return roles.includes(user.rol);
 }
 
+/**
+ * ¿Puede hacer cosas de administración?
+ *
+ * ⚠️ Antes comparaba solo con `ADMIN` y dejaba fuera a `SUPERADMIN`, que
+ * es el rol MÁS alto. El resultado era absurdo: el superadministrador no
+ * podía sincronizar con la tienda, exportar, borrar un producto ni tocar
+ * los catálogos, y el mensaje que recibía era "Solo Admin".
+ *
+ * Se mantiene el nombre y la firma para no tocar las siete rutas que ya
+ * lo usan, pero delega en `esAdmin()` de `lib/permisos.ts`, que es la
+ * jerarquía real y la que usa el resto del sistema.
+ */
 export function isAdmin(user: JWTPayload): boolean {
-  return user.rol === "ADMIN";
+  return user.rol === "ADMIN" || user.rol === "SUPERADMIN";
 }
 
 export function canWrite(user: JWTPayload): boolean {

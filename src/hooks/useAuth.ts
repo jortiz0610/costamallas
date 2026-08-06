@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
+import { esAdmin } from "@/lib/permisos";
 import type { UsuarioDTO } from "@/types";
 
 async function fetchMe(): Promise<UsuarioDTO> {
@@ -41,8 +42,13 @@ export function useAuth() {
   return {
     user: query.data ?? user,
     isLoading: query.isLoading,
-    isAdmin: user?.rol === "ADMIN",
-    canWrite: user?.rol === "ADMIN" || user?.rol === "USUARIO",
+    // Los dos estaban mal y por eso nadie los usaba: `isAdmin` dejaba
+    // fuera al SUPERADMIN y `canWrite` solo daba permiso a ADMIN y
+    // USUARIO, cuando en el servidor escribe todo el mundo menos
+    // SOLO_LECTURA. Un vendedor no habría podido ni crear un cliente.
+    // Ahora dicen lo mismo que el servidor.
+    isAdmin: esAdmin(user?.rol),
+    canWrite: Boolean(user?.rol) && user?.rol !== "SOLO_LECTURA",
     logout,
   };
 }

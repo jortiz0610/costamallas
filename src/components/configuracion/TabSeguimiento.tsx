@@ -61,13 +61,18 @@ export function TabSeguimiento() {
       const j = await (await fetch("/api/cron/diario?dry=1", { method: "POST" })).json();
       if (!j.success) return toast.error(j.error ?? "No se pudo simular");
       const s = j.data.seguimiento;
+      const v = j.data.vencimientos;
       const lineas = [
+        `Se vencerían: ${v.cotizaciones.vencidas.length} cotización(es) y ${v.facturas.vencidas.length} factura(s)`,
+        ...v.cotizaciones.vencidas.map((n: string) => `· ${n} → VENCIDA`),
+        ...v.facturas.vencidas.map((n: string) => `· factura ${n} → VENCIDA`),
+        "",
         `Cotizaciones en seguimiento: ${s.revisadas}`,
         ...s.acciones.map((a: { cotizacion: string; toque: number; detalle: string }) =>
           `· ${a.cotizacion} — toque ${a.toque}: ${a.detalle}`),
         ...s.omitidas.map((o: string) => `· ${o}`),
       ];
-      setPrueba(lineas.length > 1 ? lineas.join("\n") : `${lineas[0]}\nHoy no habría nada que mandar.`);
+      setPrueba(lineas.join("\n").trim() || "Hoy no habría nada que hacer.");
     } finally { setProbando(false); }
   };
 
