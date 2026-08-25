@@ -322,7 +322,7 @@ export function CotizacionDoc({ data, brand, config }: {
     <div className="relative overflow-hidden" style={{ backgroundColor: NEGRO }}>
       <div className="absolute left-0 right-0 bottom-0" style={{ height: 3, backgroundColor: AMARILLO }} />
       <div className="relative px-12 py-5 flex items-center justify-between">
-        <Logo invertido alto="h-7" />
+        <Logo invertido alto="h-9" />
         <div className="flex items-center gap-3">
           <span className="text-[8.5px] font-black uppercase tracking-[0.16em]" style={{ color: "rgba(255,255,255,.45)" }}>Cotización</span>
           <span className="px-2.5 py-1 text-[10px] font-black" style={{ backgroundColor: AMARILLO, color: NEGRO }}>{data.numero}</span>
@@ -367,7 +367,7 @@ export function CotizacionDoc({ data, brand, config }: {
 
             <div className="relative flex flex-col justify-between p-14" style={{ minHeight: "297mm" }}>
               <div className="flex items-start justify-between">
-                <Logo />
+                <Logo alto="h-14" />
                 <span className="px-3 py-1.5 text-[10px] font-black" style={{ backgroundColor: NEGRO, color: AMARILLO }}>{data.numero}</span>
               </div>
 
@@ -456,7 +456,7 @@ export function CotizacionDoc({ data, brand, config }: {
             <div className="absolute inset-0" style={{ ...RAYAS, opacity: .5, left: "42%" }} />
             <div className="relative px-10 py-8 flex items-start justify-between">
               <div>
-                <Logo />
+                <Logo alto="h-11" />
                 <p className="text-[9px] font-bold uppercase tracking-wide mt-2 m-0" style={{ color: AMARILLO_TINTA }}>
                   {brand.legalName || brand.companyName}{brand.nit ? ` · NIT ${brand.nit}` : ""}
                 </p>
@@ -694,7 +694,7 @@ export function CotizacionDoc({ data, brand, config }: {
               </>
             )}
             <div className="relative flex flex-col justify-between p-14" style={{ minHeight: "297mm" }}>
-              <Logo invertido />
+              <Logo invertido alto="h-14" />
               <div>
                 <div className="w-16 h-1.5 mb-5" style={{ backgroundColor: AMARILLO }} />
                 <p className="text-white text-4xl font-black uppercase leading-[0.9] m-0">Gracias por<br />considerarnos.</p>
