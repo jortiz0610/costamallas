@@ -59,6 +59,7 @@ function ClientePerfilContent() {
   const [departamento, setDepartamento] = useState("");
   const [direccion, setDireccion] = useState("");
   const [nit, setNit] = useState("");
+  const [cedula, setCedula] = useState("");
   const [notas, setNotas] = useState("");
   const [estado, setEstado] = useState("PROSPECTO");
 
@@ -66,7 +67,7 @@ function ClientePerfilContent() {
     setNombre(c.nombre ?? ""); setEmpresa(c.empresa ?? ""); setCargo(c.cargo ?? "");
     setEmail(c.email ?? ""); setTelefono(c.telefono ?? ""); setCiudad(c.ciudad ?? "");
     setDepartamento(c.departamento ?? ""); setDireccion(c.direccion ?? "");
-    setNit(c.nit ?? ""); setNotas(c.notas ?? ""); setEstado(c.estado ?? "PROSPECTO");
+    setNit(c.nit ?? ""); setCedula(c.cedula ?? ""); setNotas(c.notas ?? ""); setEstado(c.estado ?? "PROSPECTO");
   };
 
   const { data: cliente, isLoading } = useQuery({
@@ -79,7 +80,7 @@ function ClientePerfilContent() {
       return json.data as {
         id: string; nombre: string; empresa?: string; cargo?: string;
         email?: string; telefono?: string; ciudad?: string; departamento?: string;
-        direccion?: string; nit?: string; notas?: string; tipo: string;
+        direccion?: string; nit?: string; cedula?: string; notas?: string; tipo: string;
         estado: string; activo: boolean; createdAt: string;
         _count: { cotizaciones: number; pedidos: number };
       };
@@ -109,7 +110,7 @@ function ClientePerfilContent() {
     try {
       const res = await fetch(`/api/crm/clientes/${id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre, empresa, cargo, email, telefono, ciudad, departamento, direccion, nit, notas, estado }),
+        body: JSON.stringify({ nombre, empresa, cargo, email, telefono, ciudad, departamento, direccion, nit, cedula, notas, estado }),
       });
       const json = await res.json();
       if (!res.ok || !json.success) return toast.error(json.error ?? "Error");
@@ -298,7 +299,9 @@ function ClientePerfilContent() {
                   <Field label="Ciudad" value={editando ? ciudad : (cliente.ciudad ?? "")} onChange={setCiudad} editing={editando} />
                   <Field label="Departamento" value={editando ? departamento : (cliente.departamento ?? "")} onChange={setDepartamento} editing={editando} />
                   <Field label="Dirección" value={editando ? direccion : (cliente.direccion ?? "")} onChange={setDireccion} editing={editando} />
-                  <Field label="NIT / RUT" value={editando ? nit : (cliente.nit ?? "")} onChange={setNit} editing={editando} />
+                  {cliente.tipo === "empresa"
+                    ? <Field label="NIT / RUT" value={editando ? nit : (cliente.nit ?? "")} onChange={setNit} editing={editando} />
+                    : <Field label="Cédula" value={editando ? cedula : (cliente.cedula ?? "")} onChange={setCedula} editing={editando} />}
                 </div>
               </div>
 

@@ -65,7 +65,7 @@ export interface CotizacionDocData {
   direccionInstalacion?: string | null;
   cliente: {
     nombre: string; empresa?: string | null; email?: string | null; telefono?: string | null;
-    ciudad?: string | null; direccion?: string | null; nit?: string | null;
+    ciudad?: string | null; direccion?: string | null; nit?: string | null; cedula?: string | null;
   };
   items: ItemDoc[];
   vendedor?: { nombre: string; email?: string | null; telefono?: string | null } | null;
@@ -461,7 +461,11 @@ export function CotizacionDoc({ data, brand, config }: {
             <Rotulo>Datos del cliente</Rotulo>
             <p className="text-[12px] font-black uppercase m-0" style={{ color: NEGRO }}>{c.nombre}</p>
             {c.empresa && <p className="text-[10px] font-bold m-0" style={{ color: TINTA }}>{c.empresa}</p>}
-            {c.nit && <p className="text-[10px] m-0" style={{ color: TINTA }}>NIT/CC: {c.nit}</p>}
+            {(c.nit || c.cedula) && (
+              <p className="text-[10px] m-0" style={{ color: TINTA }}>
+                {c.nit ? `NIT: ${c.nit}` : `C.C. ${c.cedula}`}
+              </p>
+            )}
             <p className="text-[10px] m-0" style={{ color: TINTA }}>{[c.telefono, c.email].filter(Boolean).join(" · ")}</p>
             {(c.direccion || c.ciudad) && <p className="text-[10px] m-0" style={{ color: TINTA }}>{[c.direccion, c.ciudad].filter(Boolean).join(", ")}</p>}
           </div>

@@ -39,7 +39,7 @@ const STEPS = [
 interface FormData {
   tipo: string; estado: string; nombre: string; empresa: string; cargo: string;
   email: string; telefono: string; whatsapp: string; ciudad: string;
-  departamento: string; direccion: string; nit: string; paginaWeb: string; notas: string;
+  departamento: string; direccion: string; nit: string; cedula: string; paginaWeb: string; notas: string;
 }
 
 export default function NuevoClientePage() {
@@ -50,7 +50,7 @@ export default function NuevoClientePage() {
   const [form, setForm] = useState<FormData>({
     tipo: "persona", estado: "PROSPECTO", nombre: "", empresa: "", cargo: "",
     email: "", telefono: "", whatsapp: "", ciudad: "", departamento: "",
-    direccion: "", nit: "", paginaWeb: "", notas: "",
+    direccion: "", nit: "", cedula: "", paginaWeb: "", notas: "",
   });
 
   const upd = (k: keyof FormData, v: string) => setForm(p => ({ ...p, [k]: v }));
@@ -79,6 +79,7 @@ export default function NuevoClientePage() {
           departamento: form.departamento || undefined,
           direccion: form.direccion || undefined,
           nit: form.nit || undefined,
+          cedula: form.cedula || undefined,
           paginaWeb: form.paginaWeb || undefined,
           notas: form.notas || undefined,
           tipo: form.tipo,
@@ -230,6 +231,16 @@ export default function NuevoClientePage() {
                     <input className="input" value={form.nit} onChange={e => upd("nit", e.target.value)} placeholder="900.123.456-7" />
                   </div>
                 </>
+              )}
+
+              {/* Una persona natural también necesita identificación: sin
+                  ella no se le puede facturar. Antes solo se pedía el NIT
+                  y solo a las empresas. */}
+              {form.tipo === "persona" && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Cédula</label>
+                  <input className="input" value={form.cedula} onChange={e => upd("cedula", e.target.value)} placeholder="1.045.678.901" />
+                </div>
               )}
 
               <div className="grid grid-cols-2 gap-4">

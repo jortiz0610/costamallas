@@ -6,7 +6,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import {
   Settings, Link2, Check, X, Loader2, Eye, EyeOff, Building2, Palette, Upload, ImageIcon,
   ShoppingBag, Store, Users, Globe, Smartphone, Instagram, Facebook, Mail, MessageSquare,
-  Plus, PlugZap, ChevronDown, BookOpen, Radio, Sparkles, Route, Percent, Star,
+  Plus, PlugZap, ChevronDown, BookOpen, Radio, Sparkles, Route, Percent, Star, Hash,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useBrand } from "@/contexts/BrandContext";
@@ -16,6 +16,7 @@ import { TabCotizacion } from "@/components/configuracion/TabCotizacion";
 import { TabSeguimiento } from "@/components/configuracion/TabSeguimiento";
 import { TabComercial } from "@/components/configuracion/TabComercial";
 import { TabPostventa } from "@/components/configuracion/TabPostventa";
+import { TabConsecutivos } from "@/components/configuracion/TabConsecutivos";
 import { TabInstalacion } from "@/components/configuracion/TabInstalacion";
 import { CredencialesCanal, type ConexionCanal } from "@/components/configuracion/CredencialesCanal";
 
@@ -1124,6 +1125,7 @@ const TABS = [
   { id: "empresa",      label: "Empresa",       icon: Building2   },
   { id: "ia",           label: "IA",            icon: Sparkles    },
   { id: "correo",       label: "Correo",        icon: Mail        },
+  { id: "consecutivos", label: "Consecutivos",  icon: Hash        },
   { id: "cotizacion",   label: "Cotización",    icon: BookOpen    },
   { id: "seguimiento",  label: "Seguimiento",   icon: Route       },
   { id: "comercial",    label: "Reglas comerciales", icon: Percent },
@@ -1173,6 +1175,7 @@ function ConfiguracionContent() {
           {tab === "empresa"      && <TabEmpresa />}
           {tab === "ia"           && <TabIA />}
           {tab === "correo"       && <TabCorreo />}
+          {tab === "consecutivos" && <TabConsecutivos />}
           {tab === "cotizacion"   && <TabCotizacion />}
           {tab === "seguimiento"  && <TabSeguimiento />}
           {tab === "comercial"    && <TabComercial />}

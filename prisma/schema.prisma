@@ -76,6 +76,10 @@ model Cliente {
   departamento String?
   direccion    String?
   nit          String?
+  /// Documento del cliente persona natural. `nit` es para empresas y
+  /// solo se pedia en ese caso: una persona quedaba sin identificacion,
+  /// y sin identificacion no se le puede facturar.
+  cedula       String?
   paginaWeb    String?
   tipo         String   @default("persona")
   estado       String   @default("PROSPECTO")

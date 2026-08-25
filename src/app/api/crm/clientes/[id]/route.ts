@@ -28,7 +28,7 @@ export async function PUT(req: NextRequest, { params }: P) {
 
   const body = await req.json();
   const { nombre, empresa, cargo, email, telefono, whatsapp, ciudad, departamento,
-          direccion, nit, paginaWeb, tipo, notas, activo, estado } = body;
+          direccion, nit, cedula, paginaWeb, tipo, notas, activo, estado } = body;
 
   const updated = await prisma.cliente.update({
     where: { id },
@@ -43,6 +43,7 @@ export async function PUT(req: NextRequest, { params }: P) {
       ...(departamento !== undefined && { departamento }),
       ...(direccion !== undefined && { direccion }),
       ...(nit !== undefined && { nit }),
+      ...(cedula !== undefined && { cedula }),
       ...(paginaWeb !== undefined && { paginaWeb }),
       ...(tipo !== undefined && { tipo }),
       ...(notas !== undefined && { notas }),

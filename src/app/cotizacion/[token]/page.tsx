@@ -75,6 +75,7 @@ export default async function CotizacionPublica({ params }: P) {
       ciudad: cotizacion.cliente.ciudad,
       direccion: cotizacion.cliente.direccion,
       nit: cotizacion.cliente.nit,
+      cedula: cotizacion.cliente.cedula,
     },
     vendedor: cotizacion.vendedor,
     items: cotizacion.items.map(i => ({

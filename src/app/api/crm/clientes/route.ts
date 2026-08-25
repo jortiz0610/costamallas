@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
           { empresa: { contains: busqueda, mode: "insensitive" } },
           { email: { contains: busqueda, mode: "insensitive" } },
           { nit: { contains: busqueda, mode: "insensitive" } },
+          { cedula: { contains: busqueda, mode: "insensitive" } },
         ],
       } : {}),
     },
@@ -38,14 +39,14 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { nombre, empresa, cargo, email, telefono, whatsapp, ciudad, departamento,
-          direccion, nit, paginaWeb, tipo, notas, estado } = body;
+          direccion, nit, cedula, paginaWeb, tipo, notas, estado } = body;
 
   if (!nombre?.trim()) return NextResponse.json({ success: false, error: "Nombre requerido" }, { status: 400 });
 
   const cliente = await prisma.cliente.create({
     data: {
       nombre, empresa, cargo, email, telefono, whatsapp, ciudad, departamento,
-      direccion, nit, paginaWeb,
+      direccion, nit, cedula, paginaWeb,
       tipo: tipo ?? "persona", notas,
       estado: estado ?? "PROSPECTO",
       vendedorId: user.sub,

@@ -18,13 +18,53 @@ import { prisma } from "@/lib/prisma";
 
 export type TipoDocumento = "COT" | "PED" | "OC" | "FAC" | "INS";
 
-const CONFIG: Record<TipoDocumento, { clave: string; descripcion: string; digitos: number }> = {
-  COT: { clave: "consecutivo_cotizacion", descripcion: "Último número de cotización emitido", digitos: 5 },
-  PED: { clave: "consecutivo_pedido", descripcion: "Último número de pedido emitido", digitos: 5 },
-  OC:  { clave: "consecutivo_orden_compra", descripcion: "Último número de orden de compra emitido", digitos: 5 },
-  FAC: { clave: "consecutivo_factura", descripcion: "Último número de factura emitido", digitos: 5 },
-  INS: { clave: "consecutivo_instalacion", descripcion: "Último número de instalación emitido", digitos: 5 },
+const CONFIG: Record<TipoDocumento, { clave: string; descripcion: string; digitos: number; etiqueta: string }> = {
+  COT: { clave: "consecutivo_cotizacion", descripcion: "Último número de cotización emitido", digitos: 5, etiqueta: "Cotizaciones" },
+  PED: { clave: "consecutivo_pedido", descripcion: "Último número de pedido emitido", digitos: 5, etiqueta: "Pedidos" },
+  OC:  { clave: "consecutivo_orden_compra", descripcion: "Último número de orden de compra emitido", digitos: 5, etiqueta: "Órdenes de compra" },
+  FAC: { clave: "consecutivo_factura", descripcion: "Último número de factura emitido", digitos: 5, etiqueta: "Facturas" },
+  INS: { clave: "consecutivo_instalacion", descripcion: "Último número de instalación emitido", digitos: 5, etiqueta: "Instalaciones" },
 };
+
+export const TIPOS = Object.keys(CONFIG) as TipoDocumento[];
+export const etiquetaDe = (tipo: TipoDocumento) => CONFIG[tipo].etiqueta;
+
+/**
+ * Formato del número: prefijo y cantidad de dígitos, configurables.
+ *
+ * Existe porque una empresa que viene de otro sistema necesita CONTINUAR
+ * su numeración, no empezar de cero. Costamallas llevaba 12.063
+ * cotizaciones en SIIGO: arrancar en COT-00001 le habría dicho a cada
+ * cliente que son nuevos.
+ *
+ * El prefijo puede ser vacío (solo el número) o alfanumérico.
+ */
+async function formato(tipo: TipoDocumento): Promise<{ prefijo: string; digitos: number }> {
+  const { clave, digitos } = CONFIG[tipo];
+  const filas = await prisma.configuracion.findMany({
+    where: { clave: { in: [`${clave}_prefijo`, `${clave}_digitos`] } },
+    select: { clave: true, valor: true },
+  });
+  const map = Object.fromEntries(filas.map(f => [f.clave, f.valor]));
+
+  const guardadoPrefijo = map[`${clave}_prefijo`];
+  const guardadoDigitos = Number(map[`${clave}_digitos`]);
+
+  return {
+    // `undefined` = nunca se configuró → se mantiene el comportamiento de
+    // siempre (COT-00001). Una cadena vacía SÍ es una elección: sin prefijo.
+    prefijo: guardadoPrefijo === undefined ? tipo : guardadoPrefijo,
+    digitos: Number.isFinite(guardadoDigitos) && guardadoDigitos > 0 && guardadoDigitos <= 12
+      ? guardadoDigitos
+      : digitos,
+  };
+}
+
+/** Arma el número con el formato configurado. */
+function componer(prefijo: string, digitos: number, valor: string | number): string {
+  const num = String(valor).padStart(digitos, "0");
+  return prefijo ? `${prefijo}-${num}` : num;
+}
 
 /** Modelos donde vive el `numero` de cada tipo, para sembrar el contador. */
 const TABLA: Record<TipoDocumento, string> = {
@@ -62,7 +102,8 @@ async function sembrar(tipo: TipoDocumento): Promise<number> {
  * llamadas concurrentes obtienen valores distintos.
  */
 export async function siguienteNumero(tipo: TipoDocumento): Promise<string> {
-  const { clave, descripcion, digitos } = CONFIG[tipo];
+  const { clave, descripcion } = CONFIG[tipo];
+  const { prefijo, digitos } = await formato(tipo);
 
   // Paso 1 — garantizar que la fila del contador exista.
   //
@@ -103,7 +144,7 @@ export async function siguienteNumero(tipo: TipoDocumento): Promise<string> {
     );
   }
 
-  return `${tipo}-${filas[0].valor.padStart(digitos, "0")}`;
+  return componer(prefijo, digitos, filas[0].valor);
 }
 
 /**
@@ -129,13 +170,79 @@ export async function siguienteNumeroSeguro(tipo: TipoDocumento, intentos = 5): 
 
 /** Estado del contador, para mostrarlo en Configuración. */
 export async function estadoConsecutivo(tipo: TipoDocumento) {
-  const { clave, digitos } = CONFIG[tipo];
+  const { clave, etiqueta } = CONFIG[tipo];
+  const { prefijo, digitos } = await formato(tipo);
   const fila = await prisma.configuracion.findUnique({ where: { clave }, select: { valor: true } });
   const actual = fila ? Number(fila.valor) : await sembrar(tipo);
   return {
     tipo,
+    etiqueta,
     actual,
-    proximo: `${tipo}-${String(actual + 1).padStart(digitos, "0")}`,
+    prefijo,
+    digitos,
+    proximo: componer(prefijo, digitos, actual + 1),
     inicializado: Boolean(fila),
   };
+}
+
+/**
+ * Fija el contador y el formato de un tipo de documento.
+ *
+ * `desde` es el ÚLTIMO número usado, no el próximo: si en el sistema
+ * anterior la última cotización fue la 12063, se guarda 12063 y la
+ * primera que emita el portal será la 12064. Se pide así porque es el
+ * dato que la gente tiene a la mano.
+ *
+ * No deja retroceder por debajo de lo ya emitido: bajar el contador
+ * generaría números repetidos y `numero` es único, así que la creación
+ * fallaría con un error que no explica nada.
+ */
+export async function fijarConsecutivo(
+  tipo: TipoDocumento,
+  datos: { desde?: number; prefijo?: string; digitos?: number },
+): Promise<{ ok: boolean; error?: string }> {
+  const { clave, descripcion } = CONFIG[tipo];
+
+  if (datos.prefijo !== undefined) {
+    const p = datos.prefijo.trim().toUpperCase();
+    if (!/^[A-Z0-9-]{0,10}$/.test(p)) {
+      return { ok: false, error: "El prefijo solo admite letras, números y guiones (hasta 10 caracteres)." };
+    }
+    await prisma.configuracion.upsert({
+      where: { clave: `${clave}_prefijo` },
+      create: { clave: `${clave}_prefijo`, valor: p, descripcion: `Prefijo de ${descripcion}` },
+      update: { valor: p },
+    });
+  }
+
+  if (datos.digitos !== undefined) {
+    if (!Number.isInteger(datos.digitos) || datos.digitos < 1 || datos.digitos > 12) {
+      return { ok: false, error: "Los dígitos deben ir entre 1 y 12." };
+    }
+    await prisma.configuracion.upsert({
+      where: { clave: `${clave}_digitos`, },
+      create: { clave: `${clave}_digitos`, valor: String(datos.digitos), descripcion: `Dígitos de ${descripcion}` },
+      update: { valor: String(datos.digitos) },
+    });
+  }
+
+  if (datos.desde !== undefined) {
+    if (!Number.isInteger(datos.desde) || datos.desde < 0) {
+      return { ok: false, error: "El número debe ser un entero positivo." };
+    }
+    const maximo = await sembrar(tipo);
+    if (datos.desde < maximo) {
+      return {
+        ok: false,
+        error: `Ya hay documentos emitidos hasta el ${maximo}. Poner el contador en ${datos.desde} repetiría números.`,
+      };
+    }
+    await prisma.configuracion.upsert({
+      where: { clave },
+      create: { clave, valor: String(datos.desde), descripcion },
+      update: { valor: String(datos.desde) },
+    });
+  }
+
+  return { ok: true };
 }
