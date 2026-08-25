@@ -17,6 +17,7 @@ import { TabSeguimiento } from "@/components/configuracion/TabSeguimiento";
 import { TabComercial } from "@/components/configuracion/TabComercial";
 import { TabPostventa } from "@/components/configuracion/TabPostventa";
 import { TabConsecutivos } from "@/components/configuracion/TabConsecutivos";
+import { TabWordPress } from "@/components/configuracion/TabWordPress";
 import { TabInstalacion } from "@/components/configuracion/TabInstalacion";
 import { CredencialesCanal, type ConexionCanal } from "@/components/configuracion/CredencialesCanal";
 
@@ -357,9 +358,12 @@ function TabMarketplace({ nombre, color, logoChar, descripcion, camposExtra }: {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // Esto NO guarda nada: no existe backend de marketplaces (ni modelos,
+  // ni rutas, ni sincronización). El formulario está desactivado más
+  // abajo justamente por eso. Se deja el estado para que el botón siga
+  // renderizando, pero sin fingir un guardado que no ocurre.
   const handleSave = async () => {
-    setSaving(true);
-    setTimeout(() => { setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2500); }, 800);
+    toast.error("La conexión con marketplaces todavía no está construida. No hay dónde guardar estas credenciales.");
   };
 
   return (
@@ -374,9 +378,9 @@ function TabMarketplace({ nombre, color, logoChar, descripcion, camposExtra }: {
             <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200">{nombre}</h2>
             <p className="text-xs text-gray-400 mt-0.5">{descripcion}</p>
           </div>
-          <div className="ml-auto flex items-center gap-2 text-xs font-semibold text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-3 py-1.5 rounded-xl">
+          <div className="ml-auto flex items-center gap-2 text-xs font-semibold text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-3 py-1.5 rounded-xl whitespace-nowrap">
             <span className="w-2 h-2 rounded-full bg-amber-400" />
-            Próximamente
+            Sin construir
           </div>
         </div>
 
@@ -413,7 +417,10 @@ function TabMarketplace({ nombre, color, logoChar, descripcion, camposExtra }: {
 
         <div className="mt-4 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50">
           <p className="text-xs text-blue-600 dark:text-blue-300 font-medium">
-            La integración con {nombre} estará disponible próximamente. Una vez activa, los pedidos y clientes se sincronizarán automáticamente con el CRM.
+            La conexión con {nombre} <b>no está construida</b>: estos campos no guardan nada todavía. Faltan dos
+            cosas, y en este orden: la cuenta de vendedor en {nombre}, y después el desarrollo de la integración
+            (publicar productos e importar pedidos). Mientras tanto, la tienda de costamallas.com sí está
+            conectada — mira la pestaña WooCommerce.
           </p>
         </div>
       </div>
@@ -421,59 +428,6 @@ function TabMarketplace({ nombre, color, logoChar, descripcion, camposExtra }: {
   );
 }
 
-function TabWordPressUsers() {
-  return (
-    <div className="space-y-5 max-w-2xl">
-      <div className="card p-5">
-        <div className="flex items-center gap-4 mb-5">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white" style={{ backgroundColor: "#21759b" }}>
-            <Globe size={24} />
-          </div>
-          <div>
-            <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200">Usuarios de WordPress</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Sincroniza compradores del sitio web con el CRM</p>
-          </div>
-        </div>
-
-        <div className="space-y-4">
-          <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50">
-            <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300 mb-2">Cómo funciona la identificación automática</p>
-            <ul className="space-y-2">
-              {[
-                "Cuando un usuario hace un pedido en WordPress, su email se busca en el CRM",
-                "Si el teléfono o email coincide con un cliente existente, se vincula automáticamente",
-                "Las compras aparecen en el perfil del cliente en el módulo CRM",
-                "Si es nuevo, se crea el perfil automáticamente como 'Cliente activo'",
-              ].map((t, i) => (
-                <li key={i} className="flex items-start gap-2 text-xs text-emerald-600 dark:text-emerald-400">
-                  <Check size={12} className="mt-0.5 flex-shrink-0" />
-                  {t}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="opacity-60 space-y-4 pointer-events-none select-none">
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">URL de WordPress</label>
-              <input className="input" placeholder="https://tutienda.com" type="url" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Application Password</label>
-              <input className="input font-mono text-xs" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx" type="password" />
-            </div>
-          </div>
-
-          <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50">
-            <p className="text-xs text-blue-600 dark:text-blue-300 font-medium">
-              Esta integración estará disponible próximamente. Usa las credenciales de WooCommerce ya configuradas para acceder a los datos de compradores.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Tab de Canales / Conexiones (Nexus + redes) ──
 interface NexusConexion { id: string; canal: string; nombre: string; activo: boolean; webhookUrl?: string; }
@@ -1137,7 +1091,7 @@ const TABS = [
   { id: "woocommerce",  label: "WooCommerce",   icon: Link2       },
   { id: "falabella",    label: "Falabella",     icon: ShoppingBag },
   { id: "mercadolibre", label: "MercadoLibre",  icon: Store       },
-  { id: "wp_users",     label: "Usuarios WP",   icon: Users       },
+  { id: "wp_users",     label: "WordPress",     icon: Globe       },
 ];
 
 function ConfiguracionContent() {
@@ -1195,7 +1149,7 @@ function ConfiguracionContent() {
               descripcion="Sincroniza publicaciones y pedidos de MercadoLibre"
               camposExtra={[{ key: "accessToken", label: "Access Token", placeholder: "APP_USR-..." }]} />
           )}
-          {tab === "wp_users"     && <TabWordPressUsers />}
+          {tab === "wp_users"     && <TabWordPress />}
         </div>
       </div>
     </>
