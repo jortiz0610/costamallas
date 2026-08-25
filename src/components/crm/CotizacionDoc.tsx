@@ -57,6 +57,9 @@ export interface CotizacionDocData {
   descuento?: number;
   iva?: number;
   total: number;
+  /// Plazo propio de esta oferta. Si viene, manda sobre el texto general
+  /// de Configuración: el general promete 2-5 días y hay obras de 15.
+  tiempoEntrega?: string | null;
   /// Anticipo pactado. Sale escrito en la oferta para que el cliente no
   /// se entere de que hay que abonar cuando ya dijo que sí.
   anticipoPct?: number | null;
@@ -519,7 +522,7 @@ export function CotizacionDoc({ data, brand, config }: {
             <Titulo tam="18px">Condiciones comerciales</Titulo>
             <div className="grid grid-cols-2 gap-x-8 gap-y-4">
               <div><Rotulo>Forma de pago</Rotulo><Parrafo>{config.formaPago}</Parrafo></div>
-              <div><Rotulo>Tiempo de entrega</Rotulo><Parrafo>{config.tiempoEntrega}</Parrafo></div>
+              <div><Rotulo>Tiempo de entrega</Rotulo><Parrafo>{data.tiempoEntrega || config.tiempoEntrega}</Parrafo></div>
               <div className="col-span-2 p-4" style={{ backgroundColor: NEGRO }}>
                 <Rotulo claro>Información de pago</Rotulo><Parrafo claro>{config.infoPago}</Parrafo>
               </div>
@@ -624,7 +627,7 @@ export function CotizacionDoc({ data, brand, config }: {
                 <Rotulo>Forma de pago</Rotulo><Parrafo>{config.formaPago}</Parrafo>
               </div>
               <div className="p-4" style={{ backgroundColor: "#f7f6f0", borderLeft: `4px solid ${AMARILLO}` }}>
-                <Rotulo>Tiempo de entrega</Rotulo><Parrafo>{config.tiempoEntrega}</Parrafo>
+                <Rotulo>Tiempo de entrega</Rotulo><Parrafo>{data.tiempoEntrega || config.tiempoEntrega}</Parrafo>
               </div>
             </div>
 

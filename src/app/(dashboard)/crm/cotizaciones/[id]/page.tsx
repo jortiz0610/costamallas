@@ -32,6 +32,9 @@ function DetalleContent() {
   const [estado, setEstado] = useState("");
   const [plantilla, setPlantilla] = useState<"EXPRESS" | "PROPUESTA">("EXPRESS");
   const [notas, setNotas] = useState("");
+  // Vacío = se usa el texto general de Configuración. El general promete
+  // "de 2 a 5 días hábiles" y hay obras que se demoran 15.
+  const [tiempoEntrega, setTiempoEntrega] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [enviando, setEnviando] = useState(false);
 
@@ -49,6 +52,7 @@ function DetalleContent() {
     if (data) {
       setEstado(data.estado);
       setNotas(data.notas ?? "");
+      setTiempoEntrega(data.tiempoEntrega ?? "");
       setPlantilla(data.plantilla === "PROPUESTA" ? "PROPUESTA" : "EXPRESS");
     }
   }, [data]);
@@ -58,7 +62,7 @@ function DetalleContent() {
     try {
       const res = await fetch(`/api/crm/cotizaciones/${id}`, {
         method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ estado, notas, plantilla }),
+        body: JSON.stringify({ estado, notas, plantilla, tiempoEntrega }),
       });
       const j = await res.json();
       if (!res.ok || !j.success) return toast.error(j.error ?? "Error");
@@ -101,6 +105,7 @@ function DetalleContent() {
     descuento: Number(data.descuento ?? 0),
     iva: Number(data.iva ?? 0),
     total: Number(data.total),
+    tiempoEntrega,
     anticipoPct: data.anticipoPct == null ? null : Number(data.anticipoPct),
     plantilla,
     ciudadInstalacion: data.ciudadInstalacion,
@@ -220,6 +225,24 @@ function DetalleContent() {
               {estado === "APROBADA" && data.estado !== "APROBADA" && (
                 <p className="text-[11px] text-emerald-600 mt-3 flex items-center gap-1"><CheckCircle2 size={12} /> Al guardar se creará un pedido automáticamente.</p>
               )}
+            </div>
+
+            {/* El plazo de ESTA oferta. El texto general promete 2-5 días
+                hábiles y hay obras que se demoran 15: prometer mal un
+                plazo cuesta la siguiente compra, no solo esta. */}
+            <div className="card p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-muted mb-2">Tiempo de entrega</p>
+              <input
+                className="input text-xs"
+                value={tiempoEntrega}
+                onChange={e => setTiempoEntrega(e.target.value)}
+                placeholder={config?.tiempoEntrega ?? DEFAULTS.tiempoEntrega}
+              />
+              <p className="text-[11px] text-muted mt-2">
+                {tiempoEntrega
+                  ? "Este plazo reemplaza al general solo en esta cotización."
+                  : "Vacío = sale el plazo general de Configuración → Cotización."}
+              </p>
             </div>
 
             <div className="card p-5">

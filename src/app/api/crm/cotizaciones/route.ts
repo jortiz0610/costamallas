@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const {
     clienteId, items, notas, tieneInstalacion, validezDias, descuentoGlobal,
-    plantilla, ciudadInstalacion, direccionInstalacion, anticipoPct,
+    plantilla, ciudadInstalacion, direccionInstalacion, anticipoPct, tiempoEntrega,
   } = body;
 
   if (!clienteId) return NextResponse.json({ success: false, error: "clienteId requerido" }, { status: 400 });
@@ -110,6 +110,7 @@ export async function POST(req: NextRequest) {
       plantilla: plantilla === "PROPUESTA" ? "PROPUESTA" : "EXPRESS",
       ciudadInstalacion: ciudadInstalacion || null,
       direccionInstalacion: direccionInstalacion || null,
+      tiempoEntrega: tiempoEntrega || null,
       descuentoPct: descPct,
       anticipoPct: anticipo,
       aprobacionEstado: veredicto.requiere ? "PENDIENTE" : "NO_REQUIERE",

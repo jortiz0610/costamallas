@@ -33,7 +33,7 @@ export async function PUT(req: NextRequest, { params }: P) {
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
 
   const body = await req.json();
-  const { estado, notas, items, plantilla, validezDias, descuentoGlobal, ciudadInstalacion, direccionInstalacion, tieneInstalacion, anticipoPct } = body;
+  const { estado, notas, items, plantilla, validezDias, descuentoGlobal, ciudadInstalacion, direccionInstalacion, tieneInstalacion, anticipoPct, tiempoEntrega } = body;
 
   // ── Edición del borrador ──
   // Solo mientras la cotización no se haya enviado: una oferta que el
@@ -105,6 +105,7 @@ export async function PUT(req: NextRequest, { params }: P) {
           ...(tieneInstalacion !== undefined && { tieneInstalacion: Boolean(tieneInstalacion) }),
           ciudadInstalacion: ciudadInstalacion || null,
           direccionInstalacion: direccionInstalacion || null,
+          tiempoEntrega: tiempoEntrega || null,
           descuentoPct: descPct,
           anticipoPct: anticipo,
           aprobacionEstado: veredicto.requiere ? "PENDIENTE" : "NO_REQUIERE",
@@ -184,6 +185,7 @@ export async function PUT(req: NextRequest, { params }: P) {
       ...(estado && { estado }),
       ...(notas !== undefined && { notas }),
       ...(plantilla && { plantilla: plantilla === "PROPUESTA" ? "PROPUESTA" : "EXPRESS" }),
+      ...(tiempoEntrega !== undefined && { tiempoEntrega: tiempoEntrega || null }),
       ...recalculo,
     },
   });

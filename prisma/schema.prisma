@@ -359,6 +359,12 @@ model Cotizacion {
   ciudadInstalacion    String?
   direccionInstalacion String?
 
+  /// Plazo propio de esta oferta. Nulo = se usa el texto general de
+  /// Configuración → Cotización. El general dice "de 2 a 5 días hábiles"
+  /// y hay obras que se demoran 15: sin esto el asesor mandaba una
+  /// promesa que no se iba a cumplir.
+  tiempoEntrega        String?
+
   // ── Seguimiento post-cotización ──
   /// Se puede apagar por cotización: hay negocios donde el cliente pide
   /// expresamente que no lo persigan, y un recordatorio automático ahí
