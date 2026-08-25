@@ -288,10 +288,22 @@ export function CotizacionDoc({ data, brand, config }: {
   const fmt = (d: Date) => d.toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" });
   const ciudadEmpresa = brand.address?.split(",").pop()?.trim() || "Barranquilla";
 
+  /**
+   * El logo, o el nombre de la empresa si no hay ninguno cargado.
+   *
+   * `invertido` NO se le aplica a la imagen. El filtro
+   * `brightness(0) invert(1)` sirve para un logo negro sobre fondo
+   * transparente, pero el de Costamallas es negro sobre un rectángulo
+   * amarillo sólido: invertirlo lo convierte en un bloque blanco donde
+   * no se lee nada. Sobre fondo oscuro el amarillo ya contrasta solo —
+   * es la combinación de la marca.
+   *
+   * Solo el texto de respaldo cambia de color.
+   */
   const Logo = ({ invertido = false, alto = "h-9" }: { invertido?: boolean; alto?: string }) =>
     brand.logoUrl ? (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={brand.logoUrl} alt={brand.companyName} className={`${alto} object-contain`} style={invertido ? { filter: "brightness(0) invert(1)" } : undefined} />
+      <img src={brand.logoUrl} alt={brand.companyName} className={`${alto} w-auto object-contain`} />
     ) : (
       <span className="text-xl font-black uppercase tracking-tight" style={{ color: invertido ? "#fff" : NEGRO }}>{brand.companyName}</span>
     );
