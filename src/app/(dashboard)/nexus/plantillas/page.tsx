@@ -4,7 +4,7 @@ import { Suspense, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
 import {
-  Plus, MessageSquareText, X, Loader2, Trash2, Copy, Zap, Hash,
+  Plus, MessageSquareText, X, Loader2, Trash2, Copy, Zap, Hash, Pencil,
   Sparkles, Tag,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -25,8 +25,24 @@ interface Plantilla {
   contenido: string; atajo?: string; vecesUsada: number;
 }
 
-function NuevaPlantilla({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [form, setForm] = useState({ nombre: "", categoria: "GENERAL", canal: "todos", contenido: "", atajo: "" });
+/**
+ * El mismo formulario sirve para crear y para editar.
+ *
+ * Antes solo se podía crear y borrar: corregir una tilde obligaba a
+ * borrar la plantilla y volver a escribirla entera, así que en la
+ * práctica nadie las corregía y quedaban con errores.
+ */
+function NuevaPlantilla({ plantilla, onClose, onSaved }: {
+  plantilla?: Plantilla | null; onClose: () => void; onSaved: () => void;
+}) {
+  const editando = Boolean(plantilla);
+  const [form, setForm] = useState({
+    nombre: plantilla?.nombre ?? "",
+    categoria: plantilla?.categoria ?? "GENERAL",
+    canal: plantilla?.canal ?? "todos",
+    contenido: plantilla?.contenido ?? "",
+    atajo: plantilla?.atajo ?? "",
+  });
   const [saving, setSaving] = useState(false);
   const upd = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
 
@@ -34,10 +50,14 @@ function NuevaPlantilla({ onClose, onSaved }: { onClose: () => void; onSaved: ()
     if (!form.nombre.trim() || !form.contenido.trim()) return toast.error("Nombre y contenido requeridos");
     setSaving(true);
     try {
-      const res = await fetch("/api/nexus/plantillas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      const res = await fetch("/api/nexus/plantillas", {
+        method: editando ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editando ? { id: plantilla!.id, ...form } : form),
+      });
       const json = await res.json();
       if (!res.ok || !json.success) return toast.error(json.error ?? "Error");
-      toast.success("Plantilla creada");
+      toast.success(editando ? "Plantilla actualizada" : "Plantilla creada");
       onSaved();
     } catch { toast.error("Error"); } finally { setSaving(false); }
   };
@@ -46,7 +66,7 @@ function NuevaPlantilla({ onClose, onSaved }: { onClose: () => void; onSaved: ()
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto">
       <div className="card w-full max-w-lg my-4 animate-fade-up">
         <div className="card-header">
-          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2"><MessageSquareText size={16} style={{ color: NEXUS_COLOR }} /> Nueva plantilla</h2>
+          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2"><MessageSquareText size={16} style={{ color: NEXUS_COLOR }} /> {editando ? "Editar plantilla" : "Nueva plantilla"}</h2>
           <button onClick={onClose} className="w-8 h-8 rounded-lg surface-2 flex items-center justify-center text-muted"><X size={15} /></button>
         </div>
         <div className="p-5 space-y-4">
@@ -85,7 +105,7 @@ function NuevaPlantilla({ onClose, onSaved }: { onClose: () => void; onSaved: ()
         <div className="p-5 pt-0 flex gap-3">
           <button onClick={onClose} className="btn-secondary flex-1">Cancelar</button>
           <button onClick={save} disabled={saving} className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50" style={{ backgroundColor: NEXUS_COLOR }}>
-            {saving && <Loader2 size={13} className="animate-spin" />} Crear plantilla
+            {saving && <Loader2 size={13} className="animate-spin" />} {editando ? "Guardar cambios" : "Crear plantilla"}
           </button>
         </div>
       </div>
@@ -96,6 +116,7 @@ function NuevaPlantilla({ onClose, onSaved }: { onClose: () => void; onSaved: ()
 function PlantillasContent() {
   const qc = useQueryClient();
   const [modal, setModal] = useState(false);
+  const [editando, setEditando] = useState<Plantilla | null>(null);
   const [filtroCat, setFiltroCat] = useState("");
   const [cargandoSemilla, setCargandoSemilla] = useState(false);
 
@@ -204,7 +225,10 @@ function PlantillasContent() {
                 <div key={p.id} className="card card-hover p-4 flex flex-col group">
                   <div className="flex items-start justify-between mb-2">
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: cat.c + "20", color: cat.c }}>{cat.l}</span>
-                    <button onClick={() => eliminar(p.id)} className="text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={13} /></button>
+                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => setEditando(p)} className="text-muted hover:text-[color:var(--brand-color)]" title="Editar"><Pencil size={13} /></button>
+                      <button onClick={() => eliminar(p.id)} className="text-muted hover:text-red-500" title="Borrar"><Trash2 size={13} /></button>
+                    </div>
                   </div>
                   <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{p.nombre}</p>
                   {p.atajo && <span className="text-[11px] font-mono text-muted flex items-center gap-0.5 mt-0.5"><Hash size={9} />{p.atajo}</span>}
@@ -221,7 +245,13 @@ function PlantillasContent() {
           </div>
         )}
       </div>
-      {modal && <NuevaPlantilla onClose={() => setModal(false)} onSaved={() => { setModal(false); qc.invalidateQueries({ queryKey: ["nexus-plantillas"] }); }} />}
+      {(modal || editando) && (
+        <NuevaPlantilla
+          plantilla={editando}
+          onClose={() => { setModal(false); setEditando(null); }}
+          onSaved={() => { setModal(false); setEditando(null); qc.invalidateQueries({ queryKey: ["nexus-plantillas"] }); }}
+        />
+      )}
     </>
   );
 }
