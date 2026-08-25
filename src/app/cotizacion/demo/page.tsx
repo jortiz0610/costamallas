@@ -1,16 +1,25 @@
-"use client";
-
 // ============================================================
 // Vista de muestra de las dos plantillas de cotización.
 //
-// Sirve para revisar el diseño y para enseñárselo al equipo sin tener que
-// abrir una cotización real. No toca la base de datos: los datos son
-// inventados y los textos son los que trae la configuración por defecto.
+// Sirve para revisar el diseño y enseñárselo al equipo sin abrir una
+// cotización real. Los DATOS son inventados —no toca cotizaciones ni
+// clientes—, pero la MARCA y los TEXTOS salen de la configuración real.
+//
+// Antes estaban quemados en el código, con `logoUrl: null`. Así la
+// muestra enseñaba algo distinto de lo que le llega al cliente, que es
+// justo lo contrario de para lo que sirve una muestra: se revisaba aquí,
+// se daba por bueno, y en la oferta real salía otra cosa.
+//
+// Es una ruta pública, así que la configuración se lee en el servidor
+// (no hay sesión con la que pedirla por API).
 // ============================================================
 
-import { useState } from "react";
-import { CotizacionDoc, type CotizacionDocData } from "@/components/crm/CotizacionDoc";
-import { DEFAULTS } from "@/lib/cotizacion-textos";
+import { getMarca } from "@/lib/marca";
+import { getConfigCotizacion } from "@/lib/cotizacion-config";
+import type { CotizacionDocData } from "@/components/crm/CotizacionDoc";
+import { Muestra } from "./Muestra";
+
+export const dynamic = "force-dynamic";
 
 const MUESTRA: CotizacionDocData = {
   numero: "COT-00148",
@@ -21,6 +30,7 @@ const MUESTRA: CotizacionDocData = {
   descuento: 420_000,
   iva: 2_736_000,
   total: 17_136_000,
+  anticipoPct: 50,
   ciudadInstalacion: "Santa Marta, Magdalena",
   direccionInstalacion: "Km 8 vía Ciénaga, Bodega 4 — Zona Industrial",
   notas: "El metraje final se confirma con la visita técnica. Los postes se instalan cada 3 metros.",
@@ -57,46 +67,7 @@ const MUESTRA: CotizacionDocData = {
   ],
 };
 
-const MARCA = {
-  companyName: "Costamallas",
-  brandColor: "#ffdd00",
-  legalName: "COSTAMALLAS S.A.S.",
-  nit: "900.659.899-8",
-  address: "Calle 58 # 46-107, Barranquilla",
-  phone: "300 607 8956",
-  email: "gerencia@costamallas.com",
-  logoUrl: null,
-};
-
-export default function DemoCotizacion() {
-  const [plantilla, setPlantilla] = useState<"EXPRESS" | "PROPUESTA">("PROPUESTA");
-
-  return (
-    <div className="min-h-screen" style={{ backgroundColor: "#e9ecef" }}>
-      <div className="no-print sticky top-0 z-10 px-6 py-3 flex items-center gap-3" style={{ backgroundColor: "#0d1117" }}>
-        <p className="text-white text-sm font-bold flex-1">Muestra de cotización</p>
-        {(["EXPRESS", "PROPUESTA"] as const).map(p => (
-          <button
-            key={p}
-            onClick={() => setPlantilla(p)}
-            className="px-4 py-1.5 rounded-lg text-xs font-bold transition-all"
-            style={plantilla === p
-              ? { backgroundColor: "#f9df1e", color: "#0d1117" }
-              : { backgroundColor: "rgba(255,255,255,.1)", color: "rgba(255,255,255,.7)" }}
-          >
-            {p === "EXPRESS" ? "Express" : "Propuesta"}
-          </button>
-        ))}
-        <button onClick={() => window.print()} className="px-4 py-1.5 rounded-lg text-xs font-bold bg-white/10 text-white/70">
-          Imprimir
-        </button>
-      </div>
-
-      <div className="py-8 print-area">
-        <div className="mx-auto shadow-2xl print:shadow-none" style={{ maxWidth: "210mm" }}>
-          <CotizacionDoc data={{ ...MUESTRA, plantilla }} brand={MARCA} config={DEFAULTS} />
-        </div>
-      </div>
-    </div>
-  );
+export default async function DemoCotizacion() {
+  const [marca, config] = await Promise.all([getMarca(), getConfigCotizacion()]);
+  return <Muestra data={MUESTRA} brand={marca} config={config} />;
 }
