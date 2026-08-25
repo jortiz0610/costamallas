@@ -78,7 +78,8 @@ export function FichaInstalacion({ inst, onClose }: { inst: InstalacionFicha; on
       const j = await res.json();
       if (!res.ok || !j.success) return toast.error(j.error ?? "No se pudo subir la foto");
       setFotos(prev => [...prev, { url: j.data.url, momento, titulo: file.name }]);
-      toast.success(`Foto de ${momento.toLowerCase()} agregada`);
+      if (j.aviso) toast(j.aviso, { icon: "⚠️", duration: 9000 });
+      else toast.success(`Foto de ${momento.toLowerCase()} agregada`);
     } finally { setSubiendo(false); }
   };
 

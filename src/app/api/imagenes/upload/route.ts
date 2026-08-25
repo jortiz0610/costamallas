@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest, canWrite } from "@/lib/auth";
-import { uploadImageFTP } from "@/lib/ftp";
+import { uploadImageFTP, verificarUrlPublica } from "@/lib/ftp";
 import { getWPCredentials, uploadToWordPressMedia } from "@/lib/wordpress";
 import { prisma } from "@/lib/prisma";
 import { sincronizarProducto } from "@/lib/sync-tienda";
@@ -42,12 +42,21 @@ export async function POST(req: NextRequest) {
     // Preferir WordPress (media queda servida por costamallas.com y funciona en la
     // tienda). Si WP no está configurado, usar FTP a catalogo.costamallas.com.
     let url: string;
+    let aviso: string | null = null;
     const wpCreds = await getWPCredentials();
     if (wpCreds) {
       const media = await uploadToWordPressMedia(buffer, filename, file.type);
       url = media.url;
     } else {
       url = await uploadImageFTP(buffer, filename);
+      // Que el FTP no se queje NO significa que la imagen se vea: el
+      // archivo puede quedar en una carpeta que ningún sitio sirve. Ha
+      // pasado aquí, y por eso "la ficha se sube pero no aparece en la
+      // página". Se comprueba y se dice, en vez de dar por bueno.
+      aviso = await verificarUrlPublica(url);
+      if (aviso) {
+        console.error(`[imagenes] subida no accesible: ${url} — ${aviso}`);
+      }
     }
 
     // Guardar en BD si viene con productoId
@@ -76,10 +85,10 @@ export async function POST(req: NextRequest) {
       // Que la foto nueva aparezca en la tienda sin esperar a que alguien
       // vuelva a guardar el producto ni al cron diario.
       const sync = await sincronizarProducto(productoId);
-      return NextResponse.json({ success: true, data: { url, imagen }, sync });
+      return NextResponse.json({ success: true, data: { url, imagen }, sync, aviso });
     }
 
-    return NextResponse.json({ success: true, data: { url, filename } });
+    return NextResponse.json({ success: true, data: { url, filename }, aviso });
   } catch (err) {
     console.error("[upload imagen]", err);
     return NextResponse.json(

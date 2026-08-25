@@ -51,6 +51,8 @@ function PanelProducto({ producto }: { producto: ProductoConImagenes }) {
     if (!files) return;
     setUploading(true);
     let ok = 0;
+    // Se juntan para no repetir el mismo aviso una vez por archivo.
+    const avisos = new Set<string>();
     for (const file of Array.from(files)) {
       if (!file.type.startsWith("image/")) continue;
       const fd = new FormData();
@@ -59,10 +61,11 @@ function PanelProducto({ producto }: { producto: ProductoConImagenes }) {
         const res = await fetch("/api/imagenes/upload", { method: "POST", body: fd });
         const json = await res.json();
         if (!res.ok || !json.success) toast.error(`${file.name}: ${json.error}`);
-        else ok++;
+        else { ok++; if (json.aviso) avisos.add(json.aviso); }
       } catch { toast.error(`Error: ${file.name}`); }
     }
     if (ok > 0) { toast.success(`${ok} imagen${ok > 1 ? "es" : ""} subida${ok > 1 ? "s" : ""}`); refresh(); }
+    for (const a of avisos) toast(a, { icon: "⚠️", duration: 9000 });
     setUploading(false);
   };
 
