@@ -302,8 +302,11 @@ export function CotizacionDoc({ data, brand, config }: {
    */
   const Logo = ({ invertido = false, alto = "h-9" }: { invertido?: boolean; alto?: string }) =>
     brand.logoUrl ? (
+      // `self-start` porque varios contenedores son flex en columna: sin
+      // eso el logo se estira a todo el ancho y, con object-contain,
+      // queda flotando en el centro en vez de arriba a la izquierda.
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={brand.logoUrl} alt={brand.companyName} className={`${alto} w-auto object-contain`} />
+      <img src={brand.logoUrl} alt={brand.companyName} className={`${alto} w-auto self-start object-contain`} />
     ) : (
       <span className="text-xl font-black uppercase tracking-tight" style={{ color: invertido ? "#fff" : NEGRO }}>{brand.companyName}</span>
     );
