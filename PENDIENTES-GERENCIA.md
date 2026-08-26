@@ -8,7 +8,7 @@
 > Todo lo de aquí se cambia desde el portal en dos minutos. No hace falta
 > tocar código ni pedir un desarrollo.
 >
-> Última revisión: 2026-08-05
+> Última revisión: 2026-08-26
 
 ---
 
@@ -121,16 +121,24 @@ que actualizar nada) o escribir un correo suelto.
 
 ---
 
-## 7. Lista de precios de instalación
+## 7. Recargos de instalación por ciudad
 
-**Qué se necesita:** el Excel de gerencia con los precios de mano de obra por
-servicio y los recargos por ciudad.
+**Resuelto a medias.** Los **17 servicios de instalación** ya están cargados,
+desde la hoja SERVICIOS de la lista de precios de agosto (26 de agosto de 2026).
 
-**Por qué:** el catálogo de instalación está vacío. Mientras siga así, el asesor
-tiene que escribir la instalación a mano en cada cotización o dejarla "a
-convenir", y la mano de obra se pierde o se calcula de memoria.
+⚠️ Esa hoja tenía la columna encabezada como **«precio de COSTO»** aunque el
+título decía «al público». Se cargaron como precio de venta porque así se
+confirmó, pero conviene que alguien los revise una vez en
+Configuración → Instalación.
 
-**Dónde se carga:** Configuración → Instalación.
+**Lo que falta: los recargos por ciudad.** Hay **cero** cargados. Sin ellos, la
+instalación cuesta lo mismo en Barranquilla que mandando la cuadrilla a Santa
+Marta, Cartagena o Montería: los viáticos se los come la empresa.
+
+Se necesita, por cada ciudad donde se instala: un porcentaje sobre el valor de
+la instalación, un monto fijo, o los dos.
+
+**Dónde se carga:** Configuración → Instalación → Recargo por ciudad.
 
 ---
 
@@ -152,8 +160,21 @@ oferta, su total, cuándo vence y el enlace. Aun así conviene leerlos una vez.
 
 | Qué | Qué falta |
 |-----|-----------|
-| WhatsApp / Nexus de punta a punta | Aprobación de Meta |
-| Correo saliente (SMTP) | Cargar credenciales **desde el portal en producción** |
+| WhatsApp / Nexus de punta a punta | Aprobación de Meta. Hoy hay **0 conexiones** configuradas |
+| Correo saliente (SMTP) | Cargar credenciales **desde el portal en producción**. Sigue vacío |
 | Facturación electrónica DIAN | Elegir y contratar proveedor (Factus / Siigo / Alegra) |
-| Marketplaces | Cuentas de vendedor |
+| Marketplaces | Cuentas de vendedor **y** construir la integración: hoy no existe backend |
 | Plan de Vercel | Hoy es Hobby: prohíbe uso comercial y solo permite 2 crons diarios |
+
+---
+
+## Ya resuelto (para que no se vuelva a pedir)
+
+- **WordPress conectado** (26-ago). Las imágenes, fichas técnicas y fotos de obra
+  que se suban desde el portal ya quedan en la biblioteca del sitio y se ven.
+- **Logo cargado** y saliendo en la portada de la propuesta.
+- **Lista de precios de agosto cargada**: 176 productos (113 nuevos sin publicar)
+  y 17 servicios de instalación.
+- **Consecutivo de cotizaciones** continuando desde la numeración de SIIGO.
+- **Cédula** en la ficha del cliente persona natural.
+- **Cuatro fotos** en la cotización (portada, franja, instalación, contraportada).
