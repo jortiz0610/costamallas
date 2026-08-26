@@ -4,7 +4,7 @@
 // ============================================================
 
 import * as ftp from "basic-ftp";
-import { Readable } from "stream";
+import { Readable, Writable } from "stream";
 
 export interface FTPConfig {
   host: string;
@@ -89,6 +89,53 @@ export async function verificarUrlPublica(url: string): Promise<string | null> {
     // Sin red o el host no responde: se informa, no se da por bueno.
     return "El archivo se subió, pero no se pudo comprobar que la dirección pública funcione.";
   }
+}
+
+/**
+ * Baja un archivo del FTP a memoria.
+ *
+ * Existe para rescatar lo que se subió por esta vía antes de que se
+ * supiera que `catalogo.costamallas.com` no sirve esa carpeta: el
+ * archivo está en disco y se puede recuperar, aunque su URL dé 404.
+ * Devuelve null si no está.
+ */
+export async function downloadImageFTP(rutaRemota: string): Promise<Buffer | null> {
+  const config = getFTPConfig();
+  const client = new ftp.Client();
+  client.ftp.verbose = false;
+
+  try {
+    await client.access({
+      host: config.host,
+      user: config.user,
+      password: config.password,
+      secure: false,
+    });
+
+    const trozos: Buffer[] = [];
+    const destino = new Writable({
+      write(chunk, _enc, cb) { trozos.push(Buffer.from(chunk)); cb(); },
+    });
+    await client.downloadTo(destino, rutaRemota);
+    return Buffer.concat(trozos);
+  } catch {
+    return null;
+  } finally {
+    client.close();
+  }
+}
+
+/** Para poder decir en pantalla a qué host apunta lo que hay guardado. */
+export function urlBaseFTP(): string {
+  const b = getFTPConfig().baseUrl;
+  return b.endsWith("/") ? b.slice(0, -1) : b;
+}
+
+/** La ruta en el FTP que corresponde a una URL pública del catálogo. */
+export function rutaFTPDeUrl(url: string): string | null {
+  const base = urlBaseFTP();
+  if (!url.startsWith(base)) return null;
+  return `${getFTPConfig().basePath}${url.slice(base.length)}`;
 }
 
 export async function deleteImageFTP(filename: string, subfolder = "productos"): Promise<void> {
