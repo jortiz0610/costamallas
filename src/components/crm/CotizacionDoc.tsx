@@ -163,16 +163,25 @@ function Hoja({ children, ultima = false, oscura = false }: { children: React.Re
   );
 }
 
-/** Franja oscura con rayas; si hay foto, la foto manda. */
-function Franja({ url, children, alto, className = "" }: {
-  url?: string; children?: React.ReactNode; alto: string; className?: string;
+/**
+ * Franja oscura con rayas; si hay foto, la foto manda.
+ *
+ * `posicion` mueve el recorte. Estas franjas son muy apaisadas (una tira
+ * de 170 o 250 px sobre una hoja A4), así que `object-cover` se queda
+ * con una banda estrecha de la foto. Centrada, en una foto de
+ * cerramiento esa banda cae en el muro y el suelo, y la malla —que es lo
+ * que hay que enseñar— queda fuera. Subiendo el punto de recorte se ve
+ * la malla sin tener que buscar otra foto ni perder resolución.
+ */
+function Franja({ url, children, alto, className = "", posicion = "center" }: {
+  url?: string; children?: React.ReactNode; alto: string; className?: string; posicion?: string;
 }) {
   return (
     <div className={`relative overflow-hidden ${className}`} style={{ minHeight: alto, ...RAYAS }}>
       {url && (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <img src={url} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: posicion }} />
           <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(17,17,15,.45), rgba(17,17,15,.92))" }} />
         </>
       )}
@@ -433,7 +442,7 @@ export function CotizacionDoc({ data, brand, config }: {
           </div>
 
           <div className="px-12 mt-10">
-            <Franja url={config.imgBanda} alto="170px">
+            <Franja url={config.imgBanda} alto="170px" posicion="center 40%">
               <div className="p-8 flex items-end" style={{ minHeight: "170px" }}>
                 <div>
                   <Ceja invertida>Fabricantes e importadores</Ceja>
@@ -576,7 +585,7 @@ export function CotizacionDoc({ data, brand, config }: {
       {/* ───────── INSTALACIÓN ───────── */}
       {esPropuesta && instalaciones.length > 0 && (
         <Hoja>
-          <Franja url={config.imgInstalacion} alto="250px">
+          <Franja url={config.imgInstalacion} alto="250px" posicion="center 25%">
             <div className="p-12 flex flex-col justify-end" style={{ minHeight: "250px" }}>
               <Ceja invertida>Personal certificado</Ceja>
               <h2 className="text-white text-4xl font-black uppercase leading-[0.9] mt-4 m-0">El servicio<br />de instalación</h2>
