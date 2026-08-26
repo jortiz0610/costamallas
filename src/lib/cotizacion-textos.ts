@@ -34,6 +34,25 @@ export interface ConfigCotizacion {
   imgBanda: string;
   imgInstalacion: string;
   imgContraportada: string;
+  /**
+   * Dónde recorta cada imagen, en % vertical (0 = borde de arriba,
+   * 100 = borde de abajo). Es el `object-position` del `object-cover`.
+   *
+   * Existe porque los huecos del documento son mucho más apaisados que
+   * las fotos: la banda de la carta es una tira de 210×45 mm y la
+   * cabecera de instalación de 210×66 mm sobre una hoja A4. Recortando
+   * al centro, en una foto de cerramiento esa tira cae en el muro y el
+   * suelo, y la malla —lo único que hay que enseñar ahí— queda fuera.
+   *
+   * Estos valores estuvieron QUEMADOS en `CotizacionDoc.tsx`, calibrados
+   * a las fotos que había cargadas. Cambiar una foto desde Configuración
+   * descuadraba el recorte y obligaba a tocar código, que es justo lo que
+   * no puede pasar con algo que se edita desde el portal.
+   */
+  posPortada: number;
+  posBanda: number;
+  posInstalacion: number;
+  posContraportada: number;
   /** QR de las llaves de pago. */
   qrPagos: { etiqueta: string; url: string }[];
 }
@@ -98,5 +117,15 @@ export const DEFAULTS: ConfigCotizacion = {
   imgBanda: "",
   imgInstalacion: "",
   imgContraportada: "",
+
+  // Los valores con los que venían quemadas las franjas: 40 % en la banda
+  // y 55 % en la cabecera de instalación, calibrados a las fotos que hay
+  // cargadas hoy. Las hojas completas (portada y contraportada) no
+  // necesitaban corrección porque el hueco es casi tan alto como la foto.
+  posPortada: 50,
+  posBanda: 40,
+  posInstalacion: 55,
+  posContraportada: 50,
+
   qrPagos: [],
 };

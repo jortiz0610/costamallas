@@ -26,11 +26,45 @@ const CAMPOS: { k: keyof ConfigCotizacion; label: string; ayuda?: string; filas:
   { k: "vigencia", label: "Vigencia", filas: 2 },
 ];
 
-const IMAGENES: { k: keyof ConfigCotizacion; label: string; ayuda: string }[] = [
-  { k: "imgPortada", label: "Portada", ayuda: "Vertical. Ocupa la mitad inferior de la primera hoja." },
-  { k: "imgBanda", label: "Banda de la carta", ayuda: "Panorámica. Va bajo la firma del asesor." },
-  { k: "imgInstalacion", label: "Cabecera de instalación", ayuda: "Horizontal. Solo sale si la oferta lleva instalación." },
-  { k: "imgContraportada", label: "Contraportada", ayuda: "Vertical. Última hoja, con el cierre y el contacto." },
+/**
+ * Las cuatro imágenes del dossier, con el tamaño REAL del hueco que
+ * ocupan en la hoja A4 y el ancho al que se dibuja la vista previa.
+ *
+ * La previa se pinta a la proporción exacta del hueco a propósito: si se
+ * mostrara en un cuadrado, lo que se ve aquí no sería lo que sale
+ * impreso, y ajustar el recorte a ojo dejaría de servir. La banda de la
+ * carta, por ejemplo, es una tira siete veces más ancha que alta.
+ */
+const IMAGENES: {
+  k: keyof ConfigCotizacion;
+  pos: keyof ConfigCotizacion;
+  label: string;
+  ayuda: string;
+  /** Medida del hueco en la hoja, en mm, para decirlo en pantalla. */
+  hueco: string;
+  /** Ancho de la vista previa y proporción ancho/alto del hueco. */
+  prevAncho: number;
+  razon: number;
+}[] = [
+  { k: "imgPortada", pos: "posPortada", label: "Portada",
+    ayuda: "Ocupa la mitad inferior de la primera hoja.",
+    hueco: "210 × 154 mm", prevAncho: 200, razon: 210 / 154 },
+  { k: "imgBanda", pos: "posBanda", label: "Banda de la carta",
+    ayuda: "Tira panorámica bajo la firma del asesor.",
+    hueco: "210 × 45 mm", prevAncho: 260, razon: 210 / 45 },
+  { k: "imgInstalacion", pos: "posInstalacion", label: "Cabecera de instalación",
+    ayuda: "Solo sale si la oferta lleva instalación.",
+    hueco: "210 × 66 mm", prevAncho: 260, razon: 210 / 66 },
+  { k: "imgContraportada", pos: "posContraportada", label: "Contraportada",
+    ayuda: "Última hoja, con el cierre y el contacto.",
+    hueco: "210 × 297 mm", prevAncho: 150, razon: 210 / 297 },
+];
+
+/** Atajos: la malla casi siempre está arriba, al centro o abajo. */
+const ATAJOS = [
+  { v: 15, label: "Arriba" },
+  { v: 50, label: "Centro" },
+  { v: 85, label: "Abajo" },
 ];
 
 export function TabCotizacion() {
@@ -128,24 +162,86 @@ export function TabCotizacion() {
           Súbelas en el módulo de Imágenes y pega aquí la URL. Si están vacías, la cotización usa un patrón de malla de
           marca en vez de dejar el espacio en blanco.
         </p>
-        <div className="space-y-4">
-          {IMAGENES.map(i => (
-            <div key={i.k}>
-              <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">{i.label}</label>
-              <div className="flex gap-3 items-start">
-                <div className="flex-1">
-                  <input className="input font-mono text-xs" value={String(f[i.k] ?? "")} onChange={e => u(i.k, e.target.value)} placeholder="https://catalogo.costamallas.com/…" />
-                  <p className="text-[11px] text-muted mt-1">{i.ayuda}</p>
+        <div className="space-y-5">
+          {IMAGENES.map(i => {
+            const url = String(f[i.k] ?? "");
+            const pos = Number(f[i.pos] ?? 50);
+            return (
+              <div key={i.k} className="pt-5 first:pt-0" style={{ borderTop: "1px solid var(--border)" }}>
+                <div className="flex items-baseline justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-muted uppercase tracking-wider">{i.label}</label>
+                  <span className="text-[10px] text-muted font-mono">{i.hueco}</span>
                 </div>
-                {f[i.k] ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={String(f[i.k])} alt="" className="w-20 h-14 object-cover rounded-lg flex-shrink-0" style={{ border: "1px solid var(--border)" }} />
-                ) : (
-                  <div className="w-20 h-14 rounded-lg flex-shrink-0 surface-2" />
-                )}
+                <input
+                  className="input font-mono text-xs"
+                  value={url}
+                  onChange={e => u(i.k, e.target.value)}
+                  placeholder="https://costamallas.com/wp-content/uploads/…"
+                />
+                <p className="text-[11px] text-muted mt-1">{i.ayuda}</p>
+
+                <div className="flex gap-4 items-start mt-3">
+                  {/* Vista previa al tamaño proporcional del hueco: lo que se
+                      ve aquí es lo que se imprime, recorte incluido. */}
+                  <div
+                    className="flex-shrink-0 rounded-lg overflow-hidden surface-2 relative"
+                    style={{
+                      width: i.prevAncho,
+                      height: Math.round(i.prevAncho / i.razon),
+                      border: "1px solid var(--border)",
+                    }}
+                  >
+                    {url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={url}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        style={{ objectPosition: `center ${pos}%` }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <span className="text-[10px] text-muted">Sin imagen</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-muted uppercase tracking-wider">Posición del recorte</span>
+                      <span className="text-[11px] font-mono font-bold" style={{ color: "var(--brand-color)" }}>{pos}%</span>
+                    </div>
+                    <input
+                      type="range" min={0} max={100} step={1} value={pos}
+                      disabled={!url}
+                      onChange={e => u(i.pos, Number(e.target.value))}
+                      className="w-full mt-2 accent-[var(--brand-color)] disabled:opacity-40"
+                    />
+                    <div className="flex gap-1.5 mt-2">
+                      {ATAJOS.map(a => (
+                        <button
+                          key={a.v} type="button" disabled={!url}
+                          onClick={() => u(i.pos, a.v)}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-semibold disabled:opacity-40"
+                          style={
+                            pos === a.v
+                              ? { backgroundColor: "var(--brand-color)", color: "#11110f" }
+                              : { border: "1px solid var(--border)", color: "var(--text-muted)" }
+                          }
+                        >
+                          {a.label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-muted mt-2 leading-snug">
+                      La foto se recorta para llenar el hueco. Mueve esto hasta que se vea la malla:
+                      0 % se queda con el borde de arriba, 100 % con el de abajo.
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

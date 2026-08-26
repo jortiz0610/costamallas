@@ -34,6 +34,10 @@ const CLAVES: Record<keyof ConfigCotizacion, string> = {
   imgBanda: "cot_img_banda",
   imgInstalacion: "cot_img_instalacion",
   imgContraportada: "cot_img_contraportada",
+  posPortada: "cot_pos_portada",
+  posBanda: "cot_pos_banda",
+  posInstalacion: "cot_pos_instalacion",
+  posContraportada: "cot_pos_contraportada",
   qrPagos: "cot_qr_pagos",
 };
 
@@ -48,6 +52,14 @@ export async function getConfigCotizacion(): Promise<ConfigCotizacion> {
   const texto = (k: keyof ConfigCotizacion) => {
     const v = map[CLAVES[k]];
     return v !== undefined && v !== "" ? v : (DEFAULTS[k] as string);
+  };
+
+  // El recorte es un porcentaje. Un valor fuera de 0-100 no se corrige a
+  // ciegas: se cae al de fábrica, porque un `object-position` inválido
+  // no rompe nada visible y la foto saldría descuadrada sin explicación.
+  const posicion = (k: "posPortada" | "posBanda" | "posInstalacion" | "posContraportada") => {
+    const v = Number(map[CLAVES[k]]);
+    return Number.isFinite(v) && v >= 0 && v <= 100 ? v : (DEFAULTS[k] as number);
   };
 
   let qrPagos = DEFAULTS.qrPagos;
@@ -78,6 +90,10 @@ export async function getConfigCotizacion(): Promise<ConfigCotizacion> {
     imgBanda: map[CLAVES.imgBanda] ?? "",
     imgInstalacion: map[CLAVES.imgInstalacion] ?? "",
     imgContraportada: map[CLAVES.imgContraportada] ?? "",
+    posPortada: posicion("posPortada"),
+    posBanda: posicion("posBanda"),
+    posInstalacion: posicion("posInstalacion"),
+    posContraportada: posicion("posContraportada"),
     qrPagos,
   };
 }

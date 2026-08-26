@@ -172,6 +172,10 @@ function Hoja({ children, ultima = false, oscura = false }: { children: React.Re
  * cerramiento esa banda cae en el muro y el suelo, y la malla —que es lo
  * que hay que enseñar— queda fuera. Subiendo el punto de recorte se ve
  * la malla sin tener que buscar otra foto ni perder resolución.
+ *
+ * El valor ya NO se calibra aquí: viene de Configuración → Cotización,
+ * al lado de cada imagen. Estaba quemado, atado a las fotos que hubiera
+ * cargadas, y cambiar una foto obligaba a tocar código.
  */
 function Franja({ url, children, alto, className = "", posicion = "center" }: {
   url?: string; children?: React.ReactNode; alto: string; className?: string; posicion?: string;
@@ -373,7 +377,7 @@ export function CotizacionDoc({ data, brand, config }: {
             {config.imgPortada && (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={config.imgPortada} alt="" className="absolute left-0 right-0 bottom-0 w-full object-cover" style={{ height: "52%" }} />
+                <img src={config.imgPortada} alt="" className="absolute left-0 right-0 bottom-0 w-full object-cover" style={{ height: "52%", objectPosition: `center ${config.posPortada}%` }} />
                 <div
                   className="absolute left-0 right-0 bottom-0"
                   style={{
@@ -458,7 +462,7 @@ export function CotizacionDoc({ data, brand, config }: {
           </div>
 
           <div className="px-12 mt-10">
-            <Franja url={config.imgBanda} alto="170px" posicion="center 40%">
+            <Franja url={config.imgBanda} alto="170px" posicion={`center ${config.posBanda}%`}>
               <div className="p-8 flex items-end" style={{ minHeight: "170px" }}>
                 <div>
                   <Ceja invertida>Fabricantes e importadores</Ceja>
@@ -601,7 +605,7 @@ export function CotizacionDoc({ data, brand, config }: {
       {/* ───────── INSTALACIÓN ───────── */}
       {esPropuesta && instalaciones.length > 0 && (
         <Hoja>
-          <Franja url={config.imgInstalacion} alto="250px" posicion="center 55%">
+          <Franja url={config.imgInstalacion} alto="250px" posicion={`center ${config.posInstalacion}%`}>
             <div className="p-12 flex flex-col justify-end" style={{ minHeight: "250px" }}>
               <Ceja invertida>Personal certificado</Ceja>
               <h2 className="text-white text-4xl font-black uppercase leading-[0.9] mt-4 m-0">El servicio<br />de instalación</h2>
@@ -714,7 +718,7 @@ export function CotizacionDoc({ data, brand, config }: {
             {config.imgContraportada && (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={config.imgContraportada} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                <img src={config.imgContraportada} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `center ${config.posContraportada}%` }} />
                 <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(17,17,15,.55), rgba(17,17,15,.95))" }} />
               </>
             )}

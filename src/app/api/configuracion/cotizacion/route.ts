@@ -32,6 +32,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: "La validez debe ir entre 1 y 365 días" }, { status: 400 });
   }
 
+  // El recorte va en % vertical. Se sanea aquí y no en la pantalla porque
+  // esto también lo puede llamar otro cliente: un valor fuera de rango
+  // produce un `object-position` inválido, que el navegador ignora en
+  // silencio y deja la foto descuadrada sin decir por qué.
+  const posiciones: Record<string, number | undefined> = {};
+  for (const k of ["posPortada", "posBanda", "posInstalacion", "posContraportada"] as const) {
+    if (b[k] == null) continue;
+    const v = Number(b[k]);
+    if (!Number.isFinite(v) || v < 0 || v > 100) {
+      return NextResponse.json(
+        { success: false, error: "La posición del recorte va entre 0 y 100" },
+        { status: 400 },
+      );
+    }
+    posiciones[k] = Math.round(v);
+  }
+
   const qrPagos = Array.isArray(b.qrPagos)
     ? b.qrPagos
         .filter((q: { etiqueta?: string; url?: string }) => q?.url?.trim())
@@ -58,6 +75,10 @@ export async function POST(req: NextRequest) {
     imgBanda: b.imgBanda,
     imgInstalacion: b.imgInstalacion,
     imgContraportada: b.imgContraportada,
+    posPortada: posiciones.posPortada,
+    posBanda: posiciones.posBanda,
+    posInstalacion: posiciones.posInstalacion,
+    posContraportada: posiciones.posContraportada,
     qrPagos,
   });
 
