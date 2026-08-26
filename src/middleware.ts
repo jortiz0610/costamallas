@@ -7,7 +7,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 
-// /api/cron: la propia ruta valida el CRON_SECRET (Vercel Cron no envía cookie de sesión)
+// /api/cron y /api/mantenimiento: la propia ruta valida el CRON_SECRET
+//   (Vercel Cron no envía cookie de sesión, y las tareas de
+//   mantenimiento se disparan igual, con el mismo bearer). Ojo: pasar
+//   por aquí NO las hace públicas — las dos exigen CRON_SECRET o sesión
+//   de administrador dentro de la ruta.
 // /cotizacion: la cotización que se le comparte al cliente. Es pública a
 //   propósito, pero se llega por un token largo, no por el id.
 // /politicas: envíos, devoluciones y tratamiento de datos. Tiene que
@@ -15,7 +19,7 @@ import { rateLimit } from "@/lib/rate-limit";
 //   y no lleva datos de nadie.
 const PUBLIC_PATHS = [
   "/login", "/api/auth/login", "/cotizar", "/api/public",
-  "/api/marketing/oauth", "/api/cron", "/cotizacion", "/politicas",
+  "/api/marketing/oauth", "/api/cron", "/api/mantenimiento", "/cotizacion", "/politicas",
 ];
 const API_RATE_LIMIT = 200;
 
