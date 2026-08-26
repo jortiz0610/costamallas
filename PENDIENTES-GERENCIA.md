@@ -8,7 +8,7 @@
 > Todo lo de aquí se cambia desde el portal en dos minutos. No hace falta
 > tocar código ni pedir un desarrollo.
 >
-> Última revisión: 2026-08-26
+> Última revisión: 2026-08-26 (segunda del día)
 
 ---
 
@@ -103,6 +103,10 @@ ninguna parte ya no se puede corregir.
 **Cómo se saca:** buscar la empresa en Google → perfil de negocio →
 **Pedir reseñas** → copiar el enlace corto.
 
+**Comprobado el 26-ago:** el acta de entrega se probó de punta a punta y, sin el
+enlace, **no pinta el QR** — no deja un recuadro vacío ni un código que no lleva a
+ninguna parte. Todo lo demás del acta ya sale bien.
+
 **Dónde se carga:** Configuración → Postventa.
 
 ---
@@ -114,6 +118,17 @@ instalación.
 
 **Por qué:** hoy no hay nadie asignado. La obra se crea sola y queda la
 notificación dentro del portal, pero no sale ningún correo a nadie.
+
+**Comprobado el 26-ago:** el aviso se probó por primera vez, fabricando una venta
+con instalación contra la base real. Funciona: la obra se crea sola en PENDIENTE
+con la dirección y la ciudad, y queda la notificación en el portal. Con un
+coordinador elegido, la notificación va **dirigida a él** con copia a los
+administradores, en vez de verla los siete usuarios. El correo sigue sin salir
+porque falta el SMTP, y eso el portal lo dice en vez de callarlo.
+
+La prueba destapó un fallo que nunca se había visto porque el módulo nunca se
+había usado: mientras no haya SMTP, cada vez que se reaprobaba la cotización se
+creaba otra notificación igual. Corregido.
 
 **Dónde se carga:** Configuración → Instalación → Coordinador de proyectos.
 Se puede elegir un usuario del portal (recomendado: si cambia de correo no hay
@@ -131,7 +146,8 @@ título decía «al público». Se cargaron como precio de venta porque así se
 confirmó, pero conviene que alguien los revise una vez en
 Configuración → Instalación.
 
-**Lo que falta: los recargos por ciudad.** Hay **cero** cargados. Sin ellos, la
+**Lo que falta: los recargos por ciudad.** Hay **cero** cargados (medido contra la
+base el 26-ago: 17 servicios activos, 0 recargos). Sin ellos, la
 instalación cuesta lo mismo en Barranquilla que mandando la cuadrilla a Santa
 Marta, Cartagena o Montería: los viáticos se los come la empresa.
 
@@ -156,6 +172,48 @@ oferta, su total, cuándo vence y el enlace. Aun así conviene leerlos una vez.
 
 ---
 
+## 9. Lanzar el SEO del catálogo ⚠️ decisión de plata, pequeña
+
+**Qué se necesita:** que alguien entre a **Productos → SEO con IA**, lance el
+lote y apruebe las propuestas.
+
+**Por qué:** de 172 productos activos, **171 no tienen SEO**. Uno solo lo tiene.
+Sin meta título ni meta descripción, Google se inventa lo que muestra en el
+resultado de búsqueda, y lo que se inventa casi nunca vende.
+
+**Cuánto cuesta:** **US$ 2,05** el catálogo entero (unos 8.000 pesos), o
+US$ 0,012 por producto. La pantalla lo dice antes de lanzar y va sumando el gasto
+real mientras corre. Se puede empezar solo por los 60 publicados, que son los que
+están en Google hoy.
+
+**Por qué hay que aprobar uno por uno y no hay un botón de "aplicar todo":**
+guardar el SEO de un producto publicado lo sincroniza con costamallas.com. O sea,
+aprobar **publica**. Texto escrito por una IA saliendo a la tienda a nombre de
+Costamallas sin que nadie lo haya leído es exactamente lo que no queremos. Las
+propuestas se pueden corregir antes de aprobar, y las de los 113 productos que
+todavía no están publicados no salen a ninguna parte.
+
+**Dónde:** Productos → SEO con IA.
+
+---
+
+## 10. Fotos y fichas técnicas de los 113 productos nuevos
+
+**Qué se necesita:** las fotos de los productos que llegaron con la lista de
+precios de agosto.
+
+**Por qué:** **113 de los 172 productos activos no tienen ni una imagen**, y por
+eso no se pueden publicar: un producto sin foto en la tienda no se vende. Además
+**ninguno de los 172 tiene ficha técnica en PDF**.
+
+No es un desarrollo pendiente: el módulo de imágenes funciona y desde que
+WordPress está conectado lo que se sube queda servido de verdad. Faltan los
+archivos.
+
+**Dónde se cargan:** Productos → la ficha de cada uno, o el módulo de Imágenes.
+
+---
+
 ## Lo que está bloqueado esperando otra cosa (no es pregunta de gerencia)
 
 | Qué | Qué falta |
@@ -177,4 +235,16 @@ oferta, su total, cuándo vence y el enlace. Aun así conviene leerlos una vez.
   y 17 servicios de instalación.
 - **Consecutivo de cotizaciones** continuando desde la numeración de SIIGO.
 - **Cédula** en la ficha del cliente persona natural.
-- **Cuatro fotos** en la cotización (portada, franja, instalación, contraportada).
+- **Cuatro fotos** en la cotización (portada, franja, instalación, contraportada),
+  y desde el 26-ago **el recorte de cada una se ajusta desde el portal**: si se
+  cambia una foto y la malla queda a otra altura, se mueve un deslizador en
+  Configuración → Cotización con vista previa. Antes había que tocar código.
+- **Las últimas 2 imágenes rotas, rescatadas** (26-ago). Eran las del "Kit Malla
+  para Gatos", que estaba publicado en la tienda con la foto principal caída. Los
+  archivos no se habían perdido: estaban en el disco del FTP, en una carpeta que
+  ese subdominio no sirve. Se bajaron, se subieron a la biblioteca de WordPress y
+  el producto volvió a sincronizar. **Hoy el catálogo tiene 0 imágenes rotas.**
+- **El compromiso de responder en una hora ya avisa** (26-ago). Cuando una
+  conversación se pasa del plazo sin primera respuesta, le llega aviso al asesor
+  asignado y a los administradores. Ojo: sale en la corrida diaria, no al minuto
+  61 — para eso hace falta el plan Pro de Vercel.

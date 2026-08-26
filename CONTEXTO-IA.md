@@ -337,7 +337,7 @@ Páginas (bajo `(dashboard)` salvo indicación): inicio, `categorias`, `compras`
 `pedidos`, `instalaciones` [+ `[id]/acta`], `pipeline`, `tareas`), `errores`,
 `exportar`, `facturacion` (+ `nueva`, `[id]`, `cartera`, `sin-vencimiento`),
 `imagenes`, `importar`, `marketing` (+ `atribucion`, `campanas`, `reportes`, `retorno`),
-`nexus` (+ `flujos`, `plantillas`, `tiempos`), `postventa`, `productos` (+ `nuevo`, `[id]`),
+`nexus` (+ `flujos`, `plantillas`, `tiempos`), `postventa`, `productos` (+ `nuevo`, `[id]`, `seo`),
 `reportes`, `sistema/{seguridad,reportes}`, `stock`, `usuarios`, `woocommerce`.
 `crm/cotizador` quedó como redirección al cotizador único.
 
@@ -351,7 +351,8 @@ Falabella · MercadoLibre · Usuarios WP. Las pestañas viven en
 `src/components/configuracion/Tab*.tsx`.
 
 Endpoints API (`src/app/api/`):
-`ai/{chat,config,ficha,producto,seo,nexus-reply}` · `auth/{login,logout,me}` ·
+`ai/{chat,config,ficha,producto,nexus-reply}` · `ai/seo` (+ `seo/lote`, `seo/propuestas`) ·
+`auth/{login,logout,me}` ·
 `catalogos` · `categorias/campos` ·
 `compras/{proveedores,ordenes}` (+ `[id]`, `[id]/enviar`, `[id]/productos`) ·
 `configuracion/{empresa,correo,cotizacion,seguimiento,comercial,plazos,postventa,instalacion}` ·
@@ -360,6 +361,7 @@ Endpoints API (`src/app/api/`):
 `cron/{sync-woo,diario}` · `dashboard/kpis` · `exportar/woocommerce` ·
 `facturacion/{config,cartera,sin-vencimiento,facturas}` (+ `[id]/{emitir,pago,recordatorio}`) ·
 `health` · `imagenes` (+ `upload`, `limpiar-rotas`) · `logs` ·
+`mantenimiento/imagenes-ftp` (rescate FTP → WordPress; CRON_SECRET o admin) ·
 `marketing/{campanas,conexiones,leads,retorno,oauth/[plataforma],oauth/callback}` ·
 `nexus/{conexiones,conversaciones,mensajes,plantillas,flujos,estado,tiempos,webhook/[canal]}` ·
 `notificaciones` · `postventa/qr` · `productos` (+ `[id]`, `[id]/ficha`) ·
@@ -410,7 +412,8 @@ Esquema completo y autoritativo: **`prisma/schema.prisma`**. Tablas principales 
 - **Facturación:** `facturas` + `items_factura` + `pagos_factura`.
 - **Compras:** `proveedores`, `proveedor_productos`, `ordenes_compra`.
 - **Productos (PIM):** `productos` (campos WooCommerce + ACF + control interno) e imágenes
-  (`imagenes`). Fichas técnicas ACF por categoría: `acf_mallas_metalicas`, `acf_balcones`,
+  (`imagenes`), `seo_propuestas` (cola de revisión del SEO generado por IA: nada de lo
+  que escribe la IA llega a la tienda sin que una persona lo apruebe). Fichas técnicas ACF por categoría: `acf_mallas_metalicas`, `acf_balcones`,
   `acf_nylon`, `acf_plasticas`, `acf_seguridad_perimetral`.
 - **Soporte:** `catalogos` (categorías, marcas, unidades…), `configuracion` (clave/valor, con
   `encrypted`), `errores_validacion`, `logs`, `notificaciones`, `woocommerce_sync`.
@@ -420,7 +423,8 @@ Esquema completo y autoritativo: **`prisma/schema.prisma`**. Tablas principales 
 Notas: IDs `cuid()`. Importes `Decimal(14,2)`. Un `producto` se mapea a WooCommerce por `wcId`.
 La tabla **`configuracion`** es un almacén genérico clave/valor que guarda desde umbrales de
 stock hasta secretos cifrados (WC, OAuth, IA, 2FA, SMTP). Prefijos de sus claves:
-`empresa_*` · `wc_*` · `ai_*` · `smtp_*` · `cot_*` (contenido de la cotización) ·
+`empresa_*` · `wc_*` · `wp_*` · `ai_*` · `smtp_*` · `cot_*` (contenido de la cotización,
+incluido `cot_pos_*`: dónde recorta cada imagen) · `nexus_*` (horario y compromiso) ·
 `seg_*` (seguimiento) · `com_*` (política comercial) · `fact_*` (facturación y
 plazos) · `post_*` (postventa) · `inst_*` (coordinador de obras) · `mkt_oauth_*`.
 
@@ -479,7 +483,16 @@ Después vinieron sesiones más espaciadas, cada una con un tema:
   Nexus** (el compromiso de la hora, en horario hábil) · el plan de fases por fin
   escrito en `PLAN-FASES.md`.
 
-Último commit de referencia de este documento: **`10d3a49`**.
+- **26-ago:** lista de precios de agosto (176 productos y 17 servicios) ·
+  WordPress conectado de verdad · la cotización con marca y fotos reales ·
+  **posición del recorte de las imágenes configurable** (estaba quemada en el
+  código) · **generador de SEO masivo con cola de revisión** · **alerta de
+  incumplimiento del tiempo de respuesta** · el aviso al coordinador y el acta de
+  entrega **probados por primera vez**, con un bug de notificaciones duplicadas
+  encontrado y corregido · las últimas 2 imágenes rotas rescatadas del FTP a
+  WordPress.
+
+Último commit de referencia de este documento: **`11d3526`**.
 
 ---
 
@@ -493,7 +506,9 @@ lo dicen en pantalla con el motivo.
 |--------|-----------|--------------------------|
 | Todo lo que manda correo | Cargar SMTP **desde el portal en producción** | Los toques del seguimiento quedan PENDIENTES con el motivo y se reintentan cada día; los demás avisan en pantalla |
 | WhatsApp / Nexus | Aprobación de Meta | El texto se arma y se guarda; el envío se registra como fallido con el motivo real |
-| Catálogo de instalación | El Excel de precios de gerencia | El asesor cotiza la instalación "a convenir" o a mano |
+| Recargo de instalación por ciudad | Que gerencia los cargue | Los 17 servicios ya están; sin recargo, la cuadrilla a Santa Marta cuesta lo mismo que instalar al lado |
+| Alerta de tiempo de respuesta | Nada — funciona | Pero avisa en la corrida DIARIA, no al minuto 61: Hobby no deja más de un cron al día |
+| SEO masivo | Nada — funciona | Genera a la cola de revisión; falta que alguien lance el primer lote y apruebe |
 | QR de encuesta | El enlace de reseñas de Google | No se genera ningún QR (uno impreso que no funciona no se puede corregir) |
 | Facturación electrónica | Elegir proveedor (Factus/Siigo/Alegra) | Modo "manual": la factura se emite sin ir a la DIAN |
 | Marketplaces | Cuentas de vendedor | Pestañas de configuración vacías |
@@ -503,33 +518,71 @@ Detalle y preguntas concretas en **`PENDIENTES-GERENCIA.md`**.
 
 ---
 
-## 10.2 Estado real de los datos (2026-08-05)
+## 10.2 Estado real de los datos (2026-08-26)
 
-Medido contra la base de producción, en solo lectura. Importa porque el código
-puede estar bien y aun así no verse funcionar:
+Medido contra la base de producción. Importa porque el código puede estar bien y
+aun así no verse funcionar: media docena de módulos de este repo llevan semanas
+sin ejecutarse nunca, no porque fallen, sino porque no hay sobre qué actuar.
 
-- **3 cotizaciones** (1 aprobada, 2 borradores). **Ninguna en estado ENVIADA**, así
-  que el seguimiento no tiene sobre qué actuar todavía: el reloj arranca cuando se
-  envía una oferta *desde el portal*.
+**Catálogo**
+
+- **176 productos** (172 activos, 60 publicados en la tienda, 4 archivados).
+- **171 activos sin SEO**. Uno solo lo tiene. Desde el 26-ago hay generador masivo
+  con cola de revisión en `/productos/seo`: genera en lote, deja la propuesta en
+  `SeoPropuesta` y **una persona aprueba producto por producto**, porque aprobar
+  guarda el producto y guardar un producto publicado lo sincroniza con
+  costamallas.com. Costo estimado del catálogo completo: **US$ 2,05** con Sonnet 5
+  (~US$ 0,012 por producto). **Todavía no se ha lanzado ningún lote.**
+- **172 activos sin ficha técnica PDF.** Ninguno la tiene.
+- **113 activos sin ninguna imagen**: son los productos nuevos de la lista de
+  precios de agosto. Por eso no están publicados.
+- **173 imágenes, 0 rotas** (`scripts/revisar-fotos.ts`, 26-ago). Las 2 que
+  apuntaban a `catalogo.costamallas.com` —las del `103-2KIT-GVENT-MASCOTAS`, con
+  la principal caída en un producto publicado— se rescataron del disco FTP y se
+  subieron a la biblioteca de WordPress con
+  `POST /api/mantenimiento/imagenes-ftp`. Bajaron con su tamaño exacto (509 KB y
+  523 KB), abren con 200, y el producto volvió a sincronizar. **Ya no queda
+  ninguna imagen apuntando a ese subdominio.**
+
+**Comercial**
+
+- **10 cotizaciones**: 1 aprobada, 9 borradores. **Ninguna en estado ENVIADA**, así
+  que el seguimiento post-cotización no tiene sobre qué actuar: el reloj arranca
+  cuando se envía una oferta *desde el portal*, y sin SMTP no se puede enviar.
+- **Consecutivo en 12065.** La última es `COT-12065` (borrador del 26-ago, $10.442.250).
+  Hay un hueco entre `COT-00009` y `COT-12065` porque se retomó la numeración de
+  SIIGO. La próxima será `COT-12066`. **Un número consumido por una cotización que
+  no se guardó es el comportamiento correcto**: un hueco es más seguro que un
+  número repetido. No hay nada que arreglar ahí.
+- **19 pedidos**: 10 entregados, 7 cancelados, 1 listo, 1 confirmado.
 - **1 factura**, anulada y sin fecha de vencimiento.
-- **0 instalaciones** y 0 pedidos con instalación.
-- **19 pedidos** (10 entregados, 7 cancelados, 1 listo, 1 confirmado).
-- **3 usuarios activos**: 1 SUPERADMIN y 2 ADMIN. No hay usuarios con rol VENDEDOR,
-  así que hoy el "asesor" de una cotización es un administrador — el aviso del
-  toque 2 le llegaría a la misma persona que no llamó.
-- **63 productos sin SEO y 63 sin ficha técnica**, sobre 60 productos activos. El
-  generador de SEO existe desde la Fase 2 y no se ha usado. **No hay acción masiva**:
-  `/api/ai/seo` va de a un producto y ni siquiera guarda (devuelve el texto para que
-  una persona lo revise), así que hacerlos todos es abrir 63 fichas a mano.
-- **Una imagen principal rota en producción**: `103-2KIT-GVENT-MASCOTAS` ("Kit Malla
-  para Gatos"), publicado en la tienda con `wcId` 5830, tiene 2 de sus 5 imágenes
-  caídas y una de ellas es la principal. Detectado con `scripts/revisar-fotos.ts` el
-  2026-08-06. Ojo: una imagen que da 404 también rompe la sincronización del
-  producto entero con WooCommerce.
-- **El módulo de marketing mide a mano.** `leads`, `conversiones` e `ingresos` de cada
-  campaña se teclean en un JSON dentro de `configuracion`. La inversión seguirá siendo
-  manual (viene de la plataforma de anuncios), pero la plata cerrada ya se calcula sola
-  en `/marketing/retorno`.
+- **22 clientes.**
+- **17 servicios de instalación** cargados y activos, **0 recargos por ciudad**. Sin
+  recargos, instalar en Barranquilla cuesta lo mismo que mandar la cuadrilla a
+  Santa Marta.
+
+**Operación**
+
+- **0 instalaciones** y 0 pedidos con instalación. El aviso al coordinador y el
+  acta de entrega llevaban desde el 5 de agosto sin ejecutarse **ni una vez**. Se
+  probaron el 26-ago con `scripts/probar-instalaciones.ts`, que fabrica el caso
+  completo contra la base real y lo borra al terminar: 44 comprobaciones, todas
+  pasan. La prueba destapó un bug real (notificación duplicada en cada
+  reaprobación mientras no haya SMTP), corregido con un segundo sello,
+  `avisoPortalEn`.
+- **0 conversaciones de Nexus y 0 conexiones configuradas.** El informe de tiempos
+  de respuesta y su alerta funcionan, pero no tienen nada que medir hasta que
+  Meta apruebe WhatsApp o entre un formulario web. La alerta se verificó
+  fabricando conversaciones con `scripts/probar-alerta-tiempos.ts`: 20
+  comprobaciones, todas pasan.
+- **7 usuarios activos**: 1 SUPERADMIN, 3 ADMIN, 2 VENDEDOR, 1 PRODUCCION. Ya hay
+  vendedores de verdad (Elkin Fernández, Bleidis Barrios), así que el reparto por
+  asesor y el aviso del toque 2 ya no le llegan al mismo administrador que no
+  llamó — que era el problema del 5 de agosto.
+- **El módulo de marketing mide a mano.** `leads`, `conversiones` e `ingresos` de
+  cada campaña se teclean en un JSON dentro de `configuracion`. La inversión
+  seguirá siendo manual (viene de la plataforma de anuncios), pero la plata
+  cerrada ya se calcula sola en `/marketing/retorno`.
 
 ---
 
@@ -567,7 +620,7 @@ puede estar bien y aun así no verse funcionar:
 
 ## 12. Cómo se trabaja en este repo (aprendido a los golpes)
 
-Cuatro cosas que ya costaron tiempo. No las redescubras.
+Cosas que ya costaron tiempo. No las redescubras.
 
 ### Migraciones
 
@@ -597,12 +650,57 @@ diff se infla a 500+ líneas y se vuelve irrevisable. Párchalo con reemplazos
 puntuales de texto (`[System.IO.File]::ReadAllText` + `.Replace` + `WriteAllText` en
 PowerShell) y comprueba con `git diff --stat` que el diff sean unas pocas líneas.
 
+### Cada llamada a Bash es un shell nuevo
+
+Las variables no sobreviven entre llamadas. Si calculas un número de línea con
+`grep` y lo usas en un `sed -i` de la llamada siguiente, llega **vacío** y `sed`
+destroza el archivo. Calcula y usa en el mismo comando.
+
+Para reemplazos de varias líneas, un script corto de Node con
+`readFileSync` + `replace` de una cadena exacta es más seguro que `sed`: si la
+cadena no está, falla en vez de escribir cualquier cosa. Y **hay que respetar
+los finales de línea**: la mayoría de archivos son CRLF, así que insertar una
+línea con `
+` a secas ensucia el diff. Comprobar siempre con
+`git diff --stat`.
+
 ### Probar
 
 - **No pruebes con sesión iniciada.** Entrar al portal escribe en la BD de
   producción (último acceso, logs, aperturas de cotización).
 - Lo que sí se puede: `npx tsc --noEmit`, `npm run build`, la ruta pública
-  `/cotizacion/demo`, `/politicas`, y los scripts de solo lectura
-  (`revisar-seguimiento.ts`, `revisar-fotos.ts`, `verificar-sembli.ts`).
+  `/cotizacion/demo`, `/politicas`, y los scripts de `scripts/`.
 - Verificar el deploy: `api.vercel.com/v6/deployments` con `VERCEL_TOKEN`, y
   comprobar que el commit quedó en estado `READY`.
+
+**Scripts de verificación** (los tres últimos escriben en producción y limpian
+al terminar, incluso si algo falla; lo que crean lleva el prefijo `VERIF-`):
+
+| Script | Qué comprueba |
+|--------|----------------|
+| `revisar-fotos.ts` | Solo lectura. Qué imágenes del catálogo no abren |
+| `revisar-seguimiento.ts` | Solo lectura. Estado de los tres toques |
+| `verificar-comercial.ts` · `verificar-sembli.ts` | Solo lectura |
+| `probar-tiempos.ts` | Lógica pura del reloj hábil, sin base de datos |
+| `probar-seo-cola.ts` | La estimación de costo y que aprobar escribe lo aprobado |
+| `probar-alerta-tiempos.ts` | Fabrica conversaciones vencidas y comprueba el aviso |
+| `probar-instalaciones.ts` | Fabrica una venta con instalación: aviso y acta |
+
+### Ejecutar algo EN PRODUCCIÓN sin iniciar sesión
+
+El `CRON_SECRET` de `.env.local` es **el mismo** que el de Vercel (comprobado el
+26-ago). Con él se puede disparar contra `portal.costamallas.com` cualquier ruta
+que use el patrón de autorización de `/api/cron/diario`:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" "https://portal.costamallas.com/api/cron/diario?dry=1"
+```
+
+Esto es lo que permite verificar en producción sin entrar al portal, y es la
+**única** forma de correr lo que necesita descifrar un secreto de
+`configuracion` (WordPress, WooCommerce, la API key de Claude): esas claves
+están cifradas con la `ENCRYPTION_KEY` de producción, que **no** es la de local.
+
+⚠️ Una ruta así tiene que estar en `PUBLIC_PATHS` del middleware o no llega
+siquiera a ejecutarse: el middleware corta antes con "No autenticado". Estar en
+esa lista **no la hace pública** — la ruta se autoriza sola.
