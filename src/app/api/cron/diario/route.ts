@@ -1,13 +1,19 @@
 // ============================================================
 // GET/POST /api/cron/diario — la corrida diaria del portal
 // ------------------------------------------------------------
-// Hace dos cosas:
+// Hace tres cosas:
 //   1. Vencer lo que caducó (cotizaciones y facturas).
 //   2. El seguimiento post-cotización.
+//   3. Avisar de las conversaciones que pasaron del compromiso de
+//      respuesta sin que nadie las contestara.
 //
-// En ese orden a propósito: primero se vence y después se hace el
-// seguimiento, para no perseguir una oferta que ya caducó esta misma
-// madrugada.
+// El orden de las dos primeras es a propósito: primero se vence y
+// después se hace el seguimiento, para no perseguir una oferta que ya
+// caducó esta misma madrugada.
+//
+// La tercera va al final porque no depende de las otras y porque, si
+// algo se cae, es lo que menos duele perder: la notificación del portal
+// queda igual y la pantalla /nexus/tiempos sigue mostrando el dato.
 //
 // Existe como ruta "diaria" y no como "/api/cron/seguimiento" por una
 // limitación concreta del plan: **Vercel Hobby permite 2 crons y solo
@@ -28,6 +34,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
 import { correrSeguimientos } from "@/lib/seguimiento";
 import { marcarVencidos } from "@/lib/vencimientos";
+import { alertarSinRespuesta } from "@/lib/nexus/alertas";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -54,6 +61,13 @@ async function handle(req: NextRequest) {
     const vencimientos = await marcarVencidos({ dry });
     const seguimiento = await correrSeguimientos({ dry });
 
+    // ⚠️ Al correr una vez al día, el aviso llega en la corrida
+    // siguiente y no al minuto 61. Para un compromiso de una hora eso
+    // es tarde, y no se arregla desde el código: hace falta el plan Pro
+    // o un disparador externo. Lo que resuelve hoy es que nadie se
+    // entere NUNCA, que era lo que pasaba.
+    const tiemposNexus = await alertarSinRespuesta({ dry });
+
     return NextResponse.json({
       success: true,
       data: {
@@ -61,6 +75,7 @@ async function handle(req: NextRequest) {
         duracionMs: Date.now() - inicio,
         vencimientos,
         seguimiento,
+        tiemposNexus,
       },
     });
   } catch (err) {

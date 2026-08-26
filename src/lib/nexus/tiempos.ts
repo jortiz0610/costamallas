@@ -181,6 +181,9 @@ export interface Pendiente {
   vencido: boolean;
   createdAt: Date;
   etiquetas: string[];
+  /** Cuándo salió el aviso automático, si salió. Se enseña para que
+   *  nadie piense que el sistema calla lo que ya reportó. */
+  avisadoEn: Date | null;
 }
 
 export async function informeTiempos(dias: number) {
@@ -192,6 +195,7 @@ export async function informeTiempos(dias: number) {
     select: {
       id: true, canal: true, remitente: true, asunto: true, estado: true,
       createdAt: true, primeraRespuestaEn: true, asignadoId: true, etiquetas: true,
+      alertaTiempoEn: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -246,6 +250,7 @@ export async function informeTiempos(dias: number) {
         vencido: esperando > cfg.compromisoMin,
         createdAt: c.createdAt,
         etiquetas: c.etiquetas,
+        avisadoEn: c.alertaTiempoEn,
       });
     }
 

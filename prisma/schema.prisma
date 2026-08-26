@@ -1020,11 +1020,17 @@ model Notificacion {
   leida   Boolean          @default(false)
   data    Json?
 
+  /// A quién va dirigida. NULL = para todo el mundo, que es lo que eran
+  /// todas hasta ahora. Decirle a los siete usuarios que a un asesor se
+  /// le pasó una conversación no sirve de nada.
+  usuarioId String?
+
   createdAt DateTime  @default(now())
   leidaAt   DateTime?
 
   @@index([leida])
   @@index([createdAt])
+  @@index([usuarioId])
   @@map("notificaciones")
 }
 
@@ -1086,6 +1092,10 @@ model NexusConversacion {
   /// Cuándo contestó un humano por primera vez. Es lo que permite medir
   /// el compromiso de responder en una hora.
   primeraRespuestaEn DateTime?
+  /// Sello del aviso por incumplir el compromiso. Sin él, la corrida
+  /// diaria mandaría el mismo aviso todos los días hasta que alguien
+  /// conteste, y un aviso que se repite deja de leerse a la tercera vez.
+  alertaTiempoEn     DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

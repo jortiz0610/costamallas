@@ -16,7 +16,7 @@ import { Suspense, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
 import {
-  Loader2, ArrowLeft, Clock, AlertTriangle, CheckCircle2, Users, Timer, Settings, Check,
+  Loader2, ArrowLeft, Clock, AlertTriangle, CheckCircle2, Users, Timer, Settings, Check, BellRing,
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -42,7 +42,7 @@ interface Informe {
   pendientes: {
     id: string; canal: string; remitente: string; asunto: string | null;
     asignado: string | null; esperandoMin: number; esperandoCorridoMin: number;
-    vencido: boolean; createdAt: string; etiquetas: string[];
+    vencido: boolean; createdAt: string; etiquetas: string[]; avisadoEn: string | null;
   }[];
 }
 
@@ -215,13 +215,36 @@ function Contenido() {
                         <p className="text-xs font-bold" style={{ color: p.vencido ? "#dc2626" : "var(--text-soft)" }}>
                           {dur(p.esperandoMin)}
                         </p>
-                        <p className="text-[10px] text-muted">entró {formatDate(p.createdAt)}</p>
+                        <p className="text-[10px] text-muted">
+                          entró {formatDate(p.createdAt)}
+                          {p.avisadoEn && <span style={{ color: "#d97706" }}> · avisado</span>}
+                        </p>
                       </div>
                     </Link>
                   ))}
                 </div>
               </div>
             )}
+
+            {/* Cómo funciona el aviso. Va aquí y no en un tooltip porque
+                si alguien cree que esto suena al minuto 61, el día que no
+                suene va a pensar que el indicador miente. */}
+            <div className="card p-4 flex gap-3">
+              <BellRing size={16} className="flex-shrink-0 mt-0.5" style={{ color: NEXUS_COLOR }} />
+              <div>
+                <p className="text-xs font-bold text-soft">El aviso sale en la corrida diaria</p>
+                <p className="text-[11px] text-muted mt-1 leading-relaxed">
+                  Cuando una conversación pasa de {dur(meta)} sin primera respuesta, se avisa al asesor
+                  asignado y a los administradores: notificación dentro del portal siempre, y correo
+                  cuando el SMTP esté cargado. Cada conversación se avisa <strong>una sola vez</strong>.
+                  <br />
+                  Ojo con esto: la corrida es <strong>diaria</strong>, así que el aviso llega en la
+                  siguiente pasada, no al minuto {meta + 1}. El plan Hobby de Vercel solo permite dos
+                  crons y los dos cupos están usados; para avisar al momento hace falta el plan Pro o un
+                  disparador externo. Lo que esta pantalla sí muestra en vivo es la lista de arriba.
+                </p>
+              </div>
+            </div>
 
             {/* Cumplimiento */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
