@@ -601,7 +601,7 @@ export function CotizacionDoc({ data, brand, config }: {
       {/* ───────── INSTALACIÓN ───────── */}
       {esPropuesta && instalaciones.length > 0 && (
         <Hoja>
-          <Franja url={config.imgInstalacion} alto="250px" posicion="center 25%">
+          <Franja url={config.imgInstalacion} alto="250px" posicion="center 55%">
             <div className="p-12 flex flex-col justify-end" style={{ minHeight: "250px" }}>
               <Ceja invertida>Personal certificado</Ceja>
               <h2 className="text-white text-4xl font-black uppercase leading-[0.9] mt-4 m-0">El servicio<br />de instalación</h2>
