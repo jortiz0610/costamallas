@@ -6,8 +6,15 @@
 // preguntando cuándo van. Aquí, al aprobar la cotización, la obra queda
 // creada y el coordinador avisado.
 //
-// El aviso se manda UNA sola vez (`avisoCoordinadorEn`). Reaprobar una
-// cotización o guardar dos veces no vuelve a escribirle.
+// El aviso se manda UNA sola vez. Reaprobar una cotización o guardar dos
+// veces no vuelve a escribirle.
+//
+// Hay DOS sellos, y no es redundancia: `avisoPortalEn` marca que la
+// notificación interna ya se creó y `avisoCoordinadorEn` que el correo
+// ya salió. Con un solo sello pasaba esto: sin SMTP no se sellaba —a
+// propósito, para que el correo saliera el día que se cargaran las
+// credenciales— y cada reaprobación creaba otra notificación igual. Se
+// vio la primera vez que se probó el módulo, el 26 de agosto.
 // ============================================================
 
 import { prisma } from "@/lib/prisma";
@@ -130,29 +137,55 @@ export async function avisarInstalacionNueva(pedidoId: string): Promise<Resultad
       pedido.items.map(i => `· ${Number(i.cantidad).toLocaleString("es-CO")} ${i.unidad ?? ""} — ${i.descripcion}`).join("\n") +
       `\n\nLa obra ya está creada en el portal, pendiente de agendar y de asignarle técnico.`;
 
-    // La notificación del portal se crea siempre: no depende de que
-    // haya correo configurado.
-    await prisma.notificacion.create({
-      data: {
-        tipo: "SISTEMA",
-        titulo,
-        mensaje: cuerpo,
-        data: { pedidoId: pedido.id, instalacionId: instalacion.id, numero: pedido.numero },
-      },
-    }).catch(() => undefined);
-
     // ¿A quién se le escribe? Al usuario elegido como coordinador y/o al
     // correo suelto. Si no hay ninguno, se dice: el aviso interno queda,
     // pero nadie recibe un correo y hay que saberlo.
     const destinos = new Set<string>();
-    if (cfg.coordinadorId) {
-      const u = await prisma.usuario.findUnique({
-        where: { id: cfg.coordinadorId },
-        select: { email: true, activo: true },
-      });
-      if (u?.activo && u.email) destinos.add(u.email);
-    }
+    const coordinador = cfg.coordinadorId
+      ? await prisma.usuario.findUnique({
+          where: { id: cfg.coordinadorId },
+          select: { id: true, email: true, activo: true },
+        })
+      : null;
+    if (coordinador?.activo && coordinador.email) destinos.add(coordinador.email);
     if (cfg.coordinadorEmail) destinos.add(cfg.coordinadorEmail);
+
+    // La notificación del portal se crea siempre: no depende de que haya
+    // correo configurado. Es lo único que hoy funciona de verdad, porque
+    // el SMTP sigue sin cargarse.
+    //
+    // Va DIRIGIDA al coordinador si hay uno con login, con copia a los
+    // administradores. Si no se sabe a quién, se deja global: una obra
+    // nueva que nadie ve es peor que un aviso de más.
+    if (!instalacion.avisoPortalEn) {
+      const paraQuien: (string | null)[] = [];
+      if (coordinador?.activo) {
+        paraQuien.push(coordinador.id);
+        const admins = await prisma.usuario.findMany({
+          where: { activo: true, rol: { in: ["ADMIN", "SUPERADMIN"] } },
+          select: { id: true },
+        });
+        for (const a of admins) if (a.id !== coordinador.id) paraQuien.push(a.id);
+      } else {
+        paraQuien.push(null);
+      }
+
+      for (const usuarioId of paraQuien) {
+        await prisma.notificacion.create({
+          data: {
+            tipo: "SISTEMA",
+            usuarioId,
+            titulo,
+            mensaje: cuerpo,
+            data: { pedidoId: pedido.id, instalacionId: instalacion.id, numero: pedido.numero },
+          },
+        }).catch(() => undefined);
+      }
+
+      await prisma.instalacion
+        .update({ where: { id: instalacion.id }, data: { avisoPortalEn: new Date() } })
+        .catch(() => undefined);
+    }
 
     if (!destinos.size) {
       await sellar(instalacion.id);

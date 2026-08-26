@@ -593,9 +593,17 @@ model Instalacion {
   actaRecibidoPor    String?
   actaDocumento      String?
   actaObservaciones  String?   @db.Text
-  /// Sello del aviso al coordinador de proyectos. Evita avisarle dos
-  /// veces por el mismo pedido.
+  /// Sello del CORREO al coordinador de proyectos. Evita escribirle dos
+  /// veces por el mismo pedido. Solo se pone cuando el correo sale (o
+  /// cuando no hay a quién escribirle): si el SMTP no está cargado se
+  /// deja en blanco a propósito, para que el aviso salga el día que se
+  /// carguen las credenciales.
   avisoCoordinadorEn DateTime?
+  /// Sello de la NOTIFICACIÓN del portal. Va aparte del anterior porque
+  /// son dos cosas distintas, y confundirlas costaba notificaciones
+  /// duplicadas: sin SMTP el aviso nunca se sellaba, así que cada
+  /// reaprobación de la cotización creaba otra igual.
+  avisoPortalEn      DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
