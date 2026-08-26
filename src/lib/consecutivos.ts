@@ -16,14 +16,22 @@
 
 import { prisma } from "@/lib/prisma";
 
-export type TipoDocumento = "COT" | "PED" | "OC" | "FAC" | "INS";
+/**
+ * Documentos que llevan consecutivo.
+ *
+ * ⚠️ NO existe "INS": las instalaciones no tienen columna `numero` —se
+ * identifican por el pedido del que cuelgan— así que pedirle el
+ * consecutivo reventaba con «column "numero" does not exist». Estaba
+ * declarado desde el principio y nadie lo había llamado hasta que la
+ * pantalla de Consecutivos pidió los cinco tipos de una vez.
+ */
+export type TipoDocumento = "COT" | "PED" | "OC" | "FAC";
 
 const CONFIG: Record<TipoDocumento, { clave: string; descripcion: string; digitos: number; etiqueta: string }> = {
   COT: { clave: "consecutivo_cotizacion", descripcion: "Último número de cotización emitido", digitos: 5, etiqueta: "Cotizaciones" },
   PED: { clave: "consecutivo_pedido", descripcion: "Último número de pedido emitido", digitos: 5, etiqueta: "Pedidos" },
   OC:  { clave: "consecutivo_orden_compra", descripcion: "Último número de orden de compra emitido", digitos: 5, etiqueta: "Órdenes de compra" },
   FAC: { clave: "consecutivo_factura", descripcion: "Último número de factura emitido", digitos: 5, etiqueta: "Facturas" },
-  INS: { clave: "consecutivo_instalacion", descripcion: "Último número de instalación emitido", digitos: 5, etiqueta: "Instalaciones" },
 };
 
 export const TIPOS = Object.keys(CONFIG) as TipoDocumento[];
@@ -72,7 +80,6 @@ const TABLA: Record<TipoDocumento, string> = {
   PED: "pedidos",
   OC: "ordenes_compra",
   FAC: "facturas",
-  INS: "instalaciones",
 };
 
 /**

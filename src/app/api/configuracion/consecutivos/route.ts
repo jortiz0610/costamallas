@@ -19,10 +19,21 @@ export async function GET(req: NextRequest) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
 
-  return NextResponse.json({
-    success: true,
-    data: await Promise.all(TIPOS.map(t => estadoConsecutivo(t))),
-  });
+  // `allSettled` y no `all`: si un tipo falla, se informa ese y los demás
+  // siguen saliendo. Con `all`, un solo error dejaba la pantalla girando
+  // para siempre sin decir por qué.
+  const resultados = await Promise.allSettled(TIPOS.map(t => estadoConsecutivo(t)));
+
+  const data = resultados.flatMap(r => (r.status === "fulfilled" ? [r.value] : []));
+  const fallos = resultados.flatMap((r, i) =>
+    r.status === "rejected"
+      ? [{ tipo: TIPOS[i], error: (r.reason as Error)?.message?.split("\n")[0] ?? "Error desconocido" }]
+      : [],
+  );
+
+  if (fallos.length) console.error("[consecutivos]", fallos);
+
+  return NextResponse.json({ success: true, data, fallos });
 }
 
 export async function POST(req: NextRequest) {

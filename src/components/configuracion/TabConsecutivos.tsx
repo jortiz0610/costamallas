@@ -25,9 +25,16 @@ export function TabConsecutivos() {
   const [edicion, setEdicion] = useState<Record<string, { desde: string; prefijo: string; digitos: string }>>({});
   const [guardando, setGuardando] = useState<string | null>(null);
 
-  const { data, isLoading, refetch } = useQuery<{ data: Consecutivo[] }>({
+  const { data, isLoading, error, refetch } = useQuery<{ data: Consecutivo[]; fallos?: { tipo: string; error: string }[] }>({
     queryKey: ["config-consecutivos"],
-    queryFn: async () => (await (await fetch("/api/configuracion/consecutivos")).json()),
+    queryFn: async () => {
+      const res = await fetch("/api/configuracion/consecutivos");
+      const j = await res.json();
+      // Sin esto, un error del servidor dejaba `data` en undefined y la
+      // pantalla giraba para siempre sin decir qué pasó.
+      if (!res.ok || !j.success) throw new Error(j.error ?? `El servidor respondió ${res.status}`);
+      return j;
+    },
   });
 
   useEffect(() => {
@@ -54,8 +61,22 @@ export function TabConsecutivos() {
     } finally { setGuardando(null); }
   };
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return <div className="card p-10 text-center"><Loader2 size={18} className="animate-spin mx-auto" style={{ color: "var(--brand-color)" }} /></div>;
+  }
+
+  if (error || !data) {
+    return (
+      <div className="card p-6 max-w-2xl" style={{ borderLeft: "4px solid #dc2626" }}>
+        <p className="text-sm font-bold text-soft flex items-center gap-2">
+          <AlertTriangle size={15} className="text-red-500" /> No se pudo cargar la numeración
+        </p>
+        <p className="text-xs text-muted mt-2 break-words">
+          {error instanceof Error ? error.message : "El servidor no respondió."}
+        </p>
+        <button onClick={() => refetch()} className="btn-secondary btn-sm mt-4">Reintentar</button>
+      </div>
+    );
   }
 
   /** La vista previa se calcula aquí para que se vea antes de guardar. */
@@ -88,6 +109,16 @@ export function TabConsecutivos() {
           números y el documento no se podría guardar.
         </span>
       </div>
+
+      {(data.fallos ?? []).length > 0 && (
+        <div className="flex items-start gap-2 text-[11px] p-3 rounded-lg text-red-700 bg-red-50 dark:text-red-400 dark:bg-red-500/10">
+          <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" />
+          <span>
+            No se pudo leer la numeración de: {data.fallos!.map(f => `${f.tipo} (${f.error})`).join(" · ")}. El resto sí
+            se puede configurar.
+          </span>
+        </div>
+      )}
 
       {data.data.map(c => {
         const e = edicion[c.tipo];

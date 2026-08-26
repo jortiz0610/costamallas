@@ -365,33 +365,49 @@ export function CotizacionDoc({ data, brand, config }: {
               className="absolute inset-0"
               style={{ background: `linear-gradient(158deg, ${AMARILLO} 0 46%, transparent 46%)` }}
             />
+            {/* La foto ocupa la mitad de abajo. El velo arranca casi
+                transparente: antes empezaba en .35 y apagaba justo las
+                caras del equipo, que es lo que hay que ver. Solo se
+                oscurece de verdad al final, donde van las fichas de
+                datos y hace falta contraste. */}
             {config.imgPortada && (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={config.imgPortada} alt="" className="absolute left-0 right-0 bottom-0 w-full object-cover" style={{ height: "56%" }} />
-                <div className="absolute left-0 right-0 bottom-0" style={{ height: "56%", background: "linear-gradient(180deg, rgba(17,17,15,.35), rgba(17,17,15,.92))" }} />
+                <img src={config.imgPortada} alt="" className="absolute left-0 right-0 bottom-0 w-full object-cover" style={{ height: "52%" }} />
+                <div
+                  className="absolute left-0 right-0 bottom-0"
+                  style={{
+                    height: "52%",
+                    background: "linear-gradient(180deg, rgba(17,17,15,.08) 0%, rgba(17,17,15,.30) 45%, rgba(17,17,15,.90) 100%)",
+                  }}
+                />
               </>
             )}
             <div className="absolute inset-0" style={{ ...RAYAS, opacity: config.imgPortada ? 0 : 0.55, top: "46%" }} />
 
-            <div className="relative flex flex-col justify-between p-14" style={{ minHeight: "297mm" }}>
+            {/* `justify-between` repartía los tres bloques a lo alto y
+                dejaba el título a la mitad de la hoja, encima de la foto:
+                el texto negro sobre la foto no se leía y la foto tampoco
+                se veía. Ahora el título va anclado arriba, dentro del
+                amarillo, y las fichas se empujan al pie con `mt-auto`. */}
+            <div className="relative flex flex-col p-14" style={{ minHeight: "297mm" }}>
               <div className="flex items-start justify-between">
                 <Logo alto="h-14" />
                 <span className="px-3 py-1.5 text-[10px] font-black" style={{ backgroundColor: NEGRO, color: AMARILLO }}>{data.numero}</span>
               </div>
 
-              <div style={{ marginTop: "-14%" }}>
+              <div className="mt-12">
                 <Ceja>Más de 12 años protegiendo</Ceja>
-                <h1 className="font-black uppercase leading-[0.86] tracking-[-0.02em] mt-5 m-0" style={{ color: NEGRO, fontSize: "62px" }}>
+                <h1 className="font-black uppercase leading-[0.86] tracking-[-0.02em] mt-5 m-0" style={{ color: NEGRO, fontSize: "58px" }}>
                   Propuesta<br />comercial
                 </h1>
-                <p className="text-[12px] font-bold mt-4 max-w-sm leading-snug m-0" style={{ color: AMARILLO_TINTA }}>
+                <p className="text-[12px] font-bold mt-4 max-w-xs leading-snug m-0" style={{ color: AMARILLO_TINTA }}>
                   Mallas, cerramientos y seguridad perimetral. Fabricación propia
                   e instalación con personal certificado en alturas.
                 </p>
               </div>
 
-              <div>
+              <div className="mt-auto">
                 <div className="grid grid-cols-3 gap-4">
                   <div className="p-4" style={{ backgroundColor: "rgba(255,255,255,.06)", borderTop: `3px solid ${AMARILLO}` }}>
                     <Rotulo claro>Preparada para</Rotulo>

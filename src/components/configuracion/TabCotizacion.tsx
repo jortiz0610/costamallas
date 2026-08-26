@@ -37,11 +37,15 @@ export function TabCotizacion() {
   const [f, setF] = useState<ConfigCotizacion | null>(null);
   const [guardando, setGuardando] = useState(false);
 
-  const { refetch } = useQuery({
+  const { refetch, isLoading, error } = useQuery({
     queryKey: ["cot-config"],
     queryFn: async () => {
-      const j = await (await fetch("/api/configuracion/cotizacion")).json();
-      if (j.success) setF(j.data);
+      const res = await fetch("/api/configuracion/cotizacion");
+      const j = await res.json();
+      // Antes, si esto fallaba, `f` se quedaba en null y la pantalla
+      // giraba para siempre sin decir qué había pasado.
+      if (!res.ok || !j.success) throw new Error(j.error ?? `El servidor respondió ${res.status}`);
+      setF(j.data);
       return j;
     },
   });
@@ -62,7 +66,19 @@ export function TabCotizacion() {
     } finally { setGuardando(false); }
   };
 
-  if (!f) {
+  if (error) {
+    return (
+      <div className="card p-6 max-w-2xl" style={{ borderLeft: "4px solid #dc2626" }}>
+        <p className="text-sm font-bold text-soft">No se pudieron cargar los textos de la cotización</p>
+        <p className="text-xs text-muted mt-2 break-words">
+          {error instanceof Error ? error.message : "El servidor no respondió."}
+        </p>
+        <button onClick={() => refetch()} className="btn-secondary btn-sm mt-4">Reintentar</button>
+      </div>
+    );
+  }
+
+  if (isLoading || !f) {
     return <div className="card p-10 text-center"><Loader2 size={18} className="animate-spin mx-auto" style={{ color: "var(--brand-color)" }} /></div>;
   }
 
