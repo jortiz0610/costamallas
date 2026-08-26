@@ -7,6 +7,7 @@ import {
   ShoppingCart, Wrench, Kanban, ChevronDown, ShieldCheck, BarChart2,
   MessageSquare, Truck, CheckSquare, MessageSquareText, Zap,
   Megaphone, Target, TrendingUp, Radio, Receipt, PieChart, Star, Timer,
+  Sparkles,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,6 +35,8 @@ const ERP_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { section: "Catálogo" },
   { href: "/productos", label: "Productos", icon: Package },
+  // Lanzar el lote gasta dinero y aprobarlo publica en la tienda: solo admin.
+  { href: "/productos/seo", label: "SEO con IA", icon: Sparkles, soloAdmin: true },
   { href: "/imagenes", label: "Imágenes", icon: ImageIcon },
   { href: "/categorias", label: "Catálogos", icon: Tag },
   { section: "Operaciones" },

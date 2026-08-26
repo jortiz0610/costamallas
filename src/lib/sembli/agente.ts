@@ -280,7 +280,10 @@ export async function pedirJSON<T>(opciones: {
   esquema: Record<string, unknown>;
   maxTokens?: number;
   pensar?: boolean;
-}): Promise<{ datos: T; costoUSD: number }> {
+  // Se devuelven también los tokens, no solo el costo: el generador de
+  // SEO en lote enseña el gasto acumulado mientras corre, y con el costo
+  // redondeado en USD no se puede contrastar contra la factura.
+}): Promise<{ datos: T; costoUSD: number; modelo: IdModelo; tokens: { entrada: number; salida: number } }> {
   const cliente = await obtenerCliente();
   if (!cliente) throw new Error("La IA no está configurada (falta la API key de Claude).");
 
@@ -303,7 +306,15 @@ export async function pedirJSON<T>(opciones: {
     throw new Error("La respuesta de la IA se cortó por longitud. Intenta con menos contenido.");
   }
   try {
-    return { datos: JSON.parse(texto) as T, costoUSD: costoUSD(modelo, respuesta.usage) };
+    return {
+      datos: JSON.parse(texto) as T,
+      costoUSD: costoUSD(modelo, respuesta.usage),
+      modelo,
+      tokens: {
+        entrada: (respuesta.usage.input_tokens ?? 0) + (respuesta.usage.cache_read_input_tokens ?? 0),
+        salida: respuesta.usage.output_tokens ?? 0,
+      },
+    };
   } catch {
     throw new Error("La IA no devolvió datos con el formato esperado. Intenta de nuevo.");
   }

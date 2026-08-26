@@ -688,9 +688,10 @@ model Producto {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  imagenes    AcfImagen[]
-  errores     ErrorValidacion[]
-  proveedores ProveedorProducto[]
+  imagenes      AcfImagen[]
+  errores       ErrorValidacion[]
+  proveedores   ProveedorProducto[]
+  seoPropuestas SeoPropuesta[]
 
   acfMM AcfMallasMetalicas?
   acfBH AcfBalcones?
@@ -723,6 +724,59 @@ enum EstadoProducto {
 // ─────────────────────────────────────────────
 // IMÁGENES
 // ─────────────────────────────────────────────
+
+/// Cola de revisión del SEO generado por IA.
+///
+/// El generador iba de a UNO y ni siquiera guardaba: devolvía el texto
+/// para que una persona lo pegara. Hacer 175 productos era abrir 175
+/// fichas a mano.
+///
+/// ⚠️ Es una COLA y no escritura directa a propósito: guardar un
+/// producto dispara la sincronización con WooCommerce, así que lo que
+/// se escriba sale publicado en costamallas.com. Texto de IA sin leer,
+/// en la tienda, a nombre de la empresa. Aquí se genera en lote, queda
+/// en PROPUESTO, y alguien aprueba o rechaza producto por producto.
+model SeoPropuesta {
+  id         String   @id @default(cuid())
+  productoId String
+  producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  /// PROPUESTO · APROBADO · RECHAZADO · ERROR
+  estado String @default("PROPUESTO")
+  /// Agrupa las propuestas de una misma corrida.
+  loteId String?
+
+  seoTitulo      String   @default("")
+  seoDescripcion String   @default("") @db.Text
+  seoKeywords    String[] @default([])
+  seoTexto       String   @default("") @db.Text
+  slug           String   @default("")
+  /// [{ id, altText, titulo }] por cada imagen del producto.
+  imagenes       Json     @default("[]")
+
+  /// ⚠️ Cambiar el slug de un producto YA publicado rompe la URL que
+  /// Google tiene indexada. El slug propuesto NO se aplica salvo que
+  /// alguien lo marque a mano.
+  aplicaSlug Boolean @default(false)
+
+  modelo        String?
+  tokensEntrada Int     @default(0)
+  tokensSalida  Int     @default(0)
+  costoUSD      Float   @default(0)
+  error         String?
+
+  generadoPor String?
+  revisadoPor String?
+  revisadoEn  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([estado])
+  @@index([productoId])
+  @@index([loteId])
+  @@map("seo_propuestas")
+}
 
 model AcfImagen {
   id          String   @id @default(cuid())
