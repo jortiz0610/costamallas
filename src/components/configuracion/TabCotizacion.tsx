@@ -49,9 +49,14 @@ const IMAGENES: {
   { k: "imgPortada", pos: "posPortada", label: "Portada",
     ayuda: "Ocupa la mitad inferior de la primera hoja.",
     hueco: "210 × 154 mm", prevAncho: 200, razon: 210 / 154 },
+  // La banda no ocupa el ancho completo de la hoja: va dentro del
+  // margen del texto. Medido en la hoja real (698 × 170 px sobre un
+  // ancho de página de 794), son 185 × 45 mm, no 210. Con 210 la previa
+  // recortaba menos de lo que recorta el documento y el ajuste salía
+  // corrido.
   { k: "imgBanda", pos: "posBanda", label: "Banda de la carta",
     ayuda: "Tira panorámica bajo la firma del asesor.",
-    hueco: "210 × 45 mm", prevAncho: 260, razon: 210 / 45 },
+    hueco: "185 × 45 mm", prevAncho: 260, razon: 185 / 45 },
   { k: "imgInstalacion", pos: "posInstalacion", label: "Cabecera de instalación",
     ayuda: "Solo sale si la oferta lleva instalación.",
     hueco: "210 × 66 mm", prevAncho: 260, razon: 210 / 66 },
