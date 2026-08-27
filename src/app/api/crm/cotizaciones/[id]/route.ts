@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { calcularCotizacion, leerAIU } from "@/lib/cotizacion-calculo";
 import { getUserFromRequest } from "@/lib/auth";
 import { siguienteNumeroSeguro } from "@/lib/consecutivos";
 import {
@@ -51,15 +52,14 @@ export async function PUT(req: NextRequest, { params }: P) {
       return NextResponse.json({ success: false, error: "Agrega al menos un producto" }, { status: 400 });
     }
 
-    const IVA_PCT = 0.19;
-    let subtotal = 0;
+    // La cuenta vive en lib/cotizacion-calculo.ts.
+    const aiu = leerAIU(body);
     const itemsData = items.map((item: {
       productoId?: string; descripcion: string; cantidad: number; precioUnitario: number;
       descuento?: number; unidad?: string; tipo?: string; imagenUrl?: string; detalle?: string;
     }, i: number) => {
       const desc = item.descuento ?? 0;
       const sub = item.cantidad * item.precioUnitario * (1 - desc / 100);
-      subtotal += sub;
       return {
         productoId: item.productoId ?? null,
         descripcion: item.descripcion,
@@ -76,8 +76,8 @@ export async function PUT(req: NextRequest, { params }: P) {
     });
 
     const descGlobal = descuentoGlobal ?? 0;
-    const subtotalConDesc = subtotal * (1 - descGlobal / 100);
-    const iva = subtotalConDesc * IVA_PCT;
+    const cuenta = calcularCotizacion(itemsData, descGlobal, aiu);
+    const subtotal = cuenta.subtotal;
 
     // ── Política comercial ──
     // Cualquier edición vuelve a evaluarse desde cero: una aprobación
@@ -95,10 +95,18 @@ export async function PUT(req: NextRequest, { params }: P) {
       return tx.cotizacion.update({
         where: { id },
         data: {
-          subtotal,
-          descuento: subtotal - subtotalConDesc,
-          iva,
-          total: subtotalConDesc + iva,
+          subtotal: cuenta.subtotal,
+          descuento: cuenta.descuento,
+          iva: cuenta.iva,
+          total: cuenta.total,
+          aiuActivo: cuenta.aiuActivo,
+          aiuAdminPct: aiu.adminPct,
+          aiuImprevPct: aiu.imprevPct,
+          aiuUtilidadPct: aiu.utilidadPct,
+          aiuAdmin: cuenta.admin,
+          aiuImprev: cuenta.imprevistos,
+          aiuUtilidad: cuenta.utilidad,
+          ivaUtilidad: cuenta.ivaUtilidad,
           ...(notas !== undefined && { notas }),
           ...(plantilla && { plantilla: plantilla === "PROPUESTA" ? "PROPUESTA" : "EXPRESS" }),
           ...(validezDias != null && { validezDias: Number(validezDias) }),

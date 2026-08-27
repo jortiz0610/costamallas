@@ -57,6 +57,18 @@ export interface CotizacionDocData {
   descuento?: number;
   iva?: number;
   total: number;
+
+  /// AIU — Administración, Imprevistos y Utilidad. Cuando está activo,
+  /// el documento enseña el desglose como lo espera un cliente de obra,
+  /// y el IVA sale de la utilidad, no del contrato.
+  aiuActivo?: boolean;
+  aiuAdminPct?: number;
+  aiuImprevPct?: number;
+  aiuUtilidadPct?: number;
+  aiuAdmin?: number;
+  aiuImprev?: number;
+  aiuUtilidad?: number;
+  ivaUtilidad?: number;
   /// Plazo propio de esta oferta. Si viene, manda sobre el texto general
   /// de Configuración: el general promete 2-5 días y hay obras de 15.
   tiempoEntrega?: string | null;
@@ -250,7 +262,39 @@ function TablaItems({ items, conFoto }: { items: ItemDoc[]; conFoto: boolean }) 
   );
 }
 
+/**
+ * Un renglón del AIU.
+ *
+ * El porcentaje que se imprime es el REAL —el que sale de dividir el
+ * monto entre la base—, no el que quedó escrito en la casilla. En las
+ * hojas que traía la empresa decía "10 %" al lado de un monto que era el
+ * 13,18 %, y un documento que se contradice a sí mismo delante del
+ * cliente es peor que uno sin porcentajes.
+ */
+function RenglonAIU({ etiqueta, pct, base, monto }: {
+  etiqueta: string; pct?: number; base?: number; monto?: number;
+}) {
+  const valor = Number(monto ?? 0);
+  if (!valor) return null;
+  const real = base && Number(base) > 0 ? (valor / Number(base)) * 100 : Number(pct ?? 0);
+  return (
+    <div className="flex justify-between text-[10.5px]" style={{ color: TINTA }}>
+      <span>{etiqueta} <span style={{ opacity: 0.55 }}>{real.toFixed(real % 1 === 0 ? 0 : 2)}%</span></span>
+      <span className="font-bold">{formatCOP(valor)}</span>
+    </div>
+  );
+}
+
 function Totales({ data, grande = false }: { data: CotizacionDocData; grande?: boolean }) {
+  // La base del AIU es la obra: los ítems de instalación, ya con el
+  // descuento global repartido. Se saca de los ítems que el documento ya
+  // tiene en vez de guardarla en otra columna — así no hay dos números
+  // que puedan terminar diciendo cosas distintas.
+  const bruto = Number(data.subtotal) || 0;
+  const factor = bruto > 0 ? (bruto - Number(data.descuento ?? 0)) / bruto : 1;
+  const subtotalObra =
+    data.items.filter(i => i.tipo === "INSTALACION").reduce((a, i) => a + Number(i.subtotal), 0) * factor;
+
   return (
     <div className={grande ? "w-full" : "w-80 ml-auto"}>
       <div className="px-4 py-3 space-y-1.5" style={{ backgroundColor: "#f7f6f0" }}>
@@ -258,8 +302,24 @@ function Totales({ data, grande = false }: { data: CotizacionDocData; grande?: b
         {!!data.descuento && data.descuento > 0 && (
           <div className="flex justify-between text-[10.5px]" style={{ color: TINTA }}><span>Descuento</span><span className="font-bold">− {formatCOP(Number(data.descuento))}</span></div>
         )}
+        {/* AIU. Va desglosado a propósito: en una obra el cliente
+            espera ver la administración, los imprevistos y la utilidad
+            por separado, y esconderlos en el total levanta más preguntas
+            de las que ahorra. El porcentaje se enseña al lado del monto
+            porque a veces se negocia como suma fija y entonces el % que
+            representa es lo que hay que poder leer. */}
+        {data.aiuActivo && (
+          <>
+            <RenglonAIU etiqueta="Administración" pct={data.aiuAdminPct} base={subtotalObra} monto={data.aiuAdmin} />
+            <RenglonAIU etiqueta="Imprevistos" pct={data.aiuImprevPct} base={subtotalObra} monto={data.aiuImprev} />
+            <RenglonAIU etiqueta="Utilidad" pct={data.aiuUtilidadPct} base={subtotalObra} monto={data.aiuUtilidad} />
+          </>
+        )}
         {!!data.iva && data.iva > 0 && (
-          <div className="flex justify-between text-[10.5px]" style={{ color: TINTA }}><span>IVA 19%</span><span className="font-bold">{formatCOP(Number(data.iva))}</span></div>
+          <div className="flex justify-between text-[10.5px]" style={{ color: TINTA }}>
+            <span>{data.aiuActivo ? "IVA 19% sobre la utilidad" : "IVA 19%"}</span>
+            <span className="font-bold">{formatCOP(Number(data.iva))}</span>
+          </div>
         )}
       </div>
       <div className="relative overflow-hidden" style={RAYAS}>

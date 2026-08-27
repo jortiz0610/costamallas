@@ -5,6 +5,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Plus, Search, X, Loader2, Trash2, FileText, ExternalLink, Eye } from "lucide-react";
 import toast from "react-hot-toast";
 import { formatCOP } from "@/lib/utils";
+import { calcularCotizacion } from "@/lib/cotizacion-calculo";
 import Link from "next/link";
 
 interface Cotizacion {
@@ -55,11 +56,13 @@ function NuevaCotizacion({ onClose, onSaved }: { onClose: () => void; onSaved: (
     setProdBusq("");
   };
   const upd = (i: number, k: keyof Item, v: unknown) => setItems(prev => { const n = [...prev]; n[i] = { ...n[i], [k]: v }; return n; });
-  const IVA = 0.19;
-  const subtotal = items.reduce((a, it) => a + it.cantidad * it.precioUnitario * (1 - it.descuento / 100), 0);
-  const dv = subtotal * (descuentoGlobal / 100);
-  const base = subtotal - dv;
-  const total = base + base * IVA;
+  // Misma función que el servidor. Este alta rápida no ofrece AIU: es
+  // para material suelto, y una obra se cotiza en el cotizador completo.
+  const cuenta = calcularCotizacion(items, descuentoGlobal);
+  const subtotal = cuenta.subtotal;
+  const dv = cuenta.descuento;
+  const base = cuenta.subtotalConDesc;
+  const total = cuenta.total;
   const save = async () => {
     if (!clienteId) return toast.error("Selecciona un cliente");
     if (!items.length) return toast.error("Agrega al menos un producto");
@@ -144,7 +147,7 @@ function NuevaCotizacion({ onClose, onSaved }: { onClose: () => void; onSaved: (
                   <div className="flex justify-between text-gray-500 dark:text-gray-400"><span>Subtotal</span><span className="font-medium text-gray-800 dark:text-gray-200">{formatCOP(subtotal)}</span></div>
                   <div className="flex items-center justify-between text-gray-500 dark:text-gray-400"><span>Descuento %</span><input type="number" min="0" max="100" value={descuentoGlobal} onChange={e => setDescuentoGlobal(parseFloat(e.target.value)||0)} className="w-16 text-right border border-gray-200 dark:border-gray-700 rounded px-2 py-0.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 outline-none" /></div>
                   {dv > 0 && <div className="flex justify-between text-red-500"><span>- Descuento</span><span>-{formatCOP(dv)}</span></div>}
-                  <div className="flex justify-between text-gray-500 dark:text-gray-400"><span>IVA 19%</span><span>{formatCOP(base * IVA)}</span></div>
+                  <div className="flex justify-between text-gray-500 dark:text-gray-400"><span>IVA 19%</span><span>{formatCOP(cuenta.iva)}</span></div>
                   <div className="flex justify-between font-bold text-gray-900 dark:text-gray-100 border-t border-gray-100 dark:border-gray-700 pt-2"><span>Total</span><span style={{ color: CRM_COLOR }}>{formatCOP(total)}</span></div>
                 </div>
               </div>

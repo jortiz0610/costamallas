@@ -24,10 +24,10 @@ import {
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { formatCOP, cn } from "@/lib/utils";
+import { calcularCotizacion } from "@/lib/cotizacion-calculo";
 import type { ServicioInstalacion, RecargoCiudad } from "@/components/configuracion/TabInstalacion";
 
 const CRM_COLOR = "#BA7517";
-const IVA = 0.19;
 
 interface Producto {
   id: string; sku: string; nombre: string; precioNormal: number | null; stock: number;
@@ -68,6 +68,13 @@ function CotizadorContent() {
   const [prodBusq, setProdBusq] = useState("");
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [descuentoGlobal, setDescuentoGlobal] = useState(0);
+  // AIU. Apagado por defecto: una oferta de material suelto no lo lleva,
+  // y encenderlo cambia el IVA, así que lo decide el asesor.
+  const [aiuActivo, setAiuActivo] = useState(false);
+  const [aiuPct, setAiuPct] = useState({ admin: 10, imprev: 5, utilidad: 10 });
+  // Vacío = sale del porcentaje. Con valor, manda el valor: la
+  // administración y los imprevistos se negocian como suma fija.
+  const [aiuMonto, setAiuMonto] = useState({ admin: "", imprev: "", utilidad: "" });
   // Vacío = se aplica el mínimo de la política. Solo se escribe cuando
   // se pactó uno distinto.
   const [anticipoPct, setAnticipoPct] = useState<string>("");
@@ -181,18 +188,45 @@ function CotizadorContent() {
   const quitar = (i: number) => setLineas(prev => prev.filter((_, n) => n !== i));
 
   // ── Totales ──
-  const { subtotal, valorInstalacion, recargoValor, base, iva, total } = useMemo(() => {
+  // La cuenta la hace la MISMA función que el servidor
+  // (lib/cotizacion-calculo). Antes esta pantalla tenía su propia copia
+  // con el 19 % escrito aparte: tres sitios calculando dinero, y el que
+  // se desvía es siempre el que nadie mira.
+  const opcionesAIU = useMemo(() => {
+    const monto = (v: string) => (v.trim() === "" ? null : Number(v));
+    return {
+      activo: aiuActivo,
+      adminPct: aiuPct.admin, imprevPct: aiuPct.imprev, utilidadPct: aiuPct.utilidad,
+      adminMonto: monto(aiuMonto.admin), imprevMonto: monto(aiuMonto.imprev), utilidadMonto: monto(aiuMonto.utilidad),
+    };
+  }, [aiuActivo, aiuPct, aiuMonto]);
+
+  const { subtotal, valorInstalacion, recargoValor, cuenta } = useMemo(() => {
     const sub = lineas.reduce((a, l) => a + l.cantidad * l.precioUnitario * (1 - l.descuento / 100), 0);
     const inst = lineas.filter(l => l.tipo === "INSTALACION")
       .reduce((a, l) => a + l.cantidad * l.precioUnitario * (1 - l.descuento / 100), 0);
     // El recargo por desplazamiento se calcula SOLO sobre la instalación:
     // llevar la cuadrilla a otra ciudad no encarece el material.
     const rec = recargo ? inst * (recargo.porcentaje / 100) + (inst > 0 ? recargo.montoFijo : 0) : 0;
-    const conRecargo = sub + rec;
-    const b = conRecargo * (1 - descuentoGlobal / 100);
-    const i = b * IVA;
-    return { subtotal: sub, valorInstalacion: inst, recargoValor: rec, base: b, iva: i, total: b + i };
-  }, [lineas, descuentoGlobal, recargo]);
+
+    // El recargo entra al cálculo como una línea de INSTALACIÓN, que es
+    // exactamente como se guarda al enviar. Si aquí se sumara suelto, la
+    // vista previa y lo que guarda el servidor darían distinto en cuanto
+    // hay AIU, porque el recargo es parte de la base de la obra.
+    const itemsCalc = [
+      ...lineas.map(l => ({ cantidad: l.cantidad, precioUnitario: l.precioUnitario, descuento: l.descuento, tipo: l.tipo })),
+      ...(rec > 0 ? [{ cantidad: 1, precioUnitario: Math.round(rec), descuento: 0, tipo: "INSTALACION" }] : []),
+    ];
+    return {
+      subtotal: sub,
+      valorInstalacion: inst,
+      recargoValor: rec,
+      cuenta: calcularCotizacion(itemsCalc, descuentoGlobal, opcionesAIU),
+    };
+  }, [lineas, descuentoGlobal, recargo, opcionesAIU]);
+
+  const iva = cuenta.iva;
+  const total = cuenta.total;
 
   // El sitio de instalación se pide en cuanto se marca la casilla, no
   // cuando ya se agregó una línea: la ciudad es la que define el recargo.
@@ -263,6 +297,9 @@ function CotizadorContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clienteId, items, notas, descuentoGlobal, validezDias,
+          aiuActivo,
+          aiuAdminPct: aiuPct.admin, aiuImprevPct: aiuPct.imprev, aiuUtilidadPct: aiuPct.utilidad,
+          aiuAdmin: aiuMonto.admin, aiuImprev: aiuMonto.imprev, aiuUtilidad: aiuMonto.utilidad,
           tieneInstalacion: hayInstalacion,
           plantilla,
           ciudadInstalacion: ciudadInstalacion || undefined,
@@ -574,7 +611,77 @@ function CotizadorContent() {
                     <span className="text-muted">%</span>
                   </div>
                 </div>
-                <div className="flex justify-between text-xs text-soft"><span>IVA 19%</span><span className="font-semibold">{formatCOP(iva)}</span></div>
+                {/* ── AIU ── */}
+                <div className="pt-2 mt-1 border-t divider">
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="checkbox" checked={aiuActivo}
+                      onChange={e => setAiuActivo(e.target.checked)}
+                      className="mt-0.5 accent-[var(--brand-color)]"
+                    />
+                    <span>
+                      <span className="block text-xs font-semibold text-soft">Cotizar como obra (AIU)</span>
+                      <span className="block text-[10.5px] text-muted leading-snug mt-0.5">
+                        Administración, imprevistos y utilidad sobre el valor de la instalación.
+                        El IVA pasa a cobrarse <strong>sobre la utilidad</strong>, no sobre el contrato.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+
+                {aiuActivo && (
+                  <div className="space-y-1.5 p-2.5 rounded-xl surface-2">
+                    {cuenta.subtotalObra <= 0 ? (
+                      <p className="text-[11px] leading-snug" style={{ color: "#d97706" }}>
+                        ⚠️ No hay ítems de instalación, así que la base del AIU es cero. Marca como
+                        «instalación» las líneas que sean obra, o desactiva el AIU.
+                      </p>
+                    ) : (
+                      <p className="text-[10.5px] text-muted">
+                        Base (la obra): <strong className="text-soft">{formatCOP(cuenta.subtotalObra)}</strong>
+                      </p>
+                    )}
+                    {([
+                      ["Administración", "admin", cuenta.admin],
+                      ["Imprevistos", "imprev", cuenta.imprevistos],
+                      ["Utilidad", "utilidad", cuenta.utilidad],
+                    ] as const).map(([etiqueta, clave, valor]) => (
+                      <div key={clave} className="flex items-center gap-1.5">
+                        <span className="text-[11px] text-soft flex-1">{etiqueta}</span>
+                        <input
+                          type="number" min={0} max={100}
+                          className="input py-0.5 text-[11px] w-14 text-right"
+                          value={aiuPct[clave]}
+                          onChange={e => setAiuPct(v => ({ ...v, [clave]: Number(e.target.value) }))}
+                          title="Porcentaje sobre la obra"
+                        />
+                        <span className="text-muted text-[11px]">%</span>
+                        <input
+                          type="number" min={0}
+                          className="input py-0.5 text-[11px] w-28 text-right"
+                          value={aiuMonto[clave]}
+                          placeholder={String(Math.round(valor))}
+                          onChange={e => setAiuMonto(v => ({ ...v, [clave]: e.target.value }))}
+                          title="Monto fijo. Vacío = se calcula del porcentaje."
+                        />
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-muted leading-snug pt-0.5">
+                      El monto se puede escribir a mano cuando se negocia como suma fija; vacío, sale del
+                      porcentaje. Lo que se cobra es el monto.
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex justify-between text-xs text-soft">
+                  <span>{aiuActivo ? "IVA 19% sobre la utilidad" : "IVA 19%"}</span>
+                  <span className="font-semibold">{formatCOP(iva)}</span>
+                </div>
+                {aiuActivo && cuenta.ivaMaterial > 0 && (
+                  <div className="flex justify-between text-[10.5px] text-muted">
+                    <span>· de eso, material</span><span>{formatCOP(cuenta.ivaMaterial)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center pt-3 mt-1 border-t divider">
                   <span className="text-xs font-bold uppercase tracking-wider text-muted">Total</span>
                   <span className="text-xl font-black" style={{ color: CRM_COLOR }}>{formatCOP(total)}</span>

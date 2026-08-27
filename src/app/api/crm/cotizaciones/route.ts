@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import { calcularCotizacion, leerAIU } from "@/lib/cotizacion-calculo";
 import { getUserFromRequest } from "@/lib/auth";
 import { siguienteNumeroSeguro } from "@/lib/consecutivos";
 import {
@@ -44,16 +45,15 @@ export async function POST(req: NextRequest) {
   if (!clienteId) return NextResponse.json({ success: false, error: "clienteId requerido" }, { status: 400 });
   if (!items?.length) return NextResponse.json({ success: false, error: "Agrega al menos un producto" }, { status: 400 });
 
-  // Calcular totales
-  const IVA_PCT = 0.19;
-  let subtotal = 0;
+  // Calcular totales. La cuenta vive en lib/cotizacion-calculo.ts:
+  // estaba duplicada aquí y en el PUT, con el 19 % escrito en los dos.
+  const aiu = leerAIU(body);
   const itemsData = items.map((item: {
     productoId?: string; descripcion: string; cantidad: number; precioUnitario: number;
     descuento?: number; unidad?: string; tipo?: string; imagenUrl?: string; detalle?: string;
   }, i: number) => {
     const desc = item.descuento ?? 0;
     const sub = item.cantidad * item.precioUnitario * (1 - desc / 100);
-    subtotal += sub;
     return {
       productoId: item.productoId ?? null,
       descripcion: item.descripcion,
@@ -72,9 +72,8 @@ export async function POST(req: NextRequest) {
   });
 
   const descGlobal = descuentoGlobal ?? 0;
-  const subtotalConDesc = subtotal * (1 - descGlobal / 100);
-  const iva = subtotalConDesc * IVA_PCT;
-  const total = subtotalConDesc + iva;
+  const cuenta = calcularCotizacion(itemsData, descGlobal, aiu);
+  const subtotal = cuenta.subtotal;
 
   // ── Política comercial ──
   // El descuento efectivo suma el de línea y el global: al cliente le da
@@ -100,10 +99,18 @@ export async function POST(req: NextRequest) {
       clienteId,
       vendedorId: user.sub,
       estado: "BORRADOR",
-      subtotal,
-      descuento: subtotal - subtotalConDesc,
-      iva,
-      total,
+      subtotal: cuenta.subtotal,
+      descuento: cuenta.descuento,
+      iva: cuenta.iva,
+      total: cuenta.total,
+      aiuActivo: cuenta.aiuActivo,
+      aiuAdminPct: aiu.adminPct,
+      aiuImprevPct: aiu.imprevPct,
+      aiuUtilidadPct: aiu.utilidadPct,
+      aiuAdmin: cuenta.admin,
+      aiuImprev: cuenta.imprevistos,
+      aiuUtilidad: cuenta.utilidad,
+      ivaUtilidad: cuenta.ivaUtilidad,
       validezDias: validezDias ?? 30,
       notas,
       tieneInstalacion: tieneInstalacion ?? false,

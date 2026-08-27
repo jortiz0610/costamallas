@@ -334,6 +334,31 @@ model Cotizacion {
   descuento        Decimal  @default(0) @db.Decimal(14, 2)
   iva              Decimal  @default(0) @db.Decimal(14, 2)
   total            Decimal  @default(0) @db.Decimal(14, 2)
+
+  // ── AIU: Administración, Imprevistos y Utilidad ──
+  /// Así se cotiza una obra en Colombia, y cambia el IVA por completo:
+  /// en un contrato de construcción el IVA va sobre la UTILIDAD, no
+  /// sobre el valor del contrato. Medido contra una cotización real de
+  /// la empresa, el portal cobraba diez veces el IVA que corresponde.
+  ///
+  /// Nace apagado: las ofertas de material suelto se calculan igual que
+  /// siempre y las que ya existían no cambian de total.
+  aiuActivo      Boolean @default(false)
+  /// Base del AIU = subtotal de los ítems de INSTALACIÓN (la obra). El
+  /// material va aparte, con su 19 % normal.
+  aiuAdminPct    Decimal @default(10) @db.Decimal(5, 2)
+  aiuImprevPct   Decimal @default(5)  @db.Decimal(5, 2)
+  aiuUtilidadPct Decimal @default(10) @db.Decimal(5, 2)
+  /// El monto es la verdad —es lo que se cobra—; el porcentaje queda
+  /// para mostrarlo en el documento. En las hojas de la empresa la
+  /// administración y los imprevistos se negocian como suma fija, así
+  /// que el asesor puede escribir el monto y el % pasa a ser informativo.
+  aiuAdmin       Decimal @default(0) @db.Decimal(14, 2)
+  aiuImprev      Decimal @default(0) @db.Decimal(14, 2)
+  aiuUtilidad    Decimal @default(0) @db.Decimal(14, 2)
+  /// Parte del IVA que corresponde a la utilidad. `iva` sigue siendo el
+  /// IVA TOTAL, para no romper cartera, facturación ni los reportes.
+  ivaUtilidad    Decimal @default(0) @db.Decimal(14, 2)
   validezDias      Int      @default(30)
   notas            String?  @db.Text
   tieneInstalacion Boolean  @default(false)
