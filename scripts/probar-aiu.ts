@@ -107,26 +107,29 @@ console.log("\n3. LO QUE COBRABA EL PORTAL ANTES POR ESA OBRA\n");
 }
 
 // ── 4. Oferta mixta: material aparte, obra por AIU ──────────
-console.log("\n4. OFERTA MIXTA (material suelto + obra)\n");
+console.log("\n4. MATERIAL Y OBRA EN LA MISMA HOJA\n");
 {
+  // Corregido el 27-ago con la contadora: con AIU, TODO el subtotal es
+  // costo directo de la obra —material incluido— y el IVA sale solo de
+  // la utilidad. El material NO lleva su 19 % aparte.
   const items = [
     { cantidad: 100, precioUnitario: 50_000, tipo: "PRODUCTO" },     // 5.000.000 material
     { cantidad: 1, precioUnitario: 10_000_000, tipo: "INSTALACION" }, // 10.000.000 obra
   ];
   const r = calcularCotizacion(items, 0, { activo: true, adminPct: 10, imprevPct: 5, utilidadPct: 10 });
-  console.log(`   material ${f(r.subtotalMaterial)} · obra ${f(r.subtotalObra)}`);
+  console.log(`   base del AIU (costo directo) ${f(r.baseAIU)}`);
   console.log(`   A ${f(r.admin)} · I ${f(r.imprevistos)} · U ${f(r.utilidad)}`);
-  console.log(`   IVA material ${f(r.ivaMaterial)} + IVA utilidad ${f(r.ivaUtilidad)} = ${f(r.iva)}`);
+  console.log(`   IVA ${f(r.iva)}   (solo el 19 % de la utilidad)`);
   console.log(`   TOTAL ${f(r.total)}\n`);
 
-  comprobar("el AIU se calcula SOLO sobre la obra", igual(r.admin, 1_000_000) && igual(r.utilidad, 1_000_000),
-    "10 % de 10.000.000, no de 15.000.000");
-  comprobar("el material lleva su 19 % completo", igual(r.ivaMaterial, 950_000));
-  comprobar("la utilidad lleva su 19 %", igual(r.ivaUtilidad, 190_000));
-  comprobar("el IVA total es la suma de los dos", igual(r.iva, 1_140_000));
+  comprobar("la base es TODO el subtotal, no solo la obra", igual(r.baseAIU, 15_000_000), f(r.baseAIU));
+  comprobar("el AIU sale de los 15 millones", igual(r.admin, 1_500_000) && igual(r.utilidad, 1_500_000));
+  comprobar("el material NO lleva 19 % aparte", igual(r.ivaMaterial, 0),
+    "ya está dentro del costo directo del contrato");
+  comprobar("el IVA es solo el 19 % de la utilidad", igual(r.iva, 285_000) && igual(r.ivaUtilidad, 285_000));
   comprobar(
     "el total cuadra",
-    igual(r.total, 15_000_000 + 1_000_000 + 500_000 + 1_000_000 + 1_140_000),
+    igual(r.total, 15_000_000 + 1_500_000 + 750_000 + 1_500_000 + 285_000),
     f(r.total),
   );
 }
@@ -140,11 +143,11 @@ console.log("\n5. CON DESCUENTO GLOBAL\n");
   ];
   const r = calcularCotizacion(items, 20, { activo: true, adminPct: 10, imprevPct: 5, utilidadPct: 10 });
   comprobar(
-    "el descuento se reparte proporcional entre material y obra",
-    igual(r.subtotalMaterial, 4_000_000) && igual(r.subtotalObra, 4_000_000),
-    `material ${f(r.subtotalMaterial)} · obra ${f(r.subtotalObra)}`,
+    "el descuento se aplica ANTES del AIU",
+    igual(r.baseAIU, 8_000_000),
+    `base ${f(r.baseAIU)} — 10.000.000 menos el 20 %`,
   );
-  comprobar("el AIU sale de la obra YA descontada", igual(r.utilidad, 400_000), f(r.utilidad));
+  comprobar("el AIU sale del costo directo YA descontado", igual(r.utilidad, 800_000), f(r.utilidad));
 }
 
 // ── 6. Saneamiento de lo que llega del formulario ───────────

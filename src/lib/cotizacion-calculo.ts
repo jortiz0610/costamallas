@@ -24,11 +24,22 @@
 // contador de la empresa, no este archivo. Aquí solo se hace la cuenta
 // cuando alguien marca la casilla en la cotización.
 //
-// ── Por qué el material va aparte ───────────────────────────
-// Decisión de gerencia (27-ago): en una oferta que mezcla material
-// suelto con obra, el material lleva su 19 % normal y solo la obra pasa
-// por AIU. Es el criterio conservador ante la DIAN. Por eso la base del
-// AIU son los ítems de INSTALACIÓN, no el subtotal completo.
+// ── Cuál es la base, y por qué TODO el subtotal ─────────────
+// Corregido el 27-ago con la contadora: cuando la oferta va por AIU,
+// **todo el subtotal es el costo directo de la obra**, material
+// incluido, y el IVA sale ÚNICAMENTE del 19 % de la utilidad.
+//
+// Es lo que hace la propia hoja de la empresa: su único renglón dice
+// "Suministro E instalación", o sea que el material ya está dentro del
+// costo directo, y encima van A, I y U.
+//
+// Antes esto separaba el material para cobrarle su 19 % aparte. Era
+// incoherente: dejaba el material de una obra sin IVA propio pero
+// tampoco dentro de la base del AIU, que es lo peor de los dos mundos.
+//
+// Consecuencia práctica que hay que tener presente: en una cotización
+// con AIU, el material NO lleva 19 % por su lado. Si hay que vender
+// material suelto con su IVA normal, va en una cotización sin AIU.
 // ============================================================
 
 /** El IVA general en Colombia. Único sitio donde vive este número. */
@@ -71,15 +82,19 @@ export interface ResultadoCalculo {
 
   /** Parte del subtotal que es material (ítems PRODUCTO). */
   subtotalMaterial: number;
-  /** Parte que es obra (ítems INSTALACION). Es la base del AIU. */
+  /** Parte que es obra (ítems INSTALACION). Informativo: desde el
+   *  27-ago la base del AIU es TODO el subtotal, no solo esto. */
   subtotalObra: number;
+  /** Sobre qué se calcularon A, I y U. Cero si el AIU está apagado. */
+  baseAIU: number;
 
   aiuActivo: boolean;
   admin: number;
   imprevistos: number;
   utilidad: number;
 
-  /** 19 % del material. */
+  /** 19 % del material. Cero cuando hay AIU: el material ya está dentro
+   *  del costo directo de la obra. */
   ivaMaterial: number;
   /** 19 % de la utilidad. Cero si el AIU está apagado. */
   ivaUtilidad: number;
@@ -129,13 +144,17 @@ export function calcularCotizacion(
     manual != null && Number.isFinite(manual) ? manual : pct(p, base);
 
   const activo = aiu.activo;
-  const admin = activo ? redondear(monto(aiu.adminMonto, aiu.adminPct, subtotalObra)) : 0;
-  const imprevistos = activo ? redondear(monto(aiu.imprevMonto, aiu.imprevPct, subtotalObra)) : 0;
-  const utilidad = activo ? redondear(monto(aiu.utilidadMonto, aiu.utilidadPct, subtotalObra)) : 0;
+  // La base es TODO el subtotal con descuento: en un contrato de obra el
+  // material es parte del costo directo, no una venta aparte.
+  const baseAIU = subtotalConDesc;
+  const admin = activo ? redondear(monto(aiu.adminMonto, aiu.adminPct, baseAIU)) : 0;
+  const imprevistos = activo ? redondear(monto(aiu.imprevMonto, aiu.imprevPct, baseAIU)) : 0;
+  const utilidad = activo ? redondear(monto(aiu.utilidadMonto, aiu.utilidadPct, baseAIU)) : 0;
 
-  // Con AIU: el material paga su IVA y la obra paga solo por la utilidad.
+  // Con AIU: el IVA es SOLO el 19 % de la utilidad. El material no paga
+  // aparte porque ya está dentro del costo directo del contrato.
   // Sin AIU: todo paga 19 %, igual que siempre.
-  const ivaMaterial = activo ? redondear(subtotalMaterial * IVA_PCT) : redondear(subtotalConDesc * IVA_PCT);
+  const ivaMaterial = activo ? 0 : redondear(subtotalConDesc * IVA_PCT);
   const ivaUtilidad = activo ? redondear(utilidad * IVA_PCT) : 0;
   const iva = redondear(ivaMaterial + ivaUtilidad);
 
@@ -147,6 +166,7 @@ export function calcularCotizacion(
     subtotalConDesc: redondear(subtotalConDesc),
     subtotalMaterial: redondear(subtotalMaterial),
     subtotalObra: redondear(subtotalObra),
+    baseAIU: activo ? redondear(baseAIU) : 0,
     aiuActivo: activo,
     admin,
     imprevistos,

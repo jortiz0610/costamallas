@@ -286,14 +286,9 @@ function RenglonAIU({ etiqueta, pct, base, monto }: {
 }
 
 function Totales({ data, grande = false }: { data: CotizacionDocData; grande?: boolean }) {
-  // La base del AIU es la obra: los ítems de instalación, ya con el
-  // descuento global repartido. Se saca de los ítems que el documento ya
-  // tiene en vez de guardarla en otra columna — así no hay dos números
-  // que puedan terminar diciendo cosas distintas.
-  const bruto = Number(data.subtotal) || 0;
-  const factor = bruto > 0 ? (bruto - Number(data.descuento ?? 0)) / bruto : 1;
-  const subtotalObra =
-    data.items.filter(i => i.tipo === "INSTALACION").reduce((a, i) => a + Number(i.subtotal), 0) * factor;
+  // La base del AIU es TODO el subtotal ya descontado: en un contrato
+  // de obra el material es parte del costo directo, no una venta aparte.
+  const baseAIU = (Number(data.subtotal) || 0) - Number(data.descuento ?? 0);
 
   return (
     <div className={grande ? "w-full" : "w-80 ml-auto"}>
@@ -310,9 +305,9 @@ function Totales({ data, grande = false }: { data: CotizacionDocData; grande?: b
             representa es lo que hay que poder leer. */}
         {data.aiuActivo && (
           <>
-            <RenglonAIU etiqueta="Administración" pct={data.aiuAdminPct} base={subtotalObra} monto={data.aiuAdmin} />
-            <RenglonAIU etiqueta="Imprevistos" pct={data.aiuImprevPct} base={subtotalObra} monto={data.aiuImprev} />
-            <RenglonAIU etiqueta="Utilidad" pct={data.aiuUtilidadPct} base={subtotalObra} monto={data.aiuUtilidad} />
+            <RenglonAIU etiqueta="Administración" pct={data.aiuAdminPct} base={baseAIU} monto={data.aiuAdmin} />
+            <RenglonAIU etiqueta="Imprevistos" pct={data.aiuImprevPct} base={baseAIU} monto={data.aiuImprev} />
+            <RenglonAIU etiqueta="Utilidad" pct={data.aiuUtilidadPct} base={baseAIU} monto={data.aiuUtilidad} />
           </>
         )}
         {!!data.iva && data.iva > 0 && (

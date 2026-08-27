@@ -781,8 +781,9 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
                     <span>
                       <span className="block text-xs font-semibold text-soft">Cotizar como obra (AIU)</span>
                       <span className="block text-[10.5px] text-muted leading-snug mt-0.5">
-                        Administración, imprevistos y utilidad sobre el valor de la instalación.
-                        El IVA pasa a cobrarse <strong>sobre la utilidad</strong>, no sobre el contrato.
+                        Administración, imprevistos y utilidad sobre el costo directo, material incluido.
+                        El IVA pasa a cobrarse <strong>solo sobre la utilidad</strong>: en una obra el
+                        material no lleva su 19 % aparte porque ya está dentro del contrato.
                       </span>
                     </span>
                   </label>
@@ -790,16 +791,9 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
 
                 {aiuActivo && (
                   <div className="space-y-1.5 p-2.5 rounded-xl surface-2">
-                    {cuenta.subtotalObra <= 0 ? (
-                      <p className="text-[11px] leading-snug" style={{ color: "#d97706" }}>
-                        ⚠️ No hay ítems de instalación, así que la base del AIU es cero. Marca como
-                        «instalación» las líneas que sean obra, o desactiva el AIU.
-                      </p>
-                    ) : (
-                      <p className="text-[10.5px] text-muted">
-                        Base (la obra): <strong className="text-soft">{formatCOP(cuenta.subtotalObra)}</strong>
-                      </p>
-                    )}
+                    <p className="text-[10.5px] text-muted">
+                      Base (costo directo): <strong className="text-soft">{formatCOP(cuenta.baseAIU)}</strong>
+                    </p>
                     {([
                       ["Administración", "admin", cuenta.admin],
                       ["Imprevistos", "imprev", cuenta.imprevistos],
@@ -836,9 +830,10 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
                   <span>{aiuActivo ? "IVA 19% sobre la utilidad" : "IVA 19%"}</span>
                   <span className="font-semibold">{formatCOP(iva)}</span>
                 </div>
-                {aiuActivo && cuenta.ivaMaterial > 0 && (
+                {aiuActivo && cuenta.subtotalMaterial > 0 && (
                   <div className="flex justify-between text-[10.5px] text-muted">
-                    <span>· de eso, material</span><span>{formatCOP(cuenta.ivaMaterial)}</span>
+                    <span>· el material va dentro del costo directo</span>
+                    <span>{formatCOP(cuenta.subtotalMaterial)}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center pt-3 mt-1 border-t divider">

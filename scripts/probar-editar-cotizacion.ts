@@ -47,10 +47,13 @@ function recargar(guardado: {
   // La línea del recargo se descarta: se vuelve a calcular sola.
   const items = guardado.items.filter(i => !i.descripcion.startsWith(PREFIJO_RECARGO));
 
-  const obra = items.filter(i => i.tipo === "INSTALACION").reduce((a, i) => a + i.subtotal, 0);
+  // La base del AIU es TODO el subtotal ya descontado (corregido el
+  // 27-ago con la contadora): en un contrato de obra el material es
+  // costo directo, no una venta aparte.
+  const baseAIU = items.reduce((a, i) => a + i.subtotal, 0) * (1 - descuentoGlobal / 100);
   const manual = (monto: number, pct: number) => {
     if (!monto) return "";
-    const delPct = (pct / 100) * obra;
+    const delPct = (pct / 100) * baseAIU;
     return Math.abs(monto - delPct) < 1 ? "" : String(Math.round(monto));
   };
 
