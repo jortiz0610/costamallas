@@ -361,11 +361,16 @@ Endpoints API (`src/app/api/`):
 `cron/{sync-woo,diario}` · `dashboard/kpis` · `exportar/woocommerce` ·
 `facturacion/{config,cartera,sin-vencimiento,facturas}` (+ `[id]/{emitir,pago,recordatorio}`) ·
 `health` · `imagenes` (+ `upload`, `limpiar-rotas`) · `logs` ·
+`ai/costos` (qué cuesta cada tarea de IA, medido) ·
+`configuracion/agente-web` ·
 `mantenimiento/imagenes-ftp` (rescate FTP → WordPress; CRON_SECRET o admin) ·
 `marketing/{campanas,conexiones,leads,retorno,oauth/[plataforma],oauth/callback}` ·
 `nexus/{conexiones,conversaciones,mensajes,plantillas,flujos,estado,tiempos,webhook/[canal]}` ·
 `notificaciones` · `postventa/qr` · `productos` (+ `[id]`, `[id]/ficha`) ·
-`public/{lead,productos}` · `reportes-error` · `sembli/chat` · `sistema/health` ·
+`public/{lead,productos}` · **`public/agente`** (el agente de la web) y
+`public/agente/widget.js` (el chat que se pega en WordPress) ·
+`crm/cotizaciones/[id]/compartir` ·
+`reportes-error` · `sembli/chat` · `sistema/health` ·
 `stock` (+ `alertas`) · `usuarios` (+ `lista`, `[id]`, `[id]/2fa`) ·
 `woocommerce/{import,import-orders,test,diagnostico}` · `wordpress/test`.
 
@@ -492,7 +497,14 @@ Después vinieron sesiones más espaciadas, cada una con un tema:
   encontrado y corregido · las últimas 2 imágenes rotas rescatadas del FTP a
   WordPress.
 
-Último commit de referencia de este documento: **`11d3526`**.
+- **27-ago:** los enlaces de cotización que daban 404 (estaban todas en BORRADOR) ·
+  **"Compartir enlace"**, que es lo que por fin permite marcar una oferta como
+  ENVIADA sin SMTP y desbloquea el seguimiento · el costo de cada tarea de IA
+  flotando al lado de su botón, con el valor REAL de los registros · SEO con IA
+  restringido a SUPERADMIN · **agente de atención al cliente para
+  costamallas.com**.
+
+Último commit de referencia de este documento: **`451d8e4`**.
 
 ---
 
@@ -508,7 +520,8 @@ lo dicen en pantalla con el motivo.
 | WhatsApp / Nexus | Aprobación de Meta | El texto se arma y se guarda; el envío se registra como fallido con el motivo real |
 | Recargo de instalación por ciudad | Que gerencia los cargue | Los 17 servicios ya están; sin recargo, la cuadrilla a Santa Marta cuesta lo mismo que instalar al lado |
 | Alerta de tiempo de respuesta | Nada — funciona | Pero avisa en la corrida DIARIA, no al minuto 61: Hobby no deja más de un cron al día |
-| SEO masivo | Nada — funciona | Genera a la cola de revisión; falta que alguien lance el primer lote y apruebe |
+| SEO masivo | Nada — funciona | Genera a la cola de revisión; falta que alguien lance el primer lote y apruebe. **Solo SUPERADMIN** |
+| Agente web | Nada — funciona, probado contra producción | Nace APAGADO. Falta encenderlo, cargarle el WhatsApp de escalamiento y pegar el `<script>` en WordPress |
 | QR de encuesta | El enlace de reseñas de Google | No se genera ningún QR (uno impreso que no funciona no se puede corregir) |
 | Facturación electrónica | Elegir proveedor (Factus/Siigo/Alegra) | Modo "manual": la factura se emite sin ir a la DIAN |
 | Marketplaces | Cuentas de vendedor | Pestañas de configuración vacías |

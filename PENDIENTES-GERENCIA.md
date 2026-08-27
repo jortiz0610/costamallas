@@ -214,6 +214,35 @@ archivos.
 
 ---
 
+## 11. Encender el agente de la página web ⚠️ nuevo
+
+**Qué se necesita:** leer cómo responde, cargarle un WhatsApp, encenderlo, y pegar
+una línea en WordPress.
+
+El agente ya está construido y **probado contra producción con preguntas reales**.
+Nace **apagado** a propósito: encenderlo pone a un modelo a hablarle a clientes a
+nombre de Costamallas, y eso lo decide una persona.
+
+**Lo que hace:** responde dudas de la web (qué malla sirve para qué, medidas,
+precios del catálogo), pasa a un asesor en cuanto aparece un reclamo, un pago, un
+pedido o una garantía, y guarda el prospecto en el CRM. Cada conversación entra a
+Nexus, así que el asesor la ve y queda medida por el compromiso de la hora.
+
+**Lo que NO hace, a propósito:** no promete fechas, no da descuentos, no inventa
+precios de lo cortado a la medida, y no toca pagos ni pedidos.
+
+**Cuánto cuesta:** unos **US$ 0,03 por conversación** de 4 preguntas (medido). Trae
+tope diario, tope por conversación y máximo de mensajes, configurables.
+
+**Pasos:**
+1. Configuración → Agente web. Lea el saludo.
+2. Cargue el **WhatsApp** al que quiere que escale (sin él no sale el botón).
+3. Enciéndalo.
+4. Copie el `<script>` que sale ahí y péguelo en WordPress antes de `</body>`.
+   **Quite antes el chat viejo** (el del 304-310-9168) o van a salir dos burbujas.
+
+---
+
 ## Lo que está bloqueado esperando otra cosa (no es pregunta de gerencia)
 
 | Qué | Qué falta |
