@@ -179,10 +179,21 @@ export async function PUT(req: NextRequest, { params }: P) {
     }
   }
 
+  // Pasar el estado a ENVIADA a mano tiene que sellar la fecha, igual
+  // que enviar por correo o compartir el enlace. Sin `enviadaEn` el
+  // seguimiento no ve la cotización (filtra por estado ENVIADA **y**
+  // fecha no nula), y el panel seguía diciendo "Sin enviar" en una
+  // oferta marcada como enviada. Se sella una sola vez: es el origen del
+  // reloj de los tres toques.
+  const sellarEnvio =
+    estado === "ENVIADA" &&
+    !(await prisma.cotizacion.findUnique({ where: { id }, select: { enviadaEn: true } }))?.enviadaEn;
+
   const updated = await prisma.cotizacion.update({
     where: { id },
     data: {
       ...(estado && { estado }),
+      ...(sellarEnvio && { enviadaEn: new Date() }),
       ...(notas !== undefined && { notas }),
       ...(plantilla && { plantilla: plantilla === "PROPUESTA" ? "PROPUESTA" : "EXPRESS" }),
       ...(tiempoEntrega !== undefined && { tiempoEntrega: tiempoEntrega || null }),

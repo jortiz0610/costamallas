@@ -37,6 +37,7 @@ function DetalleContent() {
   const [tiempoEntrega, setTiempoEntrega] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [compartiendo, setCompartiendo] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["cotizacion", id],
@@ -73,11 +74,45 @@ function DetalleContent() {
   };
 
   const enlace = data?.publicId ? `${window.location.origin}/cotizacion/${data.publicId}` : "";
+  // Mientras es BORRADOR, el enlace existe pero NO abre: la página
+  // pública hace notFound() para que no se filtre una oferta a medio
+  // armar. Copiarlo tal cual era mandarle un 404 al cliente.
+  const enlaceAbre = data?.estado !== "BORRADOR";
 
-  const copiarEnlace = async () => {
-    if (!enlace) return toast.error("Esta cotización no tiene enlace público");
-    await navigator.clipboard.writeText(enlace);
-    toast.success("Enlace copiado — pégalo en WhatsApp");
+  /**
+   * Compartir el enlace ES entregar la oferta, así que hace lo mismo que
+   * enviarla por correo menos el correo: pasa a ENVIADA y arranca el
+   * reloj del seguimiento. Antes esto solo se lograba con /enviar, que
+   * exige SMTP y el correo del cliente — y aquí se trabaja por WhatsApp.
+   */
+  const compartirEnlace = async () => {
+    if (!data) return;
+    if (data.estado === "BORRADOR" && !confirm(
+      [
+        `El enlace de ${data.numero} no abre mientras sea borrador.`,
+        "",
+        "Al compartirlo, la cotización pasa a ENVIADA: el cliente va a poder verla",
+        "y arrancan los tres toques del seguimiento.",
+        "",
+        "¿Compartirla?",
+      ].join("\n"),
+    )) return;
+
+    setCompartiendo(true);
+    try {
+      const res = await fetch(`/api/crm/cotizaciones/${id}/compartir`, { method: "POST" });
+      const j = await res.json();
+      if (!res.ok || !j.success) return toast.error(j.error ?? "No se pudo compartir");
+
+      await navigator.clipboard.writeText(j.enlace).catch(() => undefined);
+      toast.success(
+        j.cambioDeEstado
+          ? "Enlace copiado. La cotización quedó como ENVIADA."
+          : "Enlace copiado — pégalo en WhatsApp",
+      );
+      qc.invalidateQueries({ queryKey: ["cotizacion", id] });
+      qc.invalidateQueries({ queryKey: ["crm-cotizaciones"] });
+    } finally { setCompartiendo(false); }
   };
 
   const enviarCorreo = async () => {
@@ -129,7 +164,10 @@ function DetalleContent() {
       <Topbar title={`Cotización ${data.numero}`} actions={
         <div className="flex items-center gap-2 no-print">
           <Link href="/crm/cotizaciones" className="btn-secondary btn-sm"><ArrowLeft size={13} /> Volver</Link>
-          <button onClick={copiarEnlace} className="btn-secondary btn-sm"><Link2 size={13} /> Enlace</button>
+          <button onClick={compartirEnlace} disabled={compartiendo} className="btn-secondary btn-sm">
+            {compartiendo ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={13} />}
+            {data.estado === "BORRADOR" ? "Compartir enlace" : "Enlace"}
+          </button>
           <button onClick={enviarCorreo} disabled={enviando} className="btn-secondary btn-sm">
             {enviando ? <Loader2 size={13} className="animate-spin" /> : <Mail size={13} />} Enviar
           </button>
@@ -170,6 +208,13 @@ function DetalleContent() {
                 <div className="mt-3 pt-3 border-t divider">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Enlace para el cliente</p>
                   <p className="text-[10px] font-mono text-muted break-all">{enlace}</p>
+                  {!enlaceAbre && (
+                    <p className="text-[11px] mt-2 leading-snug" style={{ color: "#d97706" }}>
+                      ⚠️ Todavía <strong>no abre</strong>: mientras la cotización sea borrador, quien entre
+                      ve un 404. Es a propósito, para que no se filtre una oferta a medio armar.
+                      Usa <strong>Compartir enlace</strong> y pasa a Enviada.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
