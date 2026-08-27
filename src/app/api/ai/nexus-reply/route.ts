@@ -116,6 +116,21 @@ export async function POST(req: NextRequest) {
       maxTokens: 700,
     });
 
+    // El costo se registra igual que en las demás tareas de IA. No es
+    // contabilidad: es de donde sale el precio que se le enseña al asesor
+    // antes de apretar el botón (`/api/ai/costos` lee estos registros).
+    // Sin esto, esta tarea era la única que seguía mostrando un estimado.
+    await prisma.log
+      .create({
+        data: {
+          usuarioId: user.sub,
+          accion: "IA_NEXUS_REPLY",
+          detalle: `Conversación ${conv.id}`,
+          resultado: `usd=${costoUSD.toFixed(5)}`,
+        },
+      })
+      .catch(() => undefined);
+
     const transferir = texto.includes("[TRANSFERIR]");
     return NextResponse.json({
       success: true,

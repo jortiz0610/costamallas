@@ -13,7 +13,7 @@ import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/contexts/BrandContext";
 import { useState } from "react";
-import { puedeVerModulo, esAdmin } from "@/lib/permisos";
+import { puedeVerModulo, esAdmin, esSuperadmin } from "@/lib/permisos";
 
 const ERP_COLOR   = "#185FA5";
 const CRM_COLOR   = "#BA7517";
@@ -35,8 +35,10 @@ const ERP_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { section: "Catálogo" },
   { href: "/productos", label: "Productos", icon: Package },
-  // Lanzar el lote gasta dinero y aprobarlo publica en la tienda: solo admin.
-  { href: "/productos/seo", label: "SEO con IA", icon: Sparkles, soloAdmin: true },
+  // Solo SUPERADMIN: lanzar el lote gasta dinero y aprobarlo publica en la
+  // tienda. Para el resto del equipo es un modulo que no necesitan y que
+  // solo agrega ruido al menu.
+  { href: "/productos/seo", label: "SEO con IA", icon: Sparkles, soloSuperadmin: true },
   { href: "/imagenes", label: "Imágenes", icon: ImageIcon },
   { href: "/categorias", label: "Catálogos", icon: Tag },
   { section: "Operaciones" },
@@ -147,6 +149,7 @@ export function Sidebar({
     // Módulos reservados a admin/superadmin. Ocultar el enlace es solo
     // presentación: la ruta y su API validan el rol por su cuenta.
     if ((item as { soloAdmin?: boolean }).soloAdmin && !esAdmin(user?.rol)) return null;
+    if ((item as { soloSuperadmin?: boolean }).soloSuperadmin && !esSuperadmin(user?.rol)) return null;
 
     const Icon = item.icon!;
     const href = (item as { href: string }).href;

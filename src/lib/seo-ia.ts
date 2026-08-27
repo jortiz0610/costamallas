@@ -16,6 +16,7 @@ import { prisma } from "@/lib/prisma";
 import { pedirJSON } from "@/lib/sembli/agente";
 import { MODELO_POR_TAREA, MODELOS } from "@/lib/sembli/modelos";
 import { generateSlug } from "@/lib/utils";
+import { costoDeTarea } from "@/lib/costos-ia";
 
 export interface SeoIA {
   seoTitulo: string;
@@ -214,6 +215,10 @@ export interface Estimacion {
   costoUSD: number;
   modelo: string;
   usdPorMTok: { entrada: number; salida: number };
+  /** "medido" cuando el precio sale del historial real, no del cálculo. */
+  origen: "medido" | "estimado";
+  /** Cuántas corridas anteriores respaldan el número. */
+  corridas: number;
 }
 
 export async function estimarLote(productoIds: string[]): Promise<Estimacion> {
@@ -233,8 +238,29 @@ export async function estimarLote(productoIds: string[]): Promise<Estimacion> {
 
   const tokensEntrada = Math.round(chars / CHARS_POR_TOKEN);
   const tokensSalida = productos.length * TOKENS_SALIDA_TIPICOS;
-  const costoUSD =
-    (tokensEntrada / 1_000_000) * tarifa.entrada + (tokensSalida / 1_000_000) * tarifa.salida;
 
-  return { productos: productos.length, tokensEntrada, tokensSalida, costoUSD, modelo, usdPorMTok: tarifa };
+  // Si ya se generó SEO alguna vez, manda lo que costó DE VERDAD.
+  //
+  // El cálculo por tamaño de prompt se quedaba corto: daba US$ 0,012 por
+  // producto y la mediana real de seis corridas es US$ 0,0176, un 30 %
+  // más — los productos de verdad traen más imágenes que describir de
+  // las que supone la fórmula. Un aviso de costo que se queda corto es
+  // peor que no tenerlo.
+  const real = await costoDeTarea("seo");
+  const porProducto =
+    real.origen === "medido"
+      ? real.costoUSD
+      : ((tokensEntrada / 1_000_000) * tarifa.entrada + (tokensSalida / 1_000_000) * tarifa.salida) /
+        Math.max(productos.length, 1);
+
+  return {
+    productos: productos.length,
+    tokensEntrada,
+    tokensSalida,
+    costoUSD: porProducto * productos.length,
+    modelo,
+    usdPorMTok: tarifa,
+    origen: real.origen,
+    corridas: real.corridas,
+  };
 }

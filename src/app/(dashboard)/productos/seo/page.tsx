@@ -27,7 +27,7 @@ import {
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { esAdmin } from "@/lib/permisos";
+import { esSuperadmin } from "@/lib/permisos";
 import { cn } from "@/lib/utils";
 
 interface Candidato {
@@ -37,6 +37,7 @@ interface Candidato {
 interface Estimacion {
   productos: number; tokensEntrada: number; tokensSalida: number;
   costoUSD: number; modelo: string; usdPorMTok: { entrada: number; salida: number };
+  origen: "medido" | "estimado"; corridas: number;
 }
 interface DatosLote {
   productos: Candidato[];
@@ -62,7 +63,7 @@ const miles = (v: number) => v.toLocaleString("es-CO");
 
 function Contenido() {
   const { user } = useAuth();
-  const admin = esAdmin(user?.rol);
+  const admin = esSuperadmin(user?.rol);
 
   const [pestana, setPestana] = useState<"generar" | "revisar">("generar");
 
@@ -161,10 +162,10 @@ function Contenido() {
   if (!admin) {
     return (
       <div className="card p-6 max-w-lg">
-        <p className="text-sm font-bold text-soft">Solo administración</p>
+        <p className="text-sm font-bold text-soft">Solo el superadministrador</p>
         <p className="text-xs text-muted mt-2">
-          Lanzar lotes de IA gasta dinero y aprobar el resultado publica en la tienda, así que está
-          reservado a los administradores.
+          Lanzar lotes de IA gasta dinero y aprobar el resultado publica en costamallas.com, así que
+          este módulo está reservado al superadministrador.
         </p>
       </div>
     );
@@ -239,14 +240,32 @@ function Contenido() {
                   <Dato label="Sin SEO" valor={String(data.estimacion.productos)} sub="productos candidatos" />
                   <Dato label="Tokens de entrada" valor={miles(data.estimacion.tokensEntrada)} sub="estimado" />
                   <Dato label="Tokens de salida" valor={miles(data.estimacion.tokensSalida)} sub="estimado" />
-                  <Dato label="Costo del total" valor={usd(data.estimacion.costoUSD)} sub={data.estimacion.modelo} destacado />
+                  <Dato
+                    label="Costo del total"
+                    valor={usd(data.estimacion.costoUSD)}
+                    sub={data.estimacion.origen === "medido"
+                      ? `medido sobre ${data.estimacion.corridas} corrida(s)`
+                      : `estimado · ${data.estimacion.modelo}`}
+                    destacado
+                  />
                 </div>
                 <p className="text-[11px] text-muted mt-3 leading-relaxed">
-                  Es una <strong>estimación</strong>, no una medida: la entrada sale del tamaño real de cada
-                  prompt y la salida, de una corrida típica. El gasto real se va sumando abajo mientras el
-                  lote corre, y ése es el que aparece en la factura.
-                  Tarifa {data.estimacion.modelo}: US$ {data.estimacion.usdPorMTok.entrada}/MTok de entrada,
-                  US$ {data.estimacion.usdPorMTok.salida}/MTok de salida.
+                  {data.estimacion.origen === "medido" ? (
+                    <>
+                      El costo sale de lo que <strong>costó de verdad</strong>: la mediana de las últimas{" "}
+                      {data.estimacion.corridas} generaciones registradas, no de un cálculo. Se prefiere así
+                      porque calcularlo por el tamaño del texto se quedaba un 30 % corto — los productos
+                      reales traen más imágenes que describir de las que supone la fórmula.
+                    </>
+                  ) : (
+                    <>
+                      Es una <strong>estimación</strong>: nunca se ha generado SEO, así que el número sale
+                      del tamaño de cada prompt. En cuanto se genere el primero, pasa a ser el costo medido.
+                    </>
+                  )}{" "}
+                  El gasto real se va sumando abajo mientras el lote corre, y ése es el que aparece en la
+                  factura. Tarifa {data.estimacion.modelo}: US$ {data.estimacion.usdPorMTok.entrada}/MTok de
+                  entrada, US$ {data.estimacion.usdPorMTok.salida}/MTok de salida.
                 </p>
               </div>
 

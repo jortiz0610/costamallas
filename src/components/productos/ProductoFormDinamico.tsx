@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { GrupoBloques } from "./Bloques";
 import { ProgresoProducto, calcularPasos } from "./ProgresoProducto";
 import { Save, Loader2, Plus, Trash2, Check, X, Star, Upload, ImageIcon, Sparkles, FileText, Tag as TagIcon } from "lucide-react";
+import { CostoIA } from "@/components/ia/CostoIA";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -420,6 +421,7 @@ function AsistenteProducto({
             onClick={() => pedir({ instruccion: libre.trim(), titulo: "Respuesta" })}
           >
             {cargando === "libre" ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Generar
+            <CostoIA tarea="producto" className="ml-1" />
           </button>
         </div>
       </div>
@@ -598,6 +600,7 @@ function FichaTecnicaUploader({ productoId, urlInicial, nombreInicial, set, setE
           </div>
           <button type="button" onClick={analizar} disabled={analizando} className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: "var(--brand-color)" }}>
             {analizando ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />} Analizar con IA
+            <CostoIA tarea="ficha" className="ml-1" />
           </button>
           <button type="button" onClick={() => fileRef.current?.click()} disabled={subiendo} className="btn-secondary btn-sm">Reemplazar</button>
           <button type="button" onClick={eliminar} className="text-muted hover:text-red-500"><Trash2 size={15} /></button>
@@ -759,6 +762,7 @@ function SeoTab({ form, set, productoId }: { form: Record<string, unknown>; set:
         </div>
         <button type="button" onClick={autogenerar} disabled={cargando} className="btn-primary btn-sm">
           {cargando ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />} Autogenerar con IA
+          <CostoIA tarea="seo" className="ml-1" />
         </button>
       </div>
 

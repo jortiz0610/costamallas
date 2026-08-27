@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { esAdmin } from "@/lib/permisos";
+import { esSuperadmin } from "@/lib/permisos";
 import { aprobarPropuesta, rechazarPropuesta } from "@/lib/seo-cola";
 
 export const maxDuration = 60;
@@ -23,8 +23,10 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
-  if (!esAdmin(user.rol)) {
-    return NextResponse.json({ success: false, error: "Solo administración revisa el SEO propuesto" }, { status: 403 });
+  // Aprobar una propuesta publica el texto en la tienda: reservado al
+  // superadministrador, igual que lanzar el lote.
+  if (!esSuperadmin(user.rol)) {
+    return NextResponse.json({ success: false, error: "Solo el superadministrador revisa el SEO propuesto" }, { status: 403 });
   }
 
   const estado = req.nextUrl.searchParams.get("estado") ?? "PROPUESTO";
@@ -68,8 +70,10 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
-  if (!esAdmin(user.rol)) {
-    return NextResponse.json({ success: false, error: "Solo administración revisa el SEO propuesto" }, { status: 403 });
+  // Aprobar una propuesta publica el texto en la tienda: reservado al
+  // superadministrador, igual que lanzar el lote.
+  if (!esSuperadmin(user.rol)) {
+    return NextResponse.json({ success: false, error: "Solo el superadministrador revisa el SEO propuesto" }, { status: 403 });
   }
 
   const body = await req.json().catch(() => ({}));

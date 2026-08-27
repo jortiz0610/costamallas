@@ -15,7 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
-import { esAdmin } from "@/lib/permisos";
+import { esSuperadmin } from "@/lib/permisos";
 import { estimarLote } from "@/lib/seo-ia";
 import { generarTanda } from "@/lib/seo-cola";
 import { estadoCredencial } from "@/lib/sembli/agente";
@@ -38,8 +38,11 @@ function condiciones(params: URLSearchParams) {
 export async function GET(req: NextRequest) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
-  if (!esAdmin(user.rol)) {
-    return NextResponse.json({ success: false, error: "Solo administración puede lanzar lotes de IA" }, { status: 403 });
+  // Solo SUPERADMIN: lanzar el lote gasta dinero de verdad y aprobar el
+  // resultado publica en costamallas.com. No es un módulo que el resto
+  // del equipo necesite.
+  if (!esSuperadmin(user.rol)) {
+    return NextResponse.json({ success: false, error: "Solo el superadministrador puede lanzar lotes de IA" }, { status: 403 });
   }
 
   const where = condiciones(req.nextUrl.searchParams);
@@ -73,8 +76,11 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
-  if (!esAdmin(user.rol)) {
-    return NextResponse.json({ success: false, error: "Solo administración puede lanzar lotes de IA" }, { status: 403 });
+  // Solo SUPERADMIN: lanzar el lote gasta dinero de verdad y aprobar el
+  // resultado publica en costamallas.com. No es un módulo que el resto
+  // del equipo necesite.
+  if (!esSuperadmin(user.rol)) {
+    return NextResponse.json({ success: false, error: "Solo el superadministrador puede lanzar lotes de IA" }, { status: 403 });
   }
 
   const body = await req.json().catch(() => ({}));

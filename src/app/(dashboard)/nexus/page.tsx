@@ -16,6 +16,7 @@ import { esAdmin } from "@/lib/permisos";
 import { timeAgoCO } from "@/lib/timezone";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
+import { CostoIA } from "@/components/ia/CostoIA";
 
 // ── Tipos ────────────────────────────────────────────────────────
 
@@ -339,10 +340,17 @@ function ChatView({ conv, onMarcarResuelta }: { conv: Conversacion; onMarcarResu
       {/* Input de respuesta */}
       {conv.estado === "ABIERTA" ? (
         <div className="flex items-center gap-2 px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
-          <button onClick={sugerirIA} disabled={sugiriendo} title="Sugerir respuesta con IA"
-            className="w-10 h-10 rounded-xl flex items-center justify-center border divider text-muted hover:surface-2 transition-all disabled:opacity-50 flex-shrink-0">
-            {sugiriendo ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} style={{ color: brand.brandColor }} />}
-          </button>
+          {/* El costo va flotando sobre el botón: la barra de respuesta no
+              tiene sitio para una etiqueta más sin apretarlo todo. */}
+          <div className="relative flex-shrink-0">
+            <button onClick={sugerirIA} disabled={sugiriendo} title="Sugerir respuesta con IA"
+              className="w-10 h-10 rounded-xl flex items-center justify-center border divider text-muted hover:surface-2 transition-all disabled:opacity-50">
+              {sugiriendo ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} style={{ color: brand.brandColor }} />}
+            </button>
+            <span className="absolute -top-2 left-1/2 -translate-x-1/2">
+              <CostoIA tarea="nexus" />
+            </span>
+          </div>
           <input
             value={texto}
             onChange={e => setTexto(e.target.value)}
