@@ -7,6 +7,7 @@ import {
   Settings, Link2, Check, X, Loader2, Eye, EyeOff, Building2, Palette, Upload, ImageIcon,
   ShoppingBag, Store, Users, Globe, Smartphone, Instagram, Facebook, Mail, MessageSquare,
   Plus, PlugZap, ChevronDown, BookOpen, Radio, Sparkles, Route, Percent, Star, Hash,
+  Bot,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useBrand } from "@/contexts/BrandContext";
@@ -19,6 +20,7 @@ import { TabPostventa } from "@/components/configuracion/TabPostventa";
 import { TabConsecutivos } from "@/components/configuracion/TabConsecutivos";
 import { TabWordPress } from "@/components/configuracion/TabWordPress";
 import { TabInstalacion } from "@/components/configuracion/TabInstalacion";
+import { TabAgenteWeb } from "@/components/configuracion/TabAgenteWeb";
 import { CredencialesCanal, type ConexionCanal } from "@/components/configuracion/CredencialesCanal";
 
 interface WCStatus { configured: boolean; ok?: boolean; storeName?: string; version?: string; error?: string; }
@@ -1087,6 +1089,7 @@ const TABS = [
   { id: "instalacion",  label: "Instalación",   icon: PlugZap     },
   { id: "facturacion",  label: "Facturación",   icon: Building2   },
   { id: "canales",      label: "Canales & Redes", icon: Radio     },
+  { id: "agente_web",   label: "Agente web",    icon: Bot         },
   { id: "marketing",    label: "Conexiones Ads", icon: Radio      },
   { id: "woocommerce",  label: "WooCommerce",   icon: Link2       },
   { id: "falabella",    label: "Falabella",     icon: ShoppingBag },
@@ -1101,7 +1104,7 @@ function ConfiguracionContent() {
 
   // Conexiones e IA: solo superadmin. Empresa: admin+superadmin.
   const superadmin = user?.rol === "SUPERADMIN";
-  const soloSuper = new Set(["ia", "facturacion", "canales", "marketing", "woocommerce", "falabella", "mercadolibre", "wp_users"]);
+  const soloSuper = new Set(["ia", "facturacion", "canales", "agente_web", "marketing", "woocommerce", "falabella", "mercadolibre", "wp_users"]);
   const tabsVisibles = TABS.filter(t => superadmin || !soloSuper.has(t.id));
 
   const initial = searchParams.get("tab") ?? "empresa";
@@ -1137,6 +1140,7 @@ function ConfiguracionContent() {
           {tab === "instalacion"  && <TabInstalacion />}
           {tab === "facturacion"  && <TabFacturacion />}
           {tab === "canales"      && <TabCanales />}
+          {tab === "agente_web"   && <TabAgenteWeb />}
           {tab === "marketing"    && <TabMarketingAds />}
           {tab === "woocommerce"  && <TabWooCommerce />}
           {tab === "falabella"    && (

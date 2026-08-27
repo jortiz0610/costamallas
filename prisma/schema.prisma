@@ -1105,6 +1105,14 @@ model NexusConversacion {
   /// conteste, y un aviso que se repite deja de leerse a la tercera vez.
   alertaTiempoEn     DateTime?
 
+  /// Secreto con el que el navegador del cliente retoma SU conversación
+  /// con el agente de la web. No se puede usar el id: con uno cualquiera
+  /// se leería la conversación de otra persona.
+  tokenWeb           String?   @unique
+  /// Lo que lleva gastado esta conversación en IA. Permite cortar una
+  /// charla que se fue de precio sin sumar toda la tabla en cada mensaje.
+  costoUSD           Float     @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
