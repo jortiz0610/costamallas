@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import { urlPortal } from "@/lib/url-portal";
 import { getUserFromRequest, canWrite } from "@/lib/auth";
 import { enviarCorreo } from "@/lib/correo";
 import { getMarca } from "@/lib/marca";
@@ -72,7 +73,11 @@ export async function POST(req: NextRequest, { params }: P) {
   const publicId = cot.publicId ?? randomBytes(16).toString("base64url");
 
   const marca = await getMarca();
-  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? new URL(req.url).origin;
+  // El enlace tiene que apuntar al PORTAL. Con NEXT_PUBLIC_APP_URL
+  // apuntaba a la tienda: el cliente abría el correo y veía un 404
+  // de WordPress. No se habia notado porque el correo nunca ha
+  // llegado a salir — falta el SMTP.
+  const base = urlPortal(req);
   const enlace = `${base}/cotizacion/${publicId}`;
 
   const vence = new Date(cot.createdAt.getTime() + cot.validezDias * 86400000)

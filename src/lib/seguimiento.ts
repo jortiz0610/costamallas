@@ -26,6 +26,7 @@
 // ============================================================
 
 import { prisma } from "@/lib/prisma";
+import { urlPortal } from "@/lib/url-portal";
 import { enviarCorreo, correoConfigurado } from "@/lib/correo";
 import { enviarWhatsAppDirecto } from "@/lib/nexus/canales";
 import { getMarca } from "@/lib/marca";
@@ -147,9 +148,17 @@ function marcadores(cot: NonNullable<CotizacionSeg>, base: string, nosotros: str
   };
 }
 
-/** La URL pública del portal. Es lo que va en el enlace del correo. */
+/**
+ * La URL del portal. Es lo que va en el enlace de los tres correos.
+ *
+ * NO sale de `NEXT_PUBLIC_APP_URL`: esa variable apunta a la TIENDA
+ * (costamallas.com), así que el enlace del seguimiento habría llevado al
+ * cliente a un 404 de WordPress. Aquí no hay petición de la que sacar el
+ * origen —esto corre en la corrida diaria—, así que se usa `PORTAL_URL`
+ * o el dominio de producción.
+ */
 export function urlBase(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+  return urlPortal();
 }
 
 // ── Correo ──────────────────────────────────────────────────

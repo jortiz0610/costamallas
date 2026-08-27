@@ -15,6 +15,7 @@ import {
 } from "@/lib/agente-web/config";
 import { estadoCredencial } from "@/lib/sembli/agente";
 import { prisma } from "@/lib/prisma";
+import { urlPortal } from "@/lib/url-portal";
 
 export const dynamic = "force-dynamic";
 
@@ -41,10 +42,10 @@ export async function GET(req: NextRequest) {
       iaConfigurada: credencial.origen !== "ninguno",
       conversaciones,
       // Lo que hay que pegar en WordPress. Se devuelve armado para que
-      // nadie tenga que componer la URL a mano.
-      embed: `<script src="${
-        process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://portal.costamallas.com"
-      }/api/public/agente/widget.js" defer></script>`,
+      // nadie tenga que componer la URL a mano — y con `urlPortal`, no
+      // con NEXT_PUBLIC_APP_URL, que apunta a la tienda y hacía que el
+      // <script> que se copiaba señalara al sitio equivocado.
+      embed: `<script src="${urlPortal(req)}/api/public/agente/widget.js" defer></script>`,
     },
   });
 }

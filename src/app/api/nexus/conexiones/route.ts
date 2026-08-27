@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { urlPortal } from "@/lib/url-portal";
 import { getUserFromRequest } from "@/lib/auth";
 import { prepararConfig } from "@/lib/nexus/canales";
 
@@ -48,7 +49,9 @@ export async function POST(req: NextRequest) {
   // Antes se armaba con NEXTAUTH_URL/VERCEL_URL, que en este proyecto no
   // existen: el webhook quedaba apuntando a localhost y había que
   // corregirlo a mano al pegarlo en Meta.
-  const base = (process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin).replace(/\/$/, "");
+  // Ojo: NEXT_PUBLIC_APP_URL apunta a la tienda; el webhook lo tiene
+  // que recibir el portal.
+  const base = urlPortal(req);
   const webhookUrl = `${base}/api/nexus/webhook/${canal}`;
 
   const conexion = await prisma.nexusConexion.create({

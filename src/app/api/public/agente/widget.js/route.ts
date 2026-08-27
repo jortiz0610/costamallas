@@ -18,12 +18,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getConfigAgenteWeb } from "@/lib/agente-web/config";
 import { getMarca } from "@/lib/marca";
+import { urlPortal } from "@/lib/url-portal";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const [cfg, marca] = await Promise.all([getConfigAgenteWeb(), getMarca()]);
-  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? new URL(req.url).origin;
+  // NO se usa NEXT_PUBLIC_APP_URL: apunta a la TIENDA, y con ella el
+  // widget le hablaba a costamallas.com/api/public/agente → 404.
+  const base = urlPortal(req);
 
   const datos = JSON.stringify({
     api: `${base}/api/public/agente`,

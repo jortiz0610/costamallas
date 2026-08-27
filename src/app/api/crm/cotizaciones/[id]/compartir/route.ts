@@ -32,6 +32,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import { urlPortal } from "@/lib/url-portal";
 import { getUserFromRequest, canWrite } from "@/lib/auth";
 
 type P = { params: Promise<{ id: string }> };
@@ -98,7 +99,9 @@ export async function POST(req: NextRequest, { params }: P) {
     select: { estado: true, enviadaEn: true },
   });
 
-  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? new URL(req.url).origin;
+  // El enlace tiene que apuntar al PORTAL. Con NEXT_PUBLIC_APP_URL
+  // apuntaba a la tienda y el cliente recibía un 404 de WordPress.
+  const base = urlPortal(req);
   const enlace = `${base}/cotizacion/${publicId}`;
 
   await prisma.log
