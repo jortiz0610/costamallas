@@ -63,6 +63,16 @@ export default async function CotizacionPublica({ params }: P) {
     descuento: Number(cotizacion.descuento),
     iva: Number(cotizacion.iva),
     total: Number(cotizacion.total),
+    // AIU. Sin esto el documento no enseña el desglose y la oferta de
+    // una obra sale con un IVA que no se explica solo.
+    aiuActivo: Boolean(cotizacion.aiuActivo),
+    aiuAdminPct: Number(cotizacion.aiuAdminPct ?? 0),
+    aiuImprevPct: Number(cotizacion.aiuImprevPct ?? 0),
+    aiuUtilidadPct: Number(cotizacion.aiuUtilidadPct ?? 0),
+    aiuAdmin: Number(cotizacion.aiuAdmin ?? 0),
+    aiuImprev: Number(cotizacion.aiuImprev ?? 0),
+    aiuUtilidad: Number(cotizacion.aiuUtilidad ?? 0),
+    ivaUtilidad: Number(cotizacion.ivaUtilidad ?? 0),
     tiempoEntrega: cotizacion.tiempoEntrega,
     anticipoPct: cotizacion.anticipoPct == null ? null : Number(cotizacion.anticipoPct),
     plantilla: cotizacion.plantilla,

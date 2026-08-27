@@ -5,8 +5,7 @@ import { useParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
 import {
-  ArrowLeft, Printer, Loader2, Save, CheckCircle2, Link2, Send, Eye, Mail, AlertTriangle,
-} from "lucide-react";
+  ArrowLeft, Printer, Loader2, Save, CheckCircle2, Link2, Send, Eye, Mail, AlertTriangle, Pencil } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { useBrand } from "@/contexts/BrandContext";
@@ -140,6 +139,16 @@ function DetalleContent() {
     descuento: Number(data.descuento ?? 0),
     iva: Number(data.iva ?? 0),
     total: Number(data.total),
+    // AIU. Sin esto el documento no enseña el desglose y la oferta de
+    // una obra sale con un IVA que no se explica solo.
+    aiuActivo: Boolean(data.aiuActivo),
+    aiuAdminPct: Number(data.aiuAdminPct ?? 0),
+    aiuImprevPct: Number(data.aiuImprevPct ?? 0),
+    aiuUtilidadPct: Number(data.aiuUtilidadPct ?? 0),
+    aiuAdmin: Number(data.aiuAdmin ?? 0),
+    aiuImprev: Number(data.aiuImprev ?? 0),
+    aiuUtilidad: Number(data.aiuUtilidad ?? 0),
+    ivaUtilidad: Number(data.ivaUtilidad ?? 0),
     tiempoEntrega,
     anticipoPct: data.anticipoPct == null ? null : Number(data.anticipoPct),
     plantilla,
@@ -164,6 +173,11 @@ function DetalleContent() {
       <Topbar title={`Cotización ${data.numero}`} actions={
         <div className="flex items-center gap-2 no-print">
           <Link href="/crm/cotizaciones" className="btn-secondary btn-sm"><ArrowLeft size={13} /> Volver</Link>
+          {(data.estado === "BORRADOR" || data.estado === "ENVIADA") && (
+            <Link href={`/crm/cotizaciones/${id}/editar`} className="btn-secondary btn-sm">
+              <Pencil size={13} /> Editar
+            </Link>
+          )}
           <button onClick={compartirEnlace} disabled={compartiendo} className="btn-secondary btn-sm">
             {compartiendo ? <Loader2 size={13} className="animate-spin" /> : <Link2 size={13} />}
             {data.estado === "BORRADOR" ? "Compartir enlace" : "Enlace"}

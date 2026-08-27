@@ -36,17 +36,30 @@ export async function PUT(req: NextRequest, { params }: P) {
   const body = await req.json();
   const { estado, notas, items, plantilla, validezDias, descuentoGlobal, ciudadInstalacion, direccionInstalacion, tieneInstalacion, anticipoPct, tiempoEntrega } = body;
 
-  // ── Edición del borrador ──
-  // Solo mientras la cotización no se haya enviado: una oferta que el
-  // cliente ya tiene en la mano no puede cambiar de precio por detrás.
+  // ── Edición de los ítems ──
+  //
+  // Antes solo se podía en BORRADOR. Dejó de servir el día que compartir
+  // el enlace pasó la oferta a ENVIADA: con esa regla, toda cotización
+  // que se le manda a un cliente quedaba congelada, y corregir un precio
+  // mal puesto obligaba a rehacerla entera.
+  //
+  // Qué se permite ahora y por qué:
+  //   BORRADOR  · libre, no ha salido de la casa
+  //   ENVIADA   · sí, pero el cliente YA tiene el enlace y ve lo que haya
+  //               guardado. La pantalla lo advierte y aquí queda registro.
+  //   APROBADA  · NO. Ya generó un pedido; cambiarle los ítems dejaría el
+  //               pedido diciendo una cosa y la oferta otra.
+  //   RECHAZADA / VENCIDA · NO. Son historia, y reescribir el pasado hace
+  //               que los informes dejen de significar algo.
+  const EDITABLES = new Set(["BORRADOR", "ENVIADA"]);
   if (Array.isArray(items)) {
-    const actual = await prisma.cotizacion.findUnique({ where: { id }, select: { estado: true } });
+    const actual = await prisma.cotizacion.findUnique({ where: { id }, select: { estado: true, numero: true } });
     if (!actual) return NextResponse.json({ success: false, error: "No encontrada" }, { status: 404 });
-    if (actual.estado !== "BORRADOR") {
-      return NextResponse.json(
-        { success: false, error: "Solo se pueden editar los ítems de una cotización en borrador." },
-        { status: 400 },
-      );
+    if (!EDITABLES.has(actual.estado)) {
+      const motivo = actual.estado === "APROBADA"
+        ? "Esta oferta ya se aprobó y generó un pedido: cambiarle los ítems dejaría el pedido descuadrado."
+        : `Una cotización en estado ${actual.estado} ya no se edita.`;
+      return NextResponse.json({ success: false, error: motivo }, { status: 400 });
     }
     if (!items.length) {
       return NextResponse.json({ success: false, error: "Agrega al menos un producto" }, { status: 400 });
@@ -113,7 +126,10 @@ export async function PUT(req: NextRequest, { params }: P) {
           ...(tieneInstalacion !== undefined && { tieneInstalacion: Boolean(tieneInstalacion) }),
           ciudadInstalacion: ciudadInstalacion || null,
           direccionInstalacion: direccionInstalacion || null,
-          tiempoEntrega: tiempoEntrega || null,
+          // Solo si viene. El cotizador no tiene este campo —se edita en
+          // la ficha—, y ponerlo siempre borraba el plazo propio de la
+          // oferta cada vez que alguien tocaba los ítems.
+          ...(tiempoEntrega !== undefined && { tiempoEntrega: tiempoEntrega || null }),
           descuentoPct: descPct,
           anticipoPct: anticipo,
           aprobacionEstado: veredicto.requiere ? "PENDIENTE" : "NO_REQUIERE",
@@ -127,9 +143,25 @@ export async function PUT(req: NextRequest, { params }: P) {
       });
     });
 
+    // Editar algo que el cliente ya tiene en la mano deja rastro: si
+    // mañana reclama que el precio cambió, hay con qué responder.
+    if (actual.estado === "ENVIADA") {
+      await prisma.log
+        .create({
+          data: {
+            usuarioId: user.sub,
+            accion: "COTIZACION_EDITADA_ENVIADA",
+            detalle: `${actual.numero} · el cliente ya tenía el enlace`,
+            resultado: `total ${cuenta.total}`,
+          },
+        })
+        .catch(() => undefined);
+    }
+
     return NextResponse.json({
       success: true,
       data: guardada,
+      editadaEnviada: actual.estado === "ENVIADA",
       aviso: veredicto.requiere
         ? `Esta oferta necesita aprobación de un administrador para poder enviarse. ${veredicto.motivo}`
         : undefined,

@@ -2,7 +2,7 @@
 import { useState, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { Plus, Search, X, Loader2, Trash2, FileText, ExternalLink, Eye } from "lucide-react";
+import { Plus, Search, X, Loader2, Trash2, FileText, ExternalLink, Eye, Pencil } from "lucide-react";
 import toast from "react-hot-toast";
 import { formatCOP } from "@/lib/utils";
 import { calcularCotizacion } from "@/lib/cotizacion-calculo";
@@ -240,6 +240,17 @@ function CotizacionesContent() {
                   <button onClick={() => cambiarEstado(c.id,"APROBADA")} className="px-2.5 py-1 rounded-lg bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Aprobar</button>
                   <button onClick={() => cambiarEstado(c.id,"RECHAZADA")} className="px-2.5 py-1 rounded-lg bg-red-100 dark:bg-red-500/15 text-red-600 dark:text-red-300 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Rechazar</button>
                 </>}
+                {/* Editar solo donde de verdad se puede: una oferta
+                    aprobada ya generó pedido, y una rechazada o vencida
+                    es historia. El servidor lo vuelve a comprobar. */}
+                {(c.estado === "BORRADOR" || c.estado === "ENVIADA") && (
+                  <Link
+                    href={`/crm/cotizaciones/${c.id}/editar`}
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 surface-2 text-muted hover:text-soft"
+                  >
+                    <Pencil size={12} /> Editar
+                  </Link>
+                )}
                 <Link href={`/crm/cotizaciones/${c.id}`} className="px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1" style={{ backgroundColor: CRM_COLOR + "18", color: CRM_COLOR }}>
                   <Eye size={12} /> Ver
                 </Link>
