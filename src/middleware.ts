@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
+import { esLectura, esEscape } from "@/lib/rol-prueba";
 
 // /api/cron y /api/mantenimiento: la propia ruta valida el CRON_SECRET
 //   (Vercel Cron no envía cookie de sesión, y las tareas de
@@ -60,6 +61,23 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
   // ── Verificar autenticación ───────────────
   const user = await getUserFromRequest(req);
 
+  // ── Modo prueba: SOLO LECTURA ─────────────
+  // El bloqueo va AQUÍ, y no en cada ruta, porque este es el único sitio
+  // por el que pasan todas. Si mañana alguien agrega un POST nuevo, ya
+  // queda cubierto sin acordarse de nada. Protegerlo ruta por ruta falla
+  // el día que a alguien se le olvide una — y ese día se guardan datos
+  // que nadie quería guardar.
+  if (user?.rolPrueba && !esLectura(req.method) && !esEscape(pathname)) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Estás viendo el portal como ${user.rol}. Es modo de prueba: no se guarda nada. Sal del modo prueba para hacer cambios.`,
+        rolPrueba: true,
+      },
+      { status: 403 },
+    );
+  }
+
   // Ruta API sin autenticación → 401
   if (pathname.startsWith("/api/")) {
     if (!user) {
@@ -74,6 +92,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     headers.set("x-user-id", user.sub);
     headers.set("x-user-email", user.email);
     headers.set("x-user-rol", user.rol);
+    if (user.rolPrueba) headers.set("x-rol-prueba", "1");
 
     return NextResponse.next({ request: { headers } });
   }

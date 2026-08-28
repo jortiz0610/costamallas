@@ -6,6 +6,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import type { JWTPayload, Rol } from "@/types";
+import { COOKIE_ROL_PRUEBA, esRolProbable } from "@/lib/rol-prueba";
 
 const COOKIE_NAME = "cm_token";
 const COOKIE_NAME_REFRESH = "cm_refresh";
@@ -114,10 +115,30 @@ export function getTokenFromRequest(req: NextRequest): string | null {
   return null;
 }
 
+/**
+ * El usuario de la petición, con el rol de prueba aplicado si lo hay.
+ *
+ * ⚠️ La regla que sostiene toda la función "ver el portal como…": la
+ * cookie SOLO se respeta cuando el token real dice SUPERADMIN. Por sí
+ * sola no da ningún permiso — si la pone cualquier otro usuario, se
+ * ignora. Sin esta comprobación esto sería un ascenso a ADMIN al alcance
+ * de quien sepa abrir las herramientas del navegador.
+ *
+ * Las escrituras las bloquea el middleware, no esta función: aquí solo
+ * se decide QUÉ ve, no qué puede hacer.
+ */
 export async function getUserFromRequest(req: NextRequest): Promise<JWTPayload | null> {
   const token = getTokenFromRequest(req);
   if (!token) return null;
-  return verifyAccessToken(token);
+  const user = await verifyAccessToken(token);
+  if (!user) return null;
+
+  if (user.rol !== "SUPERADMIN") return user;
+
+  const prueba = req.cookies.get(COOKIE_ROL_PRUEBA)?.value;
+  if (!esRolProbable(prueba)) return user;
+
+  return { ...user, rol: prueba, rolReal: user.rol, rolPrueba: true };
 }
 
 // ── Guards de roles ────────────────────────────

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { RolPrueba } from "@/components/layout/RolPrueba";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageCircle, X, Bell, AlertTriangle, CheckCircle, Info, Package } from "lucide-react";
 import type { NotificacionDTO } from "@/types";
@@ -151,6 +152,10 @@ function ShellInner({ children }: { children: React.ReactNode }) {
         />
       </div>
       <main className="flex-1 flex flex-col overflow-hidden pb-16 lg:pb-0">
+        {/* Va arriba de todo y ocupa el ancho completo: el fallo probable
+            de "ver como…" no es que no funcione, es olvidarse el modo
+            puesto y creer que el portal está roto. */}
+        <RolPrueba />
         {children}
       </main>
       <MobileNav />

@@ -66,9 +66,19 @@ export interface JWTPayload {
   sub: string;
   email: string;
   nombre: string;
+  /** El rol con el que se está navegando. En modo prueba NO es el del
+   *  token: es el que el superadministrador se puso encima. */
   rol: Rol;
   iat?: number;
   exp?: number;
+
+  // ── "Ver el portal como…" ──
+  // Estos dos NO viajan en el token: los agrega getUserFromRequest al
+  // leer la cookie. Así probarse un rol no obliga a reemitir la sesión.
+  /** El rol de verdad. Solo aparece con el modo prueba activo. */
+  rolReal?: Rol;
+  /** true = está viendo el portal como otro rol, y NADA se guarda. */
+  rolPrueba?: boolean;
 }
 
 // ── Producto ──────────────────────────────────
