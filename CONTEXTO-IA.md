@@ -727,6 +727,39 @@ npx tsx scripts/aplicar-migracion.ts prisma/migrations/<carpeta>/migration.sql
   destructivo: esto se aplica sobre la base de producción, que es la única que hay.
 - Después: actualizar `prisma/schema.prisma` a mano y `npx prisma generate`.
 
+### Responsive: nada de cajas que se deslizan a lo ancho
+
+Regla del portal, decidida el 29-ago: **si no cabe, se apila**. Un
+`overflow-x-auto` PARECE responsive y no lo es — hay que arrastrar para ver
+la columna del precio, se pierde de vista de qué fila era, y en la práctica
+nadie lo hace: se abre el escritorio o no se mira.
+
+Cómo se hace aquí:
+
+- **Tablas:** usa `<div className="table-wrapper"><table className="table">`.
+  Por debajo de 768 px cada fila se convierte sola en una FICHA. Ponle
+  `data-label="Precio"` a cada `<td>` que necesite rótulo; la celda del
+  nombre y la de los botones se dejan SIN `data-label` a propósito (ocupan
+  la línea entera). La regla vive en `globals.css`.
+- **Rejillas:** nunca `grid-cols-3` a secas. Siempre con punto de corte:
+  `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`.
+- **Maestro-detalle** (inbox de Nexus, biblioteca de imágenes): en móvil se
+  ve UNA de las dos columnas, con botón de volver. Ver
+  `(dashboard)/nexus/page.tsx` como referencia.
+- **Excepciones legítimas:** los documentos que se imprimen
+  (`CotizacionDoc`, `FacturaPDF`, el acta) son hojas A4 de ancho fijo, y los
+  calendarios tienen siete días. Ésos NO se tocan.
+
+Se comprueba con el navegador a 360 px: `document.documentElement.scrollWidth`
+tiene que ser igual a `window.innerWidth`.
+
+### En el teléfono se entra por Nexus
+
+Para **todos** los roles, no solo vendedores (`ModuloDeArranque` en el layout
+del portal). Solo la primera vez: en cuanto alguien cambia de módulo su
+elección se guarda en `localStorage` y el arranque no vuelve a opinar. En
+escritorio no se fuerza nada.
+
 ### Build
 
 **Borra `.next` antes de cada `npm run build`.** OneDrive corrompe la carpeta y el
