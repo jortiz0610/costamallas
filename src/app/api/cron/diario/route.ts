@@ -1,11 +1,15 @@
 // ============================================================
 // GET/POST /api/cron/diario — la corrida diaria del portal
 // ------------------------------------------------------------
-// Hace tres cosas:
+// Hace cuatro cosas:
 //   1. Vencer lo que caducó (cotizaciones y facturas).
 //   2. El seguimiento post-cotización.
 //   3. Avisar de las conversaciones que pasaron del compromiso de
 //      respuesta sin que nadie las contestara.
+//   4. Recalcular el estado de los clientes. Los demás estados se
+//      recalculan solos cuando pasa algo; INACTIVO no tiene evento que
+//      lo dispare —es la ausencia de eventos— así que sin esta pasada
+//      nadie pasaría a inactivo nunca.
 //
 // El orden de las dos primeras es a propósito: primero se vence y
 // después se hace el seguimiento, para no perseguir una oferta que ya
@@ -35,6 +39,7 @@ import { getUserFromRequest } from "@/lib/auth";
 import { correrSeguimientos } from "@/lib/seguimiento";
 import { marcarVencidos } from "@/lib/vencimientos";
 import { alertarSinRespuesta } from "@/lib/nexus/alertas";
+import { recalcularEstados } from "@/lib/estados-cliente-server";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -68,6 +73,13 @@ async function handle(req: NextRequest) {
     // entere NUNCA, que era lo que pasaba.
     const tiemposNexus = await alertarSinRespuesta({ dry });
 
+    // El estado del cliente se recalcula solo cuando pasa algo (se
+    // cotiza, se aprueba). El paso a INACTIVO es el único que NO tiene
+    // evento que lo dispare —es la ausencia de eventos— así que sin esta
+    // pasada diaria nadie pasaría a inactivo nunca. Va al final: usa las
+    // cotizaciones que acaban de vencer más arriba.
+    const estadosCliente = await recalcularEstados({ dry });
+
     return NextResponse.json({
       success: true,
       data: {
@@ -76,6 +88,7 @@ async function handle(req: NextRequest) {
         vencimientos,
         seguimiento,
         tiemposNexus,
+        estadosCliente,
       },
     });
   } catch (err) {

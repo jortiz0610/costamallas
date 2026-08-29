@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { siguienteNumeroSeguro } from "@/lib/consecutivos";
 import { avisarInstalacionNueva } from "@/lib/instalaciones";
+import { filtroPorVendedor } from "@/lib/alcance-crm";
 
 const ESTADOS_PEDIDO = ["NUEVO","CONFIRMADO","EN_PRODUCCION","LISTO","DESPACHADO","ENTREGADO","INSTALADO","CANCELADO"];
 
@@ -13,8 +14,12 @@ export async function GET(req: NextRequest) {
   const estado = req.nextUrl.searchParams.get("estado");
   const clienteId = req.nextUrl.searchParams.get("clienteId");
 
+  // Sin `crm.ver_todo`, cada vendedor ve solo sus propios pedidos.
+  const suyos = await filtroPorVendedor(req);
+
   const pedidos = await prisma.pedido.findMany({
     where: {
+      ...suyos,
       ...(estado ? { estado } : {}),
       ...(clienteId ? { clienteId } : {}),
     },

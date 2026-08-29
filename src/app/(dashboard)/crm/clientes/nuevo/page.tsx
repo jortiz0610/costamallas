@@ -1,76 +1,114 @@
 "use client";
 
+// ============================================================
+// Alta de cliente.
+//
+// Antes era un asistente de tres pasos igual para todo el mundo, con los
+// campos de empresa apareciendo y desapareciendo según un interruptor.
+// Dos problemas concretos:
+//
+//   1. Registrar una empresa y registrar a una persona NO son la misma
+//      tarea. En una empresa lo que se da de alta es la razón social y
+//      su NIT, y el contacto es un dato de la empresa. En una persona el
+//      contacto ES el cliente. El mismo formulario para las dos cosas
+//      obliga a leer etiquetas para saber qué se está llenando.
+//   2. El paso 1 pedía elegir el "estado inicial" entre ocho opciones.
+//      Ese campo ya no se escribe a mano: sale de los hechos
+//      (`lib/estados-cliente.ts`). Todo el que se da de alta empieza
+//      como prospecto, y sube solo cuando pide y cuando aprueba.
+//
+// Quedan dos formularios distintos detrás de una sola pregunta.
+// ============================================================
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Topbar } from "@/components/layout/Topbar";
 import {
-  ArrowLeft, ArrowRight, Check, Loader2, User, Building2, Phone, Mail,
-  MapPin, FileText, Star, UserCircle, ChevronRight,
+  ArrowLeft, Check, Loader2, User, Building2, Phone, Mail,
+  MapPin, FileText, IdCard, Globe, Briefcase, Info, MessageCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
-import { useBrand } from "@/contexts/BrandContext";
 import { CIUDADES, DEPARTAMENTOS, departamentoDeCiudad } from "@/lib/colombia";
+import { ESTADO_POR_CLAVE } from "@/lib/estados-cliente";
 
 const CRM_COLOR = "#BA7517";
 
-const ESTADOS_CLIENTE = [
-  { v: "PROSPECTO",       l: "Prospecto",       desc: "Contacto inicial, aún no evaluado",            dot: "#9ca3af",  bg: "#f3f4f6",  text: "#6b7280" },
-  { v: "INTERESADO",      l: "Interesado",      desc: "Mostró interés en los productos",               dot: "#3b82f6",  bg: "#eff6ff",  text: "#1d4ed8" },
-  { v: "CALIFICADO",      l: "Calificado",      desc: "Tiene necesidad y capacidad de compra",         dot: "#f59e0b",  bg: "#fef3c7",  text: "#92400e" },
-  { v: "CLIENTE_ACTIVO",  l: "Cliente activo",  desc: "Ha realizado al menos una compra",              dot: "#10b981",  bg: "#d1fae5",  text: "#065f46" },
-  { v: "RECURRENTE",      l: "Recurrente",      desc: "Compra con frecuencia",                         dot: "#7c3aed",  bg: "#ede9fe",  text: "#5b21b6" },
-  { v: "VIP",             l: "VIP ⭐",           desc: "Cliente estratégico de alto valor",             dot: "#eab308",  bg: "#fef9c3",  text: "#713f12" },
-  { v: "CLIENTE_INACTIVO",l: "Inactivo",        desc: "No ha comprado en más de 6 meses",              dot: "#ef4444",  bg: "#fee2e2",  text: "#b91c1c" },
-  { v: "NO_CALIFICADO",   l: "No calificado",   desc: "No cumple perfil o rechazó el contacto",        dot: "#94a3b8",  bg: "#f1f5f9",  text: "#475569" },
-];
-
-const TIPOS_CLIENTE = [
-  { v: "persona",  l: "Persona natural",  Icon: User,      desc: "Cliente particular" },
-  { v: "empresa",  l: "Empresa",          Icon: Building2, desc: "Persona jurídica / empresa" },
-];
-
-const STEPS = [
-  { n: 1, label: "Tipo y estado" },
-  { n: 2, label: "Información de contacto" },
-  { n: 3, label: "Datos adicionales" },
-];
+type Tipo = "persona" | "empresa" | null;
 
 interface FormData {
-  tipo: string; estado: string; nombre: string; empresa: string; cargo: string;
+  nombre: string; empresa: string; cargo: string;
   email: string; telefono: string; whatsapp: string; ciudad: string;
-  departamento: string; direccion: string; nit: string; cedula: string; paginaWeb: string; notas: string;
+  departamento: string; direccion: string; nit: string; cedula: string;
+  paginaWeb: string; notas: string;
+}
+
+const VACIO: FormData = {
+  nombre: "", empresa: "", cargo: "", email: "", telefono: "", whatsapp: "",
+  ciudad: "", departamento: "", direccion: "", nit: "", cedula: "",
+  paginaWeb: "", notas: "",
+};
+
+function Campo({
+  label, icono, children, ancho = 1, ayuda,
+}: {
+  label: string; icono?: React.ReactNode; children: React.ReactNode; ancho?: 1 | 2; ayuda?: string;
+}) {
+  return (
+    <div className={ancho === 2 ? "sm:col-span-2" : ""}>
+      <label className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
+        {icono}{label}
+      </label>
+      {children}
+      {ayuda && <p className="text-[10.5px] text-gray-400 mt-1">{ayuda}</p>}
+    </div>
+  );
+}
+
+function Seccion({ titulo, subtitulo, children }: { titulo: string; subtitulo?: string; children: React.ReactNode }) {
+  return (
+    <div className="card p-5 sm:p-6">
+      <h2 className="text-[13px] font-bold text-gray-800 dark:text-gray-100">{titulo}</h2>
+      {subtitulo && <p className="text-[11.5px] text-gray-400 mt-0.5 mb-4">{subtitulo}</p>}
+      <div className={subtitulo ? "grid grid-cols-1 sm:grid-cols-2 gap-4" : "grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4"}>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 export default function NuevoClientePage() {
   const router = useRouter();
-  const { brand } = useBrand();
-  const [step, setStep] = useState(1);
+  const [tipo, setTipo] = useState<Tipo>(null);
+  const [form, setForm] = useState<FormData>(VACIO);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState<FormData>({
-    tipo: "persona", estado: "PROSPECTO", nombre: "", empresa: "", cargo: "",
-    email: "", telefono: "", whatsapp: "", ciudad: "", departamento: "",
-    direccion: "", nit: "", cedula: "", paginaWeb: "", notas: "",
-  });
 
   const upd = (k: keyof FormData, v: string) => setForm(p => ({ ...p, [k]: v }));
 
-  const canNext = () => {
-    if (step === 1) return !!form.tipo && !!form.estado;
-    if (step === 2) return form.nombre.trim().length >= 2;
-    return true;
-  };
+  const elegirCiudad = (ciudad: string) =>
+    setForm(p => ({ ...p, ciudad, departamento: departamentoDeCiudad(ciudad) ?? p.departamento }));
+
+  // En una empresa lo obligatorio es la razón social; en una persona, su
+  // nombre. Es la única diferencia de validación, y es la que importa.
+  const listo = tipo === "empresa"
+    ? form.empresa.trim().length >= 2
+    : form.nombre.trim().length >= 2;
 
   const save = async () => {
-    if (!form.nombre.trim()) return toast.error("El nombre es requerido");
+    if (!listo) return;
     setSaving(true);
     try {
       const res = await fetch("/api/crm/clientes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          nombre: form.nombre.trim(),
-          empresa: form.empresa || undefined,
+          // `nombre` es el campo con el que se lista y se busca. En una
+          // empresa esa identidad es la razón social; el contacto va en
+          // `cargo`/`email`/`telefono` y en las notas. Si se guardara el
+          // nombre del contacto, buscar la empresa por su nombre no
+          // encontraría nada.
+          nombre: (tipo === "empresa" ? form.empresa : form.nombre).trim(),
+          empresa: tipo === "empresa" ? form.empresa.trim() : undefined,
           cargo: form.cargo || undefined,
           email: form.email || undefined,
           telefono: form.telefono || undefined,
@@ -78,293 +116,202 @@ export default function NuevoClientePage() {
           ciudad: form.ciudad || undefined,
           departamento: form.departamento || undefined,
           direccion: form.direccion || undefined,
-          nit: form.nit || undefined,
-          cedula: form.cedula || undefined,
-          paginaWeb: form.paginaWeb || undefined,
-          notas: form.notas || undefined,
-          tipo: form.tipo,
-          estado: form.estado,
+          nit: tipo === "empresa" ? (form.nit || undefined) : undefined,
+          cedula: tipo === "persona" ? (form.cedula || undefined) : undefined,
+          paginaWeb: tipo === "empresa" ? (form.paginaWeb || undefined) : undefined,
+          notas: [
+            tipo === "empresa" && form.nombre.trim()
+              ? `Contacto principal: ${form.nombre.trim()}${form.cargo ? ` (${form.cargo})` : ""}`
+              : "",
+            form.notas,
+          ].filter(Boolean).join("\n") || undefined,
+          tipo,
+          // El estado NO se elige: nace prospecto y sube solo cuando pide
+          // una cotización y cuando aprueba.
+          estado: "PROSPECTO",
         }),
       });
       const json = await res.json();
-      if (!res.ok || !json.success) return toast.error(json.error ?? "Error al crear cliente");
-      toast.success("Cliente creado exitosamente");
+      if (!res.ok || !json.success) return toast.error(json.error ?? "Error al crear el cliente");
+      toast.success(tipo === "empresa" ? "Empresa registrada" : "Cliente registrado");
       router.push(`/crm/clientes/${json.data.id}`);
     } catch { toast.error("Error de conexión"); }
     finally { setSaving(false); }
   };
 
-  const estadoActual = ESTADOS_CLIENTE.find(e => e.v === form.estado);
+  // ── Paso 0: qué se va a registrar ──
+  if (!tipo) {
+    return (
+      <>
+        <Topbar
+          title="Nuevo registro"
+          actions={<Link href="/crm/clientes" className="btn-secondary btn-sm"><ArrowLeft size={13} /> Volver</Link>}
+        />
+        <div className="flex-1 overflow-y-auto page-bg p-6">
+          <div className="max-w-2xl mx-auto pt-6">
+            <h1 className="text-[17px] font-bold text-gray-800 dark:text-gray-100 text-center">
+              ¿Qué vas a registrar?
+            </h1>
+            <p className="text-[12.5px] text-gray-400 text-center mt-1 mb-7">
+              Los dos formularios son distintos: no se pide lo mismo.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[
+                {
+                  v: "persona" as const, Icon: User, l: "Una persona",
+                  d: "Un cliente particular. Se identifica con su cédula y su celular.",
+                },
+                {
+                  v: "empresa" as const, Icon: Building2, l: "Una empresa",
+                  d: "Razón social y NIT. El contacto es un dato más de la empresa, no el cliente.",
+                },
+              ].map(o => (
+                <button
+                  key={o.v}
+                  onClick={() => setTipo(o.v)}
+                  className="card p-6 text-left hover:shadow-md transition-all group"
+                >
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3 transition-colors"
+                    style={{ backgroundColor: CRM_COLOR + "14" }}
+                  >
+                    <o.Icon size={22} style={{ color: CRM_COLOR }} />
+                  </div>
+                  <p className="text-[14px] font-bold text-gray-800 dark:text-gray-100">{o.l}</p>
+                  <p className="text-[11.5px] text-gray-400 mt-1 leading-relaxed">{o.d}</p>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-start gap-2.5 mt-6 px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-[11.5px] text-blue-800 dark:text-blue-300">
+              <Info size={14} className="flex-shrink-0 mt-0.5" />
+              <p>
+                Ya no se elige el estado a mano. Todo registro nuevo entra como{" "}
+                <strong>{ESTADO_POR_CLAVE.PROSPECTO.l}</strong> y va subiendo solo:
+                a <strong>{ESTADO_POR_CLAVE.INTERESADO.l}</strong> cuando pide una cotización
+                y a <strong>{ESTADO_POR_CLAVE.CLIENTE_ACTIVO.l}</strong> cuando aprueba una.
+              </p>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  const esEmpresa = tipo === "empresa";
 
   return (
     <>
       <Topbar
-        title="Nuevo cliente"
+        title={esEmpresa ? "Nueva empresa" : "Nuevo cliente"}
         actions={
-          <Link href="/crm/clientes" className="btn-secondary btn-sm">
-            <ArrowLeft size={13} /> Volver
-          </Link>
+          <button onClick={() => { setTipo(null); setForm(VACIO); }} className="btn-secondary btn-sm">
+            <ArrowLeft size={13} /> Cambiar de tipo
+          </button>
         }
       />
 
       <div className="flex-1 overflow-y-auto page-bg p-6">
-        <div className="max-w-2xl mx-auto space-y-6">
+        <div className="max-w-3xl mx-auto space-y-4 pb-6">
 
-          {/* Stepper */}
-          <div className="flex items-center gap-0">
-            {STEPS.map((s, i) => (
-              <div key={s.n} className="flex items-center flex-1 last:flex-none">
-                <div className="flex flex-col items-center gap-1.5">
-                  <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all"
-                    style={
-                      step > s.n
-                        ? { backgroundColor: "#16a34a", color: "white" }
-                        : step === s.n
-                          ? { backgroundColor: CRM_COLOR, color: "white", boxShadow: `0 0 0 4px ${CRM_COLOR}25` }
-                          : { backgroundColor: "#e5e7eb", color: "#9ca3af" }
-                    }
-                  >
-                    {step > s.n ? <Check size={16} /> : s.n}
-                  </div>
-                  <span className="text-[11px] font-medium whitespace-nowrap"
-                    style={{ color: step === s.n ? CRM_COLOR : step > s.n ? "#16a34a" : "#9ca3af" }}>
-                    {s.label}
-                  </span>
-                </div>
-                {i < STEPS.length - 1 && (
-                  <div className="flex-1 h-px mx-3 mb-5 transition-all"
-                    style={{ backgroundColor: step > s.n ? "#16a34a" : "#e5e7eb" }} />
-                )}
-              </div>
-            ))}
-          </div>
+          {esEmpresa ? (
+            <>
+              <Seccion titulo="La empresa" subtitulo="Con estos datos se factura y se busca en el CRM.">
+                <Campo label="Razón social *" icono={<Building2 size={11} />} ancho={2}>
+                  <input className="input" value={form.empresa} onChange={e => upd("empresa", e.target.value)}
+                    placeholder="Constructora ABC S.A.S." autoFocus />
+                </Campo>
+                <Campo label="NIT" icono={<IdCard size={11} />} ayuda="Sin NIT no se le puede facturar.">
+                  <input className="input" value={form.nit} onChange={e => upd("nit", e.target.value)} placeholder="900.123.456-7" />
+                </Campo>
+                <Campo label="Página web" icono={<Globe size={11} />}>
+                  <input type="url" className="input" value={form.paginaWeb} onChange={e => upd("paginaWeb", e.target.value)} placeholder="https://…" />
+                </Campo>
+              </Seccion>
 
-          {/* Step 1 */}
-          {step === 1 && (
-            <div className="card p-6 space-y-6">
-              <div>
-                <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100 mb-1">Tipo de cliente</h2>
-                <p className="text-xs text-gray-400 mb-4">¿Es una persona natural o una empresa?</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {TIPOS_CLIENTE.map(t => {
-                    const Icon = t.Icon;
-                    const sel = form.tipo === t.v;
-                    return (
-                      <button key={t.v} type="button" onClick={() => upd("tipo", t.v)}
-                        className="flex flex-col items-center gap-3 p-5 rounded-2xl border-2 transition-all"
-                        style={sel
-                          ? { borderColor: CRM_COLOR, backgroundColor: CRM_COLOR + "10" }
-                          : { borderColor: "#e2e8f0", backgroundColor: "transparent" }}>
-                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
-                          style={{ backgroundColor: sel ? CRM_COLOR : "#f1f5f9" }}>
-                          <Icon size={22} style={{ color: sel ? "white" : "#9ca3af" }} />
-                        </div>
-                        <div className="text-center">
-                          <p className="text-sm font-bold" style={{ color: sel ? CRM_COLOR : "#374151" }}>{t.l}</p>
-                          <p className="text-xs text-gray-400 mt-0.5">{t.desc}</p>
-                        </div>
-                        {sel && <div className="w-5 h-5 rounded-full flex items-center justify-center"
-                          style={{ backgroundColor: CRM_COLOR }}>
-                          <Check size={12} className="text-white" />
-                        </div>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100 mb-1">Estado inicial</h2>
-                <p className="text-xs text-gray-400 mb-4">¿En qué etapa está este contacto?</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {ESTADOS_CLIENTE.map(e => {
-                    const sel = form.estado === e.v;
-                    return (
-                      <button key={e.v} type="button" onClick={() => upd("estado", e.v)}
-                        className="flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all"
-                        style={sel
-                          ? { borderColor: e.dot, backgroundColor: e.bg }
-                          : { borderColor: "#e2e8f0", backgroundColor: "transparent" }}>
-                        <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: e.dot }} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold truncate" style={{ color: sel ? e.text : "#374151" }}>{e.l}</p>
-                          <p className="text-[10px] text-gray-400 truncate">{e.desc}</p>
-                        </div>
-                        {sel && <Check size={13} style={{ color: e.dot, flexShrink: 0 }} />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 2 */}
-          {step === 2 && (
-            <div className="card p-6 space-y-4">
-              <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                <UserCircle size={16} style={{ color: CRM_COLOR }} /> Información de contacto
-              </h2>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-                  {form.tipo === "empresa" ? "Nombre del contacto principal *" : "Nombre completo *"}
-                </label>
-                <input className="input" value={form.nombre}
-                  onChange={e => upd("nombre", e.target.value)}
-                  placeholder={form.tipo === "empresa" ? "Ej: Juan Rodríguez" : "Ej: María García"} />
-              </div>
-
-              {form.tipo === "empresa" && (
-                <>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Nombre de la empresa</label>
-                    <input className="input" value={form.empresa} onChange={e => upd("empresa", e.target.value)} placeholder="Ej: Constructora ABC S.A.S" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Cargo</label>
-                    <input className="input" value={form.cargo} onChange={e => upd("cargo", e.target.value)} placeholder="Ej: Gerente de compras" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">NIT / RUT</label>
-                    <input className="input" value={form.nit} onChange={e => upd("nit", e.target.value)} placeholder="900.123.456-7" />
-                  </div>
-                </>
-              )}
-
-              {/* Una persona natural también necesita identificación: sin
-                  ella no se le puede facturar. Antes solo se pedía el NIT
-                  y solo a las empresas. */}
-              {form.tipo === "persona" && (
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Cédula</label>
-                  <input className="input" value={form.cedula} onChange={e => upd("cedula", e.target.value)} placeholder="1.045.678.901" />
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-                    <Mail size={10} className="inline mr-1" /> Email
-                  </label>
-                  <input type="email" className="input" value={form.email} onChange={e => upd("email", e.target.value)} placeholder="contacto@empresa.com" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-                    <Phone size={10} className="inline mr-1" /> Teléfono
-                  </label>
+              <Seccion titulo="Contacto principal" subtitulo="La persona con la que se habla. Puede cambiar sin que cambie el cliente.">
+                <Campo label="Nombre" icono={<User size={11} />}>
+                  <input className="input" value={form.nombre} onChange={e => upd("nombre", e.target.value)} placeholder="Juan Rodríguez" />
+                </Campo>
+                <Campo label="Cargo" icono={<Briefcase size={11} />}>
+                  <input className="input" value={form.cargo} onChange={e => upd("cargo", e.target.value)} placeholder="Gerente de compras" />
+                </Campo>
+                <Campo label="Correo" icono={<Mail size={11} />} ayuda="Es a donde llegan las cotizaciones.">
+                  <input type="email" className="input" value={form.email} onChange={e => upd("email", e.target.value)} placeholder="compras@empresa.com" />
+                </Campo>
+                <Campo label="Teléfono" icono={<Phone size={11} />}>
                   <input type="tel" className="input" value={form.telefono} onChange={e => upd("telefono", e.target.value)} placeholder="601 234 5678" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">WhatsApp</label>
+                </Campo>
+                <Campo label="WhatsApp" icono={<MessageCircle size={11} />} ancho={2}
+                  ayuda="Con esto se le puede escribir desde la ficha, sin salir del portal.">
                   <input type="tel" className="input" value={form.whatsapp} onChange={e => upd("whatsapp", e.target.value)} placeholder="+57 300 000 0000" />
-                </div>
-                {form.tipo === "empresa" && (
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Página web</label>
-                    <input type="url" className="input" value={form.paginaWeb} onChange={e => upd("paginaWeb", e.target.value)} placeholder="https://..." />
-                  </div>
-                )}
-              </div>
-            </div>
+                </Campo>
+              </Seccion>
+            </>
+          ) : (
+            <Seccion titulo="La persona" subtitulo="Con estos datos se factura y se le escribe.">
+              <Campo label="Nombre completo *" icono={<User size={11} />} ancho={2}>
+                <input className="input" value={form.nombre} onChange={e => upd("nombre", e.target.value)}
+                  placeholder="María García" autoFocus />
+              </Campo>
+              <Campo label="Cédula" icono={<IdCard size={11} />} ayuda="Sin identificación no se le puede facturar.">
+                <input className="input" value={form.cedula} onChange={e => upd("cedula", e.target.value)} placeholder="1.045.678.901" />
+              </Campo>
+              <Campo label="Correo" icono={<Mail size={11} />} ayuda="Es a donde llegan las cotizaciones.">
+                <input type="email" className="input" value={form.email} onChange={e => upd("email", e.target.value)} placeholder="maria@correo.com" />
+              </Campo>
+              <Campo label="Teléfono" icono={<Phone size={11} />}>
+                <input type="tel" className="input" value={form.telefono} onChange={e => upd("telefono", e.target.value)} placeholder="300 000 0000" />
+              </Campo>
+              <Campo label="WhatsApp" icono={<MessageCircle size={11} />}
+                ayuda="Con esto se le puede escribir desde la ficha.">
+                <input type="tel" className="input" value={form.whatsapp} onChange={e => upd("whatsapp", e.target.value)} placeholder="+57 300 000 0000" />
+              </Campo>
+            </Seccion>
           )}
 
-          {/* Step 3 */}
-          {step === 3 && (
-            <div className="card p-6 space-y-4">
-              <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                <MapPin size={16} style={{ color: CRM_COLOR }} /> Ubicación y notas
-              </h2>
+          <Seccion titulo={esEmpresa ? "Dónde queda" : "Dónde vive"}
+            subtitulo="La ciudad decide el recargo de instalación cuando haya que mandar cuadrilla.">
+            <Campo label="Ciudad" icono={<MapPin size={11} />}>
+              <select className="input" value={form.ciudad} onChange={e => elegirCiudad(e.target.value)}>
+                <option value="">Selecciona una ciudad…</option>
+                {CIUDADES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </Campo>
+            <Campo label="Departamento">
+              <select className="input" value={form.departamento} onChange={e => upd("departamento", e.target.value)}>
+                <option value="">Selecciona un departamento…</option>
+                {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </Campo>
+            <Campo label="Dirección" ancho={2}>
+              <input className="input" value={form.direccion} onChange={e => upd("direccion", e.target.value)}
+                placeholder={esEmpresa ? "Cra 15 #98-23, Oficina 401" : "Cra 15 #98-23, Apto 401"} />
+            </Campo>
+          </Seccion>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Ciudad</label>
-                  <select className="input" value={form.ciudad}
-                    onChange={e => {
-                      const ciudad = e.target.value;
-                      const depto = departamentoDeCiudad(ciudad);
-                      setForm(p => ({ ...p, ciudad, departamento: depto ?? p.departamento }));
-                    }}>
-                    <option value="">Selecciona una ciudad…</option>
-                    {CIUDADES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Departamento</label>
-                  <select className="input" value={form.departamento} onChange={e => upd("departamento", e.target.value)}>
-                    <option value="">Selecciona un departamento…</option>
-                    {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Dirección</label>
-                  <input className="input" value={form.direccion} onChange={e => upd("direccion", e.target.value)} placeholder="Ej: Cra 15 #98-23, Piso 4" />
-                </div>
-              </div>
+          <Seccion titulo="Notas internas" subtitulo="Solo las ve el equipo. El cliente nunca las lee.">
+            <Campo label="Observaciones" icono={<FileText size={11} />} ancho={2}>
+              <textarea className="input resize-none" rows={4} value={form.notas}
+                onChange={e => upd("notas", e.target.value)}
+                placeholder="Cómo llegó, qué está buscando, condiciones acordadas…" />
+            </Campo>
+          </Seccion>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
-                  <FileText size={10} className="inline mr-1" /> Notas internas
-                </label>
-                <textarea className="input resize-none" rows={4} value={form.notas}
-                  onChange={e => upd("notas", e.target.value)}
-                  placeholder="Observaciones, historial, referencias, condiciones especiales..." />
-              </div>
-
-              {/* Resumen */}
-              <div className="rounded-xl p-4 space-y-3" style={{ backgroundColor: CRM_COLOR + "08", border: `1px solid ${CRM_COLOR}25` }}>
-                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: CRM_COLOR }}>Resumen del cliente</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
-                    style={{ backgroundColor: CRM_COLOR }}>
-                    {form.nombre.charAt(0).toUpperCase() || "?"}
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-800 dark:text-gray-100">{form.nombre || "—"}</p>
-                    {form.empresa && <p className="text-xs text-gray-500">{form.empresa}</p>}
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: estadoActual?.dot }} />
-                      <span className="text-xs font-semibold" style={{ color: estadoActual?.text }}>{estadoActual?.l}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
-                  {form.email && <span className="flex items-center gap-1"><Mail size={10} />{form.email}</span>}
-                  {form.telefono && <span className="flex items-center gap-1"><Phone size={10} />{form.telefono}</span>}
-                  {form.ciudad && <span className="flex items-center gap-1"><MapPin size={10} />{form.ciudad}</span>}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Navigation */}
-          <div className="flex gap-3">
-            {step > 1 && (
-              <button onClick={() => setStep(s => s - 1)} className="btn-secondary flex-1">
-                <ArrowLeft size={14} /> Anterior
-              </button>
-            )}
-            {step < 3 ? (
-              <button
-                onClick={() => setStep(s => s + 1)}
-                disabled={!canNext()}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
-                style={{ backgroundColor: CRM_COLOR }}
-              >
-                Siguiente <ArrowRight size={14} />
-              </button>
-            ) : (
-              <button
-                onClick={save}
-                disabled={saving || !form.nombre.trim()}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-40 transition-all"
-                style={{ backgroundColor: CRM_COLOR }}
-              >
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                Crear cliente
-              </button>
-            )}
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <p className="text-[11px] text-gray-400">
+              Entra como <strong>{ESTADO_POR_CLAVE.PROSPECTO.l}</strong>. El estado se calcula solo.
+            </p>
+            <button
+              onClick={save}
+              disabled={saving || !listo}
+              className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-2 disabled:opacity-40 transition-all"
+              style={{ backgroundColor: CRM_COLOR }}
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+              {esEmpresa ? "Registrar empresa" : "Registrar cliente"}
+            </button>
           </div>
         </div>
       </div>

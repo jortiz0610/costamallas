@@ -6,10 +6,13 @@ import { Topbar } from "@/components/layout/Topbar";
 import {
   Plus, Search, Building2, Phone, Mail, MapPin, Loader2,
   ChevronRight, Users, TrendingUp, UserCircle, Star, Filter,
-  UserPlus, MoreHorizontal,
+  UserPlus, MoreHorizontal, RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
+import { metaEstado, ESTADOS_CLIENTE } from "@/lib/estados-cliente";
 import { useBrand } from "@/contexts/BrandContext";
+import { useAuth } from "@/hooks/useAuth";
+import toast from "react-hot-toast";
 
 interface Cliente {
   id: string; nombre: string; empresa?: string; email?: string;
@@ -21,19 +24,8 @@ interface Cliente {
 
 const CRM_COLOR = "#BA7517";
 
-const ESTADOS_CLIENTE = [
-  { v: "PROSPECTO",       l: "Prospecto",       bg: "#f3f4f6", text: "#6b7280",  dot: "#9ca3af" },
-  { v: "INTERESADO",      l: "Interesado",      bg: "#eff6ff", text: "#1d4ed8",  dot: "#3b82f6" },
-  { v: "CALIFICADO",      l: "Calificado",      bg: "#fef3c7", text: "#92400e",  dot: "#f59e0b" },
-  { v: "CLIENTE_ACTIVO",  l: "Cliente activo",  bg: "#d1fae5", text: "#065f46",  dot: "#10b981" },
-  { v: "RECURRENTE",      l: "Recurrente",      bg: "#ede9fe", text: "#5b21b6",  dot: "#7c3aed" },
-  { v: "VIP",             l: "VIP ⭐",           bg: "#fef9c3", text: "#713f12",  dot: "#eab308" },
-  { v: "CLIENTE_INACTIVO",l: "Inactivo",        bg: "#fee2e2", text: "#b91c1c",  dot: "#ef4444" },
-  { v: "NO_CALIFICADO",   l: "No calificado",   bg: "#f1f5f9", text: "#475569",  dot: "#94a3b8" },
-];
-
 function EstadoBadge({ estado }: { estado: string }) {
-  const e = ESTADOS_CLIENTE.find(x => x.v === estado) ?? ESTADOS_CLIENTE[0];
+  const e = metaEstado(estado);
   return (
     <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
       style={{ backgroundColor: e.bg, color: e.text }}>
@@ -64,6 +56,7 @@ function ClientesContent() {
   const [filtroEstado, setFiltroEstado] = useState("");
   const qc = useQueryClient();
   const { brand } = useBrand();
+  const { isAdmin } = useAuth();
 
   const { data: clientes = [], isLoading } = useQuery<Cliente[]>({
     queryKey: ["crm-clientes", busqueda],
@@ -77,14 +70,42 @@ function ClientesContent() {
     ? clientes.filter(c => c.estado === filtroEstado)
     : clientes;
 
-  const activos = clientes.filter(c => c.estado === "CLIENTE_ACTIVO" || c.estado === "RECURRENTE" || c.estado === "VIP").length;
+  const activos = clientes.filter(c => c.estado === "CLIENTE_ACTIVO" || c.estado === "VIP").length;
   const vips = clientes.filter(c => c.estado === "VIP").length;
+  const inactivos = clientes.filter(c => c.estado === "INACTIVO").length;
+
+  // Los estados se recalculan solos —al cotizar, al aprobar y en la
+  // corrida diaria—, pero el botón existe porque la corrida es UNA vez
+  // al día: sin esto, después de importar datos o de cambiarle el tipo a
+  // un cliente hay que esperar a mañana para ver el estado correcto.
+  const [recalculando, setRecalculando] = useState(false);
+  const recalcular = async () => {
+    setRecalculando(true);
+    try {
+      const res = await fetch("/api/crm/clientes/estados", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || !json.success) return toast.error(json.error ?? "No se pudo recalcular");
+      const { revisados, cambiados } = json.data;
+      toast.success(cambiados === 0
+        ? `${revisados} clientes revisados: ninguno cambió`
+        : `${cambiados} de ${revisados} cambiaron de estado`);
+      qc.invalidateQueries({ queryKey: ["crm-clientes"] });
+    } catch { toast.error("Error de conexión"); }
+    finally { setRecalculando(false); }
+  };
 
   return (
     <>
       <Topbar
         title="Clientes"
         actions={
+          <div className="flex items-center gap-2">
+          {isAdmin && (
+            <button onClick={recalcular} disabled={recalculando} className="btn-secondary btn-sm disabled:opacity-50"
+              title="Volver a calcular el estado de todos los clientes con los datos de ahora">
+              <RefreshCw size={12} className={recalculando ? "animate-spin" : ""} /> Recalcular estados
+            </button>
+          )}
           <Link
             href="/crm/clientes/nuevo"
             className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5"
@@ -92,16 +113,18 @@ function ClientesContent() {
           >
             <UserPlus size={13} /> Nuevo cliente
           </Link>
+          </div>
         }
       />
       <div className="flex-1 overflow-y-auto page-bg p-5 space-y-4">
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
             { label: "Total clientes",  val: clientes.length, color: CRM_COLOR,   Icon: Users },
             { label: "Empresas",        val: clientes.filter(c => c.tipo === "empresa").length, color: "#185FA5", Icon: Building2 },
             { label: "Clientes activos",val: activos, color: "#059669", Icon: TrendingUp },
             { label: "VIP",             val: vips, color: "#eab308", Icon: Star },
+            { label: "Inactivos",       val: inactivos, color: "#dc2626", Icon: Users },
           ].map(s => {
             const Icon = s.Icon;
             return (

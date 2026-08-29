@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { calcularCotizacion, leerAIU } from "@/lib/cotizacion-calculo";
 import { getUserFromRequest } from "@/lib/auth";
 import { siguienteNumeroSeguro } from "@/lib/consecutivos";
+import { recalcularCliente } from "@/lib/estados-cliente-server";
+import { filtroPorVendedor } from "@/lib/alcance-crm";
 import {
   getPoliticaComercial, descuentoEfectivoPct, evaluarPolitica,
 } from "@/lib/politica-comercial";
@@ -15,8 +17,12 @@ export async function GET(req: NextRequest) {
   const clienteId = req.nextUrl.searchParams.get("clienteId");
   const estado = req.nextUrl.searchParams.get("estado");
 
+  // Sin `crm.ver_todo`, cada vendedor ve solo sus propias ofertas.
+  const suyas = await filtroPorVendedor(req);
+
   const cotizaciones = await prisma.cotizacion.findMany({
     where: {
+      ...suyas,
       ...(clienteId ? { clienteId } : {}),
       ...(estado ? { estado } : {}),
     },
@@ -130,6 +136,10 @@ export async function POST(req: NextRequest) {
       cliente: { select: { nombre: true, empresa: true } },
     },
   });
+
+  // Cotizarle a alguien lo saca de "prospecto": el estado del cliente
+  // se calcula a partir de sus cotizaciones.
+  await recalcularCliente(clienteId);
 
   return NextResponse.json(
     {

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { calcularCotizacion, leerAIU } from "@/lib/cotizacion-calculo";
 import { getUserFromRequest } from "@/lib/auth";
 import { siguienteNumeroSeguro } from "@/lib/consecutivos";
+import { recalcularCliente } from "@/lib/estados-cliente-server";
 import {
   getPoliticaComercial, descuentoEfectivoPct, evaluarPolitica,
 } from "@/lib/politica-comercial";
@@ -240,6 +241,12 @@ export async function PUT(req: NextRequest, { params }: P) {
       ...recalculo,
     },
   });
+
+  // El estado del cliente sale de sus cotizaciones, así que tocar una
+  // puede moverlo: de prospecto a interesado al cotizarle, de interesado
+  // a cliente activo al aprobar. No se espera a la corrida diaria porque
+  // el vendedor tiene la ficha abierta al lado.
+  await recalcularCliente(updated.clienteId);
 
   // Si se aprueba, crear pedido automáticamente.
   // Solo si no hay uno ya: guardar dos veces con el estado en APROBADA

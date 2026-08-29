@@ -111,6 +111,14 @@ model Cliente {
   paginaWeb    String?
   tipo         String   @default("persona")
   estado       String   @default("PROSPECTO")
+  /// Lo más reciente de todo lo que cuenta como señal de vida:
+  /// cotización, pedido o mensaje en el chat. Se guarda en vez de
+  /// calcularse en cada consulta porque ordena la lista y decide si
+  /// alguien lleva seis meses callado.
+  ultimaInteraccionEn DateTime?
+  /// Cuándo se recalculó el estado. Sin esto, un estado raro no se
+  /// distingue de un estado viejo.
+  estadoCalculadoEn   DateTime?
   notas        String?  @db.Text
   vendedorId   String?
   vendedor     Usuario? @relation(fields: [vendedorId], references: [id], onDelete: SetNull)

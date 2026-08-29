@@ -8,21 +8,11 @@ import {
   UserPlus, Plus, Star, Wrench, CheckSquare, Clock, DollarSign, Target,
 } from "lucide-react";
 import Link from "next/link";
+import { ESTADOS_CLIENTE } from "@/lib/estados-cliente";
 import toast from "react-hot-toast";
 import { formatCOP } from "@/lib/utils";
 
 const CRM_COLOR = "#BA7517";
-
-const ESTADOS_CLIENTE = [
-  { v: "PROSPECTO",       l: "Prospecto",      dot: "#9ca3af" },
-  { v: "INTERESADO",      l: "Interesado",     dot: "#3b82f6" },
-  { v: "CALIFICADO",      l: "Calificado",     dot: "#f59e0b" },
-  { v: "CLIENTE_ACTIVO",  l: "Cliente activo", dot: "#10b981" },
-  { v: "RECURRENTE",      l: "Recurrente",     dot: "#7c3aed" },
-  { v: "VIP",             l: "VIP",            dot: "#eab308" },
-  { v: "CLIENTE_INACTIVO",l: "Inactivo",       dot: "#ef4444" },
-  { v: "NO_CALIFICADO",   l: "No calificado",  dot: "#94a3b8" },
-];
 
 interface Cliente { id: string; nombre: string; empresa?: string; estado: string; createdAt: string; _count: { cotizaciones: number; pedidos: number }; }
 interface Cotizacion { id: string; numero: string; estado: string; total: number; createdAt: string; cliente: { nombre: string }; }
@@ -61,7 +51,7 @@ function CRMDashboardContent() {
     setTimeout(() => setRefreshing(false), 2200);
   };
 
-  const activos = clientes.filter(c => ["CLIENTE_ACTIVO", "RECURRENTE", "VIP"].includes(c.estado)).length;
+  const activos = clientes.filter(c => ["CLIENTE_ACTIVO", "VIP"].includes(c.estado)).length;
   const ventasMes = pedidos.filter(p => p.estado !== "CANCELADO").reduce((s, p) => s + Number(p.total), 0);
   const pipelineValor = cotizaciones.filter(c => ["ENVIADA", "BORRADOR"].includes(c.estado)).reduce((s, c) => s + Number(c.total), 0);
   const tasaConversion = cotizaciones.length > 0

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { filtroClientes } from "@/lib/alcance-crm";
 
 export async function GET(req: NextRequest) {
   const user = await getUserFromRequest(req);
@@ -9,8 +10,13 @@ export async function GET(req: NextRequest) {
   const busqueda = req.nextUrl.searchParams.get("busqueda") ?? "";
   const soloActivos = req.nextUrl.searchParams.get("activos") !== "false";
 
+  // Sin `crm.ver_todo`, un vendedor ve su cartera y los que todavía no
+  // tienen asesor asignado.
+  const suyos = await filtroClientes(req);
+
   const clientes = await prisma.cliente.findMany({
     where: {
+      ...suyos,
       activo: soloActivos ? true : undefined,
       ...(busqueda ? {
         OR: [
