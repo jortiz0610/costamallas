@@ -261,7 +261,7 @@ export function FichaVendedor({ productoId, producto }: Props) {
                 </p>
               )}
 
-              <div className="grid grid-cols-2 gap-x-6 mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
                 <Dato icono={<TagIcon size={13} />} label="Categorías" valor={p.categorias?.length ? p.categorias.join(", ") : null} />
                 <Dato icono={<Package size={13} />} label="Marca" valor={p.acfMarcaFabricante || null} />
                 <Dato icono={<Ruler size={13} />} label="Medidas (largo × ancho × alto)" valor={medidas} />

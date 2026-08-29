@@ -5,7 +5,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import {
   Upload, Trash2, Star, Loader2, ImageIcon, Search, RefreshCw,
   AlertTriangle, CheckCircle, Plus, ChevronRight, Layers,
-  Copy, Check, Send, Globe, Ruler, X as XIcon,
+  Copy, Check, Send, Globe, Ruler, X as XIcon, ChevronLeft,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Image from "next/image";
@@ -49,7 +49,7 @@ async function fetchImagenes(productoId: string): Promise<AcfImagen[]> {
 }
 
 // ── Panel derecho: gestión de imágenes de un producto ──
-function PanelProducto({ producto }: { producto: ProductoConImagenes }) {
+function PanelProducto({ producto, onVolver }: { producto: ProductoConImagenes; onVolver: () => void }) {
   const qc = useQueryClient();
   const { brand } = useBrand();
   const { puedeVer } = useAuth();
@@ -126,7 +126,14 @@ function PanelProducto({ producto }: { producto: ProductoConImagenes }) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header producto */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b divider flex-shrink-0">
+      <div className="flex items-center gap-3 px-3 sm:px-6 py-4 border-b divider flex-shrink-0">
+        <button
+          onClick={onVolver}
+          className="lg:hidden w-8 h-8 -ml-1 flex items-center justify-center rounded-lg text-muted hover:surface-2 transition-colors flex-shrink-0"
+          aria-label="Volver a la lista"
+        >
+          <ChevronLeft size={18} />
+        </button>
         <div className="w-12 h-12 rounded-xl overflow-hidden surface-2 relative flex-shrink-0">
           {producto.imagenPrincipal
             ? <Image src={producto.imagenPrincipal} alt={producto.nombre} fill className="object-cover" unoptimized />
@@ -323,8 +330,11 @@ function ImagenesContent() {
 
       {/* Maestro-detalle */}
       <div className="flex-1 overflow-hidden flex">
-        {/* Lista de productos (maestro) */}
-        <div className="w-80 flex-shrink-0 flex flex-col border-r divider surface">
+        {/* Lista de productos (maestro).
+            En móvil ocupa la pantalla entera y desaparece al elegir un
+            producto: 320 px fijos al lado del detalle dejaban la galería
+            en nada. */}
+        <div className={`w-full lg:w-80 flex-shrink-0 flex-col border-r divider surface ${seleccionado ? "hidden lg:flex" : "flex"}`}>
           <div className="p-3 space-y-2 border-b divider flex-shrink-0">
             <div className="relative">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -397,9 +407,9 @@ function ImagenesContent() {
 
         {/* Detalle */}
         {seleccionado ? (
-          <PanelProducto producto={seleccionado} key={seleccionado.id} />
+          <PanelProducto producto={seleccionado} key={seleccionado.id} onVolver={() => setSelId(null)} />
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 page-bg">
+          <div className="flex-1 hidden lg:flex flex-col items-center justify-center gap-3 page-bg">
             <ImageIcon size={32} className="text-muted" />
             <p className="text-sm text-muted">Selecciona un producto para gestionar sus imágenes</p>
           </div>

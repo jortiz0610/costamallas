@@ -58,7 +58,7 @@ function NuevoProveedor({ onClose, onSaved }: { onClose: () => void; onSaved: ()
             <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Nombre / Empresa *</label>
             <input className="input" value={form.nombre} onChange={e => upd("nombre", e.target.value)} placeholder="Ej: Aceros del Norte S.A.S" autoFocus />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Contacto</label>
               <input className="input" value={form.contacto} onChange={e => upd("contacto", e.target.value)} placeholder="Nombre del contacto" />
@@ -158,7 +158,7 @@ function ComprasContent() {
       <div className="flex-1 overflow-y-auto page-bg p-6 space-y-6">
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[
             { l: "Proveedores", v: proveedores.length, c: ERP_COLOR, Icon: Building2 },
             { l: "Órdenes activas", v: proveedores.reduce((s, p) => s + p._count.ordenes, 0), c: "#7c3aed", Icon: ShoppingBag },
@@ -279,7 +279,7 @@ function ComprasContent() {
                   </div>
                   <button onClick={() => eliminar(p.id)} className="text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
                 </div>
-                <div className="grid grid-cols-2 gap-2 mt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
                   {p.email && <span className="text-xs text-muted flex items-center gap-1.5 truncate"><Mail size={11} />{p.email}</span>}
                   {p.telefono && <span className="text-xs text-muted flex items-center gap-1.5"><Phone size={11} />{p.telefono}</span>}
                   {p.ciudad && <span className="text-xs text-muted flex items-center gap-1.5"><MapPin size={11} />{p.ciudad}</span>}

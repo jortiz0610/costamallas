@@ -52,7 +52,7 @@ function PedidoDetalleContent() {
         {/* Línea de estados */}
         <div className="card p-5">
           <p className="text-xs font-bold uppercase tracking-widest text-muted mb-4">Estado de producción</p>
-          <div className="flex items-center gap-1 overflow-x-auto pb-2">
+          <div className="flex flex-wrap items-center gap-1 pb-2">
             {ESTADOS_FLUJO.map((e, i) => {
               const done = i <= idx;
               return (

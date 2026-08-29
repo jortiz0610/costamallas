@@ -86,7 +86,7 @@ function CotizarContent() {
 
           {prod && (
             <div className="rounded-xl p-4 bg-slate-50 space-y-3">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div><label className="block text-[10px] text-slate-400 uppercase font-bold mb-1">Largo (m)</label><input type="number" step="0.1" className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-sm" value={largo} onChange={e => setLargo(parseFloat(e.target.value) || 0)} /></div>
                 <div><label className="block text-[10px] text-slate-400 uppercase font-bold mb-1">Ancho (m)</label><input type="number" step="0.1" className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-sm" value={ancho} onChange={e => setAncho(parseFloat(e.target.value) || 0)} /></div>
                 <div><label className="block text-[10px] text-slate-400 uppercase font-bold mb-1">Cantidad</label><input type="number" className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-sm" value={cantidad} onChange={e => setCantidad(parseFloat(e.target.value) || 0)} /></div>
@@ -99,7 +99,7 @@ function CotizarContent() {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input required className="px-3 py-2.5 rounded-lg border border-slate-200 text-sm col-span-2" placeholder="Tu nombre *" value={form.nombre} onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} />
             <input type="email" className="px-3 py-2.5 rounded-lg border border-slate-200 text-sm" placeholder="Email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
             <input className="px-3 py-2.5 rounded-lg border border-slate-200 text-sm" placeholder="Teléfono / WhatsApp" value={form.telefono} onChange={e => setForm(p => ({ ...p, telefono: e.target.value }))} />

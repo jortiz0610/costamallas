@@ -77,7 +77,7 @@ export function LeadScoreWidget({ cotizaciones, pedidos, totalFacturado, diasSin
       </div>
 
       {/* Métricas */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
         {[
           { label: "Cotizaciones", val: cotizaciones, color: "#6366f1" },
           { label: "Pedidos", val: pedidos, color: "#16a34a" },

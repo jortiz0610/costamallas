@@ -215,7 +215,7 @@ function CotizacionesContent() {
         </div>
       } />
       <div className="flex-1 overflow-y-auto page-bg p-5 space-y-4">
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {ESTADOS.map(e => {
             const count = cotizaciones.filter(c => c.estado === e.v).length;
             const activo = filtroEstado === e.v;

@@ -65,7 +65,7 @@ function ModalCampana({ campana, onClose, onSaved }: { campana?: Campana; onClos
             <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Nombre *</label>
             <input className="input" value={f.nombre} onChange={e => u("nombre", e.target.value)} placeholder="Ej: Mallas balcón - Verano" autoFocus />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Canal</label>
               <select className="input" value={f.canal} onChange={e => u("canal", e.target.value)}>
@@ -79,7 +79,7 @@ function ModalCampana({ campana, onClose, onSaved }: { campana?: Campana; onClos
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {NUM.map(n => (
               <div key={n.k}>
                 <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">{n.l}</label>

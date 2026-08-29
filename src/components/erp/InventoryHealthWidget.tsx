@@ -67,7 +67,7 @@ export function InventoryHealthWidget(props: InventoryHealthProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 text-center">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-center">
         <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-2">
           <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{props.stock}</p>
           <p className="text-[9px] text-slate-400">Stock actual</p>

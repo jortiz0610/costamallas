@@ -201,18 +201,18 @@ function CarteraContent() {
                     <tbody>
                       {facturas.map(f => (
                         <tr key={f.id}>
-                          <td className="font-mono text-xs font-bold">
+                          <td data-label="Número" className="font-mono text-xs font-bold">
                             <Link href={`/facturacion/${f.id}`} style={{ color: ERP_COLOR }}>{f.numero}</Link>
                           </td>
                           <td className="font-medium text-gray-800 dark:text-gray-100">
                             {f.cliente.empresa || f.cliente.nombre}
                             {!f.cliente.email && <span className="ml-2 text-[10px] text-amber-600">sin correo</span>}
                           </td>
-                          <td className="text-xs text-muted">
+                          <td data-label="Vence" className="text-xs text-muted">
                             {f.fechaVence ? formatDate(f.fechaVence) : <span className="text-amber-600">sin fecha</span>}
                           </td>
-                          <td className="text-right font-semibold">{formatCOP(f.saldoPendiente)}</td>
-                          <td className="text-right text-xs" style={{ color: f.vencida ? "#dc2626" : "#16a34a" }}>
+                          <td data-label="Saldo" className="text-right font-semibold">{formatCOP(f.saldoPendiente)}</td>
+                          <td data-label="Días vencida" className="text-right text-xs" style={{ color: f.vencida ? "#dc2626" : "#16a34a" }}>
                             {f.vencida ? `${f.diasVencida}` : "al día"}
                           </td>
                           <td className="text-right">

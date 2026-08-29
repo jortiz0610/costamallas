@@ -122,14 +122,18 @@ export function PipelineComercial() {
         </div>
       )}
 
-      <div className="flex gap-3 overflow-x-auto pb-3">
+      {/* En escritorio, un tablero de columnas que se desliza. En el
+          teléfono, las etapas UNA DEBAJO DE OTRA: un kanban horizontal en
+          375 px obliga a arrastrar de lado para saber cuántos negocios
+          hay en cada etapa, que es justamente lo único que se mira. */}
+      <div className="flex flex-col lg:flex-row gap-3 lg:overflow-x-auto pb-3">
         {ETAPAS.map(e => {
           const lista = porEtapa[e.v] ?? [];
           const plegada = ocultas[e.v];
           const plata = lista.reduce((s, t) => s + t.total, 0);
 
           return (
-            <div key={e.v} className={cn("flex-shrink-0", plegada ? "w-14" : "w-[280px]")}>
+            <div key={e.v} className={cn("lg:flex-shrink-0 w-full", plegada ? "lg:w-14" : "lg:w-[280px]")}>
               <div
                 className="rounded-t-xl px-3 py-2.5"
                 style={{ backgroundColor: e.bg, borderBottom: `3px solid ${e.color}` }}

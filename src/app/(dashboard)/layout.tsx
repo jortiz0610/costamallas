@@ -10,6 +10,8 @@ import { Sembli } from "@/components/layout/Sembli";
 import { PWA } from "@/components/layout/PWA";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { GuardiaRuta } from "@/components/layout/GuardiaRuta";
+import { useAuth } from "@/hooks/useAuth";
+import { modulosVisibles } from "@/lib/permisos";
 import { useBrand } from "@/contexts/BrandContext";
 
 async function fetchKPIs() {
@@ -122,6 +124,36 @@ function SupportButton() {
   );
 }
 
+/**
+ * Por dónde se entra al portal.
+ *
+ * En el TELÉFONO se abre en Nexus, para todo el mundo —vendedores y
+ * administración por igual—: en el móvil lo que se hace es contestar,
+ * no cargar catálogo. El resto de módulos siguen ahí, en el menú.
+ *
+ * En escritorio no se fuerza nada: quien administra entra a trabajar en
+ * el ERP y obligarlo a pasar por el inbox sería un clic de más cada día.
+ *
+ * Solo aplica la PRIMERA vez. En cuanto alguien cambia de módulo, su
+ * elección se recuerda y esto no vuelve a opinar.
+ */
+function ModuloDeArranque() {
+  const { modoElegido, setModoInicial } = useBrand();
+  const { permisos, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (modoElegido || isLoading || permisos.size === 0) return;
+    const visibles = modulosVisibles(permisos);
+    if (visibles.length === 0) return;
+
+    const enMovil = window.matchMedia("(max-width: 1023px)").matches;
+    if (enMovil && visibles.includes("NEXUS")) setModoInicial("NEXUS");
+    else if (!visibles.includes("ERP")) setModoInicial(visibles[0] as never);
+  }, [modoElegido, isLoading, permisos, setModoInicial]);
+
+  return null;
+}
+
 function ShellInner({ children }: { children: React.ReactNode }) {
   const { sidebarOpen, setSidebarOpen, refreshBrand } = useBrand();
   const { data } = useQuery({ queryKey: ["dashboard", "kpis"], queryFn: fetchKPIs, staleTime: 60_000 });
@@ -142,6 +174,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden page-bg">
+      <ModuloDeArranque />
       {/* Backdrop móvil */}
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
       {/* Sidebar: estático en desktop, cajón en móvil */}

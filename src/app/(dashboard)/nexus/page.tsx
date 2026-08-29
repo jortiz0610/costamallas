@@ -7,7 +7,7 @@ import {
   MessageSquare, Settings2, Search, Send, RefreshCw,
   Globe, Smartphone, Instagram, CheckCheck,
   X, Mail, MessageSquareText,
-  Inbox, PlugZap, Facebook, Sparkles, Loader2, StickyNote,
+  Inbox, PlugZap, Facebook, Sparkles, Loader2, StickyNote, ChevronLeft,
 } from "lucide-react";
 import Link from "next/link";
 import { useBrand } from "@/contexts/BrandContext";
@@ -146,7 +146,7 @@ function ConversacionItem({ conv, activa, onClick, nombreAsignado }: {
 
 // ── Vista de mensajes (der) ──────────────────────────────────────
 
-function ChatView({ conv, onMarcarResuelta }: { conv: Conversacion; onMarcarResuelta: () => void }) {
+function ChatView({ conv, onMarcarResuelta, onVolver }: { conv: Conversacion; onMarcarResuelta: () => void; onVolver: () => void }) {
   const { brand } = useBrand();
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -221,7 +221,16 @@ function ChatView({ conv, onMarcarResuelta }: { conv: Conversacion; onMarcarResu
   return (
     <div className="flex flex-col h-full">
       {/* Header del chat */}
-      <div className="flex items-center gap-3 px-5 py-3 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
+      <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-3 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
+        {/* Volver a la lista. Solo en móvil: en escritorio la lista nunca
+            se fue de la pantalla. */}
+        <button
+          onClick={onVolver}
+          className="lg:hidden w-8 h-8 -ml-1 flex items-center justify-center rounded-lg text-muted hover:surface-2 transition-colors flex-shrink-0"
+          aria-label="Volver a la bandeja"
+        >
+          <ChevronLeft size={18} />
+        </button>
         <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
           style={{ backgroundColor: meta?.color ?? "#6366f1" }}>
           {conv.remitente.charAt(0)}
@@ -234,7 +243,7 @@ function ChatView({ conv, onMarcarResuelta }: { conv: Conversacion; onMarcarResu
             {conv.telRemit && <span className="text-[10px] text-slate-400">{conv.telRemit}</span>}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           {puedeTransferir && (
             <select value={conv.asignadoId ?? ""} onChange={e => transferir(e.target.value)}
               title="Asignar / transferir a"
@@ -246,12 +255,14 @@ function ChatView({ conv, onMarcarResuelta }: { conv: Conversacion; onMarcarResu
           {!puedeTransferir && asignado && <span className="text-[10px] text-muted hidden sm:inline">Asignado: {asignado.nombre}</span>}
           {conv.estado === "ABIERTA" && (
             <button onClick={onMarcarResuelta}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors"
+              title="Marcar como resuelta"
+              className="px-2 sm:px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors"
               style={{ backgroundColor: "#16a34a" }}>
-              <CheckCheck size={12} className="inline mr-1" /> Resolver
+              <CheckCheck size={12} className="inline sm:mr-1" />
+              <span className="hidden sm:inline">Resolver</span>
             </button>
           )}
-          <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-semibold",
+          <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-semibold hidden sm:inline",
             conv.estado === "ABIERTA" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500")}>
             {conv.estado}
           </span>
@@ -495,15 +506,17 @@ function NexusContent() {
               {noLeidas} sin leer
             </span>
           )}
-          <Link href="/nexus/plantillas" className="btn-secondary btn-sm">
+          {/* En el teléfono solo queda lo que se usa contestando. Lo de
+              configurar se hace sentado. */}
+          <Link href="/nexus/plantillas" className="btn-secondary btn-sm hidden sm:inline-flex">
             <MessageSquareText size={13} /> Plantillas
           </Link>
           {esAdmin(user?.rol) && (
-            <button onClick={() => setShowLineas(true)} className="btn-secondary btn-sm">
+            <button onClick={() => setShowLineas(true)} className="btn-secondary btn-sm hidden sm:inline-flex">
               <Settings2 size={13} /> Líneas
             </button>
           )}
-          <Link href="/configuracion?tab=canales" className="btn-secondary btn-sm">
+          <Link href="/configuracion?tab=canales" className="btn-secondary btn-sm hidden sm:inline-flex">
             <Settings2 size={13} /> Conexiones
           </Link>
           <button onClick={() => refetch()} className="btn-secondary btn-sm">
@@ -513,8 +526,16 @@ function NexusContent() {
       } />
 
       <div className="flex-1 overflow-hidden flex">
-        {/* Panel izq: lista de conversaciones */}
-        <div className="w-80 flex-shrink-0 flex flex-col surface" style={{ borderRight: "1px solid var(--border)" }}>
+        {/* Panel izq: lista de conversaciones.
+            En móvil ocupa TODO el ancho y desaparece al abrir un chat.
+            En escritorio son las dos columnas de siempre. */}
+        <div
+          className={cn(
+            "w-full lg:w-80 flex-shrink-0 flex-col surface",
+            convActiva ? "hidden lg:flex" : "flex",
+          )}
+          style={{ borderRight: "1px solid var(--border)" }}
+        >
           {/* Búsqueda + filtros */}
           <div className="px-3 py-3 space-y-3" style={{ borderBottom: "1px solid var(--border)" }}>
             <div className="relative">
@@ -537,8 +558,10 @@ function NexusContent() {
               })}
             </div>
 
-            {/* Filtro canal */}
-            <div className="flex gap-1 overflow-x-auto pb-0.5">
+            {/* Filtro canal. Se ENVUELVE en vez de deslizarse: unos
+                chips que se salen por la derecha esconden justamente el
+                canal que uno busca. */}
+            <div className="flex flex-wrap gap-1">
               <button onClick={() => setFiltroCanal("")}
                 className="flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all"
                 style={!filtroCanal ? { backgroundColor: brand.brandColor, color: "white" } : { backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>
@@ -578,9 +601,9 @@ function NexusContent() {
         </div>
 
         {/* Centro: chat */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className={cn("flex-1 overflow-hidden", convActiva ? "flex" : "hidden lg:flex")}>
           {convActiva ? (
-            <ChatView conv={convActiva} onMarcarResuelta={marcarResuelta} />
+            <ChatView conv={convActiva} onMarcarResuelta={marcarResuelta} onVolver={() => setConvActiva(null)} />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-8 page-bg">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ backgroundColor: brand.brandColor + "18" }}>

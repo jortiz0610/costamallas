@@ -255,7 +255,7 @@ function DetalleContent() {
             {/* Plantilla */}
             <div className="card p-5">
               <p className="text-xs font-bold uppercase tracking-widest text-muted mb-3">Documento</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {(["EXPRESS", "PROPUESTA"] as const).map(p => (
                   <button key={p} onClick={() => setPlantilla(p)}
                     className={cn("py-2 rounded-lg text-xs font-semibold transition-all", plantilla === p ? "text-white" : "surface-3 text-muted")}
@@ -272,7 +272,7 @@ function DetalleContent() {
             {/* Estado */}
             <div className="card p-5">
               <p className="text-xs font-bold uppercase tracking-widest text-muted mb-3">Estado</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {ESTADOS.map(e => (
                   <button key={e.v} onClick={() => setEstado(e.v)}
                     className="py-2 rounded-lg text-xs font-semibold transition-all"

@@ -128,7 +128,7 @@ export default function ExportarPage() {
           <h2 className="text-[13px] font-semibold text-gray-800 mb-4 flex items-center gap-2">
             <FileOutput size={15} /> Modo de exportación
           </h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
               onClick={() => setModo("api")}
               className={`p-4 rounded-lg border-2 text-left transition-all ${modo === "api" ? "border-cm-yellow bg-cm-yellow/5" : "border-gray-200 hover:border-gray-300"}`}

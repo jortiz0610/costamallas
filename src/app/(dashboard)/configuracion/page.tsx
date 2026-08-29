@@ -113,7 +113,7 @@ function TabEmpresa() {
         <h2 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
           <Building2 size={14} style={{ color: form.brandColor }} /> Informacion de la empresa
         </h2>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="col-span-2">
             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Nombre comercial *</label>
             <input className="input" value={form.companyName} onChange={e => setForm(p => ({ ...p, companyName: e.target.value }))} placeholder="Ej: Mi Empresa" />
@@ -175,7 +175,7 @@ function TabEmpresa() {
         <h2 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2">
           <ImageIcon size={14} style={{ color: form.brandColor }} /> Identidad visual
         </h2>
-        <div className="grid grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div>
             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Logo principal *</label>
             <div onClick={() => puedeEditar && logoRef.current?.click()}
@@ -716,7 +716,7 @@ function PlataformaCard({ conn, onSaved }: { conn: ConexionAds; onSaved: () => v
       </div>
       {open && (
         <div className="px-4 pb-4 space-y-3 border-t divider pt-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-semibold text-muted uppercase mb-1">Client / App ID</label>
               <input className="input font-mono text-xs" value={clientId} onChange={e => setClientId(e.target.value)} placeholder="123456789..." />
@@ -892,12 +892,12 @@ function TabFacturacion() {
           </select>
         </div>
         {f.proveedor !== "manual" && (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label className="block text-xs font-semibold text-muted uppercase mb-1.5">API URL</label><input className="input font-mono text-xs" value={f.apiUrl} onChange={e => u("apiUrl", e.target.value)} placeholder="https://api.proveedor.com" /></div>
             <div><label className="block text-xs font-semibold text-muted uppercase mb-1.5">API Key {f.tieneApiKey && <span className="text-emerald-500 normal-case">(guardada)</span>}</label><input type="password" className="input font-mono text-xs" value={f.apiKey} onChange={e => u("apiKey", e.target.value)} placeholder="••••••••" /></div>
           </div>
         )}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div><label className="block text-xs font-semibold text-muted uppercase mb-1.5">Prefijo</label><input className="input" value={f.prefijo} onChange={e => u("prefijo", e.target.value)} placeholder="FE" /></div>
           <div><label className="block text-xs font-semibold text-muted uppercase mb-1.5">N° Resolución DIAN</label><input className="input" value={f.numeroResolucion} onChange={e => u("numeroResolucion", e.target.value)} placeholder="18760000001" /></div>
           <div><label className="block text-xs font-semibold text-muted uppercase mb-1.5">Rango desde</label><input type="number" className="input" value={f.rangoDesde} onChange={e => u("rangoDesde", e.target.value)} /></div>
@@ -1005,7 +1005,7 @@ function TabCorreo() {
       )}
 
       <div className="card p-5 space-y-4">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="col-span-2">
             <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Servidor SMTP</label>
             <input className="input font-mono text-xs" value={f.host} onChange={e => u("host", e.target.value)} placeholder="smtp.hostinger.com" />
@@ -1021,7 +1021,7 @@ function TabCorreo() {
           Conexión SSL directa (puerto 465). Déjalo sin marcar para el 587, que negocia STARTTLS.
         </label>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Usuario</label>
             <input className="input font-mono text-xs" value={f.usuario} onChange={e => u("usuario", e.target.value)} placeholder="pedidos@costamallas.com" />
@@ -1155,8 +1155,11 @@ function ConfiguracionContent() {
     <>
       <Topbar title="Configuración" />
       <div className="flex-1 overflow-y-auto page-bg">
-        <div className="bg-white dark:bg-slate-900 px-6 overflow-x-auto" style={{ borderBottom: "1px solid var(--border)" }}>
-          <div className="flex gap-4 min-w-max items-end">
+        {/* Las pestañas se ENVUELVEN. Deslizándose, las últimas
+            —facturación, marketing, canales— no existían para quien
+            entra desde el móvil: no se ven y nadie arrastra buscándolas. */}
+        <div className="bg-white dark:bg-slate-900 px-3 sm:px-6" style={{ borderBottom: "1px solid var(--border)" }}>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 items-end">
             {GRUPOS.map(g => {
               const delGrupo = tabsVisibles.filter(t => t.grupo === g.id);
               if (!delGrupo.length) return null;
@@ -1165,7 +1168,7 @@ function ConfiguracionContent() {
                   <span className="text-[9px] font-bold uppercase tracking-widest text-gray-300 dark:text-slate-600 px-3 pt-2.5">
                     {g.label}
                   </span>
-                  <div className="flex gap-0.5">
+                  <div className="flex flex-wrap gap-0.5">
                     {delGrupo.map(t => {
                       const Icon = t.icon;
                       const active = tab === t.id;

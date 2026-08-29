@@ -82,7 +82,7 @@ export function TabComercial() {
       <div className="card p-5 space-y-4">
         <p className="text-xs font-bold uppercase tracking-widest text-muted">Descuento y anticipo</p>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Descuento máximo sin aprobación (%)</label>
             <input type="number" className="input" value={pol.descuentoMaxPct}

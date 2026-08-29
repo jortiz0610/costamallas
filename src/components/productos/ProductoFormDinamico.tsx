@@ -869,7 +869,7 @@ function FichaMetalicas({ d, s }: { d: FD; s: (k: string, v: unknown) => void })
   return (
     <div className="space-y-4">
       <FSection title="Material y Acabado">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <SSelect label="Tipo de Acero" value={g("mm_tipo_acero")} onChange={v => s("mm_tipo_acero", v)} opts={[["galvanizado","Galvanizado"],["galvanizado_pvc","Galv. + PVC"],["inoxidable","Inoxidable"],["negro","Acero Negro"]]} />
           <SSelect label="Acabado Exterior" value={g("mm_acabado_exterior")} onChange={v => s("mm_acabado_exterior", v)} opts={[["zinc_electro","Zinc Electrolítico"],["zinc_caliente","Zinc en Caliente"],["pvc","PVC"],["epoxi","Epoxi"],["sin_recubrimiento","Sin Recubrimiento"]]} />
           <SInput label="Zinc (g/m²)" value={g("mm_zinc_gr_m2")} onChange={v => s("mm_zinc_gr_m2", v)} type="number" />
@@ -877,7 +877,7 @@ function FichaMetalicas({ d, s }: { d: FD; s: (k: string, v: unknown) => void })
         <SToggle label="Certificación LEED" desc="El producto cumple estándares de construcción sostenible" checked={Boolean(d["mm_certificacion_leed"])} onChange={v => s("mm_certificacion_leed", v)} />
       </FSection>
       <FSection title="Calibre del Alambre">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <SInput label="Calibre Externo BWG" value={g("mm_calibre_ext_bwg")} onChange={v => s("mm_calibre_ext_bwg", v)} mono />
           <SInput label="Calibre Externo (mm)" value={g("mm_calibre_ext_mm")} onChange={v => s("mm_calibre_ext_mm", v)} type="number" step="0.01" />
           <SInput label="Calibre Interno BWG" value={g("mm_calibre_int_bwg")} onChange={v => s("mm_calibre_int_bwg", v)} mono />
@@ -886,7 +886,7 @@ function FichaMetalicas({ d, s }: { d: FD; s: (k: string, v: unknown) => void })
         <SInput label="Tamaño del Ojo / Abertura" value={g("mm_tamano_ojo")} onChange={v => s("mm_tamano_ojo", v)} placeholder="ej: 1×1 pulgada" />
       </FSection>
       <FSection title="Propiedades Mecánicas">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <SInput label="Resistencia Tensión (MPa)" value={g("mm_resistencia_tension_mpa")} onChange={v => s("mm_resistencia_tension_mpa", v)} type="number" />
           <SInput label="Resistencia Tracción (kN/m)" value={g("mm_resistencia_traccion_kn")} onChange={v => s("mm_resistencia_traccion_kn", v)} type="number" step="0.1" />
           <SInput label="Dureza Shore A (PVC)" value={g("mm_dureza_shore_a")} onChange={v => s("mm_dureza_shore_a", v)} type="number" />
@@ -895,7 +895,7 @@ function FichaMetalicas({ d, s }: { d: FD; s: (k: string, v: unknown) => void })
         <STextarea label="Compatibilidad Química" value={g("mm_compatibilidad_quimica")} onChange={v => s("mm_compatibilidad_quimica", v)} rows={2} />
       </FSection>
       <FSection title="Dimensiones y Peso">
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <SInput label="Alto (m)" value={g("mm_alto_m")} onChange={v => s("mm_alto_m", v)} type="number" step="0.01" />
           <SInput label="Ancho (m)" value={g("mm_ancho_m")} onChange={v => s("mm_ancho_m", v)} type="number" step="0.01" />
           <SInput label="Longitud Rollo (m)" value={g("mm_longitud_rollo_m")} onChange={v => s("mm_longitud_rollo_m", v)} type="number" step="0.1" />
@@ -916,7 +916,7 @@ function FichaBalcones({ d, s }: { d: FD; s: (k: string, v: unknown) => void }) 
   return (
     <div className="space-y-4">
       <FSection title="Fibra y Composición">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <SSelect label="Material del Filamento" value={g("bh_material_filamento")} onChange={v => s("bh_material_filamento", v)} opts={[["poliester","Poliéster"],["polipropileno","Polipropileno"],["nylon","Nylon (Poliamida)"],["polietileno","Polietileno"]]} />
           <SInput label="Diámetro del Hilo (mm)" value={g("bh_diametro_hilo_mm")} onChange={v => s("bh_diametro_hilo_mm", v)} type="number" step="0.01" />
           <SInput label="Denier" value={g("bh_denier")} onChange={v => s("bh_denier", v)} type="number" />
@@ -924,7 +924,7 @@ function FichaBalcones({ d, s }: { d: FD; s: (k: string, v: unknown) => void }) 
         </div>
       </FSection>
       <FSection title="Propiedades Mecánicas">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <SInput label="Tenacidad (g/denier)" value={g("bh_tenacidad_g_denier")} onChange={v => s("bh_tenacidad_g_denier", v)} type="number" step="0.01" />
           <SInput label="Elongación (%)" value={g("bh_elongacion_pct")} onChange={v => s("bh_elongacion_pct", v)} type="number" step="0.1" />
           <SInput label="Resistencia Tracción (kgf)" value={g("bh_resistencia_traccion_kgf")} onChange={v => s("bh_resistencia_traccion_kgf", v)} type="number" step="0.1" />
@@ -933,14 +933,14 @@ function FichaBalcones({ d, s }: { d: FD; s: (k: string, v: unknown) => void }) 
         </div>
       </FSection>
       <FSection title="Dimensiones">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <SInput label="Tamaño de Abertura" value={g("bh_tamano_abertura")} onChange={v => s("bh_tamano_abertura", v)} />
           <SInput label="Ancho Estándar (m)" value={g("bh_ancho_estandar_m")} onChange={v => s("bh_ancho_estandar_m", v)} type="number" step="0.01" />
           <SInput label="Largo Estándar (m)" value={g("bh_largo_estandar_m")} onChange={v => s("bh_largo_estandar_m", v)} type="number" step="0.01" />
         </div>
       </FSection>
       <FSection title="UV y Temperatura">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <SInput label="Estabilidad Dimensional (%)" value={g("bh_estabilidad_dimensional_pct")} onChange={v => s("bh_estabilidad_dimensional_pct", v)} type="number" step="0.1" />
           <SInput label="Temperatura Máxima (°C)" value={g("bh_temp_max_uso_c")} onChange={v => s("bh_temp_max_uso_c", v)} type="number" />
           <SSelect label="Estabilizador UV" value={g("bh_estabilizador_uv")} onChange={v => s("bh_estabilizador_uv", v)} opts={[["uv_estabilizado","UV Estabilizado"],["uv_no","Sin Protección UV"],["uv_premium","UV Premium (HLS)"]]} />
@@ -961,7 +961,7 @@ function FichaNylon({ d, s }: { d: FD; s: (k: string, v: unknown) => void }) {
   return (
     <div className="space-y-4">
       <FSection title="Tipo de Tejido">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <SSelect label="Tipo de Tejido" value={g("ny_tipo_tejido")} onChange={v => s("ny_tipo_tejido", v)} opts={[["mano","Knotted (a mano)"],["maquina","Knotless (máquina)"],["extruido","Extruido"]]} />
           <SInput label="Calibre del Hilo (mm)" value={g("ny_calibre_mm")} onChange={v => s("ny_calibre_mm", v)} type="number" step="0.01" />
           <SInput label="Tamaño del Cuadro" value={g("ny_tamano_cuadro")} onChange={v => s("ny_tamano_cuadro", v)} />
@@ -969,7 +969,7 @@ function FichaNylon({ d, s }: { d: FD; s: (k: string, v: unknown) => void }) {
         <SToggle label="Tiene Alma Interior" checked={Boolean(d["ny_tiene_alma"])} onChange={v => s("ny_tiene_alma", v)} />
       </FSection>
       <FSection title="Uso Deportivo">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <SSelect label="Uso Principal" value={g("ny_uso_deportivo")} onChange={v => s("ny_uso_deportivo", v)} opts={[["futbol","Fútbol"],["voleibol","Voleibol"],["tenis","Tenis"],["basquetbol","Básquetbol"],["cerramiento","Cerramiento Deportivo"],["cubierta","Cubierta / Techo"],["anticaida","Anticaída / Seguridad"],["beisbol","Béisbol"],["golf","Golf"]]} />
           <SInput label="Norma Anticaída" value={g("ny_norma_anticaida")} onChange={v => s("ny_norma_anticaida", v)} placeholder="ej: EN 1263" />
           <SInput label="Alto Reglamentario (m)" value={g("ny_alto_reglamentario_m")} onChange={v => s("ny_alto_reglamentario_m", v)} type="number" step="0.01" />
@@ -980,7 +980,7 @@ function FichaNylon({ d, s }: { d: FD; s: (k: string, v: unknown) => void }) {
         <SToggle label="Incluye Lona / Faldón" checked={Boolean(d["ny_incluye_lona"])} onChange={v => s("ny_incluye_lona", v)} />
       </FSection>
       <FSection title="Pasto Sintético (si aplica)">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <SInput label="Referencia Dicitex" value={g("ny_ref_dicitex")} onChange={v => s("ny_ref_dicitex", v)} mono />
           <SInput label="Altura de Fibra (mm)" value={g("ny_altura_fibra_mm")} onChange={v => s("ny_altura_fibra_mm", v)} type="number" />
           <SInput label="Tasa Puntadas/m²" value={g("ny_tasa_puntadas_m2")} onChange={v => s("ny_tasa_puntadas_m2", v)} type="number" />
@@ -998,20 +998,20 @@ function FichaPlasticas({ d, s }: { d: FD; s: (k: string, v: unknown) => void })
   return (
     <div className="space-y-4">
       <FSection title="Material">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <SSelect label="Polímero Base" value={g("pl_polimero_base")} onChange={v => s("pl_polimero_base", v)} opts={[["pead","PEAD"],["pe","PE (Polietileno)"],["pp","PP (Polipropileno)"],["pvc","PVC"]]} />
           <SSelect label="Subtipo de Malla" value={g("pl_subtipo")} onChange={v => s("pl_subtipo", v)} opts={[["reja","Reja Plástica"],["pollito","Malla Pollito"],["polisombra","Polisombra / Sombra"],["senalizacion","Señalización"],["geomalla","Geomalla"],["gallinero","Malla Gallinero"],["invernadero","Malla Invernadero"]]} />
         </div>
         <SToggle label="Aditivo UV" desc="Material con protección UV incorporada en el proceso de fabricación" checked={Boolean(d["pl_aditivo_uv"])} onChange={v => s("pl_aditivo_uv", v)} />
       </FSection>
       <FSection title="Geometría">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <SSelect label="Forma del Hueco" value={g("pl_forma_hueco")} onChange={v => s("pl_forma_hueco", v)} opts={[["cuadrado","Cuadrado"],["rectangular","Rectangular"],["rombo","Rombo / Diamante"],["hexagonal","Hexagonal"],["circular","Circular"]]} />
           <SInput label="Tamaño de Abertura" value={g("pl_tamano_abertura")} onChange={v => s("pl_tamano_abertura", v)} placeholder="ej: 5×5 cm" />
         </div>
       </FSection>
       <FSection title="Dimensiones del Rollo">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <SInput label="Alto / Ancho (m)" value={g("pl_alto_m")} onChange={v => s("pl_alto_m", v)} type="number" step="0.01" />
           <SInput label="Largo del Rollo (m)" value={g("pl_largo_rollo_m")} onChange={v => s("pl_largo_rollo_m", v)} type="number" step="0.1" />
           <SInput label="% Sombra" value={g("pl_porcentaje_sombra")} onChange={v => s("pl_porcentaje_sombra", v)} type="number" hint="0–100%" />
@@ -1031,14 +1031,14 @@ function FichaSeguridad({ d, s }: { d: FD; s: (k: string, v: unknown) => void })
         <SSelect label="Subtipo" value={g("sp_subtipo")} onChange={v => s("sp_subtipo", v)} opts={[["concertina","Concertina"],["alambre_puas","Alambre de Púas"],["alambre_galv","Alambre Galvanizado Liso"],["alambre_pvc","Alambre Galvanizado + PVC"],["alambre_cerca","Alambre para Cerca Eléctrica"],["energizador","Energizador / Electrificador"],["aislador","Aislador"],["varilla_tierra","Varilla de Tierra"],["sensor","Sensor de Vibración / Alarma"]]} />
       </FSection>
       <FSection title="Especificaciones del Alambre">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <SSelect label="Material Cuchillas / Alambre" value={g("sp_material_cuchillas")} onChange={v => s("sp_material_cuchillas", v)} opts={[["acero_galv","Acero Galvanizado"],["acero_inox","Acero Inoxidable"],["acero_pvc","Acero + PVC"]]} />
           <SInput label="Calibre BWG" value={g("sp_calibre_bwg")} onChange={v => s("sp_calibre_bwg", v)} mono />
           <SInput label="Calibre (mm)" value={g("sp_calibre_mm")} onChange={v => s("sp_calibre_mm", v)} type="number" step="0.01" />
         </div>
       </FSection>
       <FSection title="Concertina (si aplica)">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <SSelect label="Tipo de Concertina" value={g("sp_tipo_concertina")} onChange={v => s("sp_tipo_concertina", v)} opts={[["circular","Circular (CBT)"],["flat_wrap","Flat Wrap"],["bto_22","BTO-22"],["bto-65","BTO-65"],["razor_wire","Razor Wire"]]} />
           <SInput label="Diámetro del Rollo (mm)" value={g("sp_diametro_rollo_mm")} onChange={v => s("sp_diametro_rollo_mm", v)} type="number" />
           <SInput label="Número de Espirales" value={g("sp_num_espirales")} onChange={v => s("sp_num_espirales", v)} type="number" />
@@ -1046,7 +1046,7 @@ function FichaSeguridad({ d, s }: { d: FD; s: (k: string, v: unknown) => void })
         </div>
       </FSection>
       <FSection title="Energizador (si aplica)">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <SInput label="Voltaje de Salida (V)" value={g("sp_voltaje_v")} onChange={v => s("sp_voltaje_v", v)} type="number" />
           <SInput label="Cobertura (km)" value={g("sp_cobertura_km")} onChange={v => s("sp_cobertura_km", v)} type="number" step="0.1" />
           <SInput label="Cobertura (ha)" value={g("sp_cobertura_ha")} onChange={v => s("sp_cobertura_ha", v)} type="number" step="0.1" />
@@ -1066,7 +1066,7 @@ function FichaConstruccion({ d, s }: { d: FD; s: (k: string, v: unknown) => void
   return (
     <div className="space-y-4">
       <FSection title="Tipo y Norma">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <SSelect label="Tipo de Sistema (UNE-EN 1263-1)" value={g("co_tipo_sistema")} onChange={v => s("co_tipo_sistema", v)} opts={[["s","Tipo S — Red horizontal con cuerda perimetral"],["t","Tipo T — Red en bandeja / consola"],["u","Tipo U — Red vertical (barandilla)"],["v","Tipo V — Red vertical con horca"],["sistema","Sistema de redes"]]} />
           <SSelect label="Norma / Certificación" value={g("co_norma")} onChange={v => s("co_norma", v)} opts={[["une_en_1263_1","UNE-EN 1263-1"],["une_en_1263_2","UNE-EN 1263-2"],["ansi_a10_11","ANSI A10.11"],["sin_norma","Sin norma"]]} />
           <SSelect label="Clase de Energía de Absorción" value={g("co_clase_energia")} onChange={v => s("co_clase_energia", v)} opts={[["a1","A1 (2,3 kJ)"],["a2","A2 (2,3 kJ)"],["b1","B1 (4,4 kJ)"],["b2","B2 (4,4 kJ)"]]} />
@@ -1074,7 +1074,7 @@ function FichaConstruccion({ d, s }: { d: FD; s: (k: string, v: unknown) => void
         <SToggle label="Producto Certificado" checked={Boolean(d["co_certificado"])} onChange={v => s("co_certificado", v)} />
       </FSection>
       <FSection title="Material y Cuerda">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <SSelect label="Material de la Red" value={g("co_material")} onChange={v => s("co_material", v)} opts={[["polipropileno","Polipropileno"],["poliamida","Poliamida / Nylon"],["poliester","Poliéster"],["polietileno","Polietileno"]]} />
           <SInput label="Calibre del Hilo (mm)" value={g("co_calibre_hilo_mm")} onChange={v => s("co_calibre_hilo_mm", v)} type="number" step="0.01" />
           <SInput label="Tamaño del Cuadro / Malla" value={g("co_cuadro_malla")} onChange={v => s("co_cuadro_malla", v)} />
@@ -1083,7 +1083,7 @@ function FichaConstruccion({ d, s }: { d: FD; s: (k: string, v: unknown) => void
         </div>
       </FSection>
       <FSection title="Dimensiones y Colores">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <SInput label="Ancho (m)" value={g("co_ancho_m")} onChange={v => s("co_ancho_m", v)} type="number" step="0.01" />
           <SInput label="Largo (m)" value={g("co_largo_m")} onChange={v => s("co_largo_m", v)} type="number" step="0.01" />
           <SInput label="Disponibilidad / Tiempo de Entrega" value={g("co_disponibilidad")} onChange={v => s("co_disponibilidad", v)} />
@@ -1208,7 +1208,7 @@ function GaleriaProducto({ productoId }: { productoId: string }) {
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{imagenes.length} imagen{imagenes.length !== 1 ? "es" : ""}</p>
             <p className="text-[11px] text-gray-400">Arrastra para reordenar · la 1ª es la principal en la tienda · ⭐ = Principal</p>
           </div>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {imagenes.map((img, idx) => (
               <div key={img.id} draggable
                 onDragStart={() => setDragId(img.id)}
@@ -1383,31 +1383,31 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
               grupo="producto-principal"
               bloques={[
                 { id: "identificacion", titulo: "Identificación", contenido: (<>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <SInput label="SKU *" value={g("sku")} onChange={v => set("sku", v)} placeholder="MN-001" mono />
                   <SInput label="SKU Interno" value={g("acfSkuInterno")} onChange={v => set("acfSkuInterno", v)} mono />
                 </div>
                 <SInput label="Nombre del producto *" value={g("nombre")} onChange={v => set("nombre", v)} placeholder="Nombre completo tal como aparece en la tienda" />
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <CatalogoInput tipo="MARCA" label="Marca / Fabricante" value={g("acfMarcaFabricante")} onChange={v => set("acfMarcaFabricante", v)} hint="Las nuevas se guardan en Catálogos" />
                   <CatalogoSelect tipo="UNIDAD_VENTA" label="Unidad de Venta" value={g("acfUnidadVenta")} onChange={v => set("acfUnidadVenta", v)} hint="Se administran en Catálogos" />
                 </div>
                 </>) },
                 { id: "precios", titulo: "Precios", contenido: (<>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <SInput label="Precio Normal (COP)" value={gn("precioNormal")} onChange={v => set("precioNormal", v)} type="number" placeholder="0" />
                   <SInput label="Precio Oferta (COP)" value={gn("precioOferta")} onChange={v => set("precioOferta", v)} type="number" placeholder="0" />
                 </div>
                 </>) },
                 { id: "inventario", titulo: "Inventario", contenido: (<>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <SInput label="Stock actual" value={String(form.stock ?? 0)} onChange={v => set("stock", v)} type="number" />
                   <SInput label="Stock mínimo" value={String(form.stockMinimo ?? 15)} onChange={v => set("stockMinimo", v)} type="number" />
                   <SSelect label="Backorders" value={g("permiteBackorders")} onChange={v => set("permiteBackorders", v)} opts={[["no","No permitir"],["notify","Notificar"],["yes","Permitir"]]} />
                 </div>
                 </>) },
                 { id: "dimensiones", titulo: "Dimensiones y Peso", contenido: (<>
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <SInput label="Peso (kg)" value={gn("pesoKg")} onChange={v => set("pesoKg", v)} type="number" step="0.001" />
                   <SInput label="Largo (cm)" value={gn("largoCm")} onChange={v => set("largoCm", v)} type="number" step="0.01" />
                   <SInput label="Ancho (cm)" value={gn("anchoCm")} onChange={v => set("anchoCm", v)} type="number" step="0.01" />

@@ -156,12 +156,20 @@ export function Topbar({ title, actions }: TopbarProps) {
       <div className="w-1 h-5 rounded-full flex-shrink-0 hidden sm:block" style={{ backgroundColor: modeColor }} />
       <h1 className="text-[14px] sm:text-[15px] font-semibold text-gray-800 dark:text-gray-100 flex-1 truncate">{title}</h1>
       <span className="text-[10px] font-bold px-2.5 py-1 rounded-full text-white hidden sm:inline-flex items-center" style={{ backgroundColor: modeColor }}>{mode}</span>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
-      <QuickTaskButton mode={mode} color={modeColor} />
+      {actions && <div className="flex items-center gap-2 min-w-0">{actions}</div>}
+      {/* En el teléfono la barra se queda con lo imprescindible: volver a
+          cargar y las notificaciones. Las tareas rápidas y el reporte de
+          error están a un toque en el menú, y apretujar nueve botones en
+          375 px deja el título del módulo en tres letras. */}
+      <div className="hidden sm:flex items-center gap-2">
+        <QuickTaskButton mode={mode} color={modeColor} />
+      </div>
       <BotonRecargar color={modeColor} />
-      <ReportarError />
+      <div className="hidden sm:flex items-center gap-2">
+        <ReportarError />
+      </div>
       <button onClick={toggleDark}
-        className="w-9 h-9 flex items-center justify-center rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 border border-gray-200 dark:border-slate-700"
+        className="w-9 h-9 hidden sm:flex items-center justify-center rounded-lg transition-colors text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800 border border-gray-200 dark:border-slate-700"
         title={darkMode ? "Modo claro" : "Modo oscuro"}>
         {darkMode ? <Sun size={15} /> : <Moon size={15} />}
       </button>

@@ -290,7 +290,7 @@ export default function ProductosPage() {
               ) : (
                 data.data.map((p) => (
                   <tr key={p.id}>
-                    <td><span className="sku-tag">{p.sku}</span></td>
+                    <td data-label="SKU"><span className="sku-tag">{p.sku}</span></td>
                     <td>
                       <div className="flex items-center gap-2">
                         {p.imagenPrincipal ? (
@@ -309,11 +309,11 @@ export default function ProductosPage() {
                         )}
                       </div>
                     </td>
-                    <td className="text-gray-500 text-[12px]">{p.categorias[0] ?? "—"}</td>
-                    <td className={cn("font-medium", !p.precioNormal && "text-red-500")}>
+                    <td data-label="Categoría" className="text-gray-500 text-[12px]">{p.categorias[0] ?? "—"}</td>
+                    <td data-label="Precio" className={cn("font-medium", !p.precioNormal && "text-red-500")}>
                       {p.precioNormal ? formatCOP(p.precioNormal) : "sin precio"}
                     </td>
-                    <td>
+                    <td data-label="Stock">
                       <div className="flex items-center gap-2">
                         <span>{p.stock}</span>
                         <span className={cn("badge text-[9px]", stockBadge[p.nivelStock])}>
@@ -321,8 +321,8 @@ export default function ProductosPage() {
                         </span>
                       </div>
                     </td>
-                    <td><span className={cn("badge", estadoBadge[p.intEstado])}>{estadoLabel[p.intEstado]}</span></td>
-                    <td>
+                    <td data-label="Estado"><span className={cn("badge", estadoBadge[p.intEstado])}>{estadoLabel[p.intEstado]}</span></td>
+                    <td data-label="Tienda">
                       {p.wcId
                         ? <span className="badge-green badge">Sync</span>
                         : <span className="badge-gray badge">—</span>

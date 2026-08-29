@@ -288,12 +288,12 @@ export default function StockPage() {
               ) : (
                 items.map(a => (
                   <tr key={a.id} className="group">
-                    <td><span className="sku-tag">{a.sku}</span></td>
+                    <td data-label="SKU"><span className="sku-tag">{a.sku}</span></td>
                     <td className="font-medium">
                       <Link href={`/productos/${a.id}`} className="hover:underline">{a.nombre}</Link>
                       {!a.publicado && <span className="ml-2 badge badge-gray text-[9px]">sin publicar</span>}
                     </td>
-                    <td>
+                    <td data-label="Stock">
                       {editId === a.id ? (
                         <div className="flex items-center gap-1">
                           <input
@@ -319,8 +319,8 @@ export default function StockPage() {
                         </button>
                       )}
                     </td>
-                    <td className="text-gray-500 hidden sm:table-cell">{a.stockMinimo}</td>
-                    <td>
+                    <td data-label="Mínimo" className="text-gray-500 hidden sm:table-cell">{a.stockMinimo}</td>
+                    <td data-label="Estado">
                       <span className={cn("badge", a.agotado ? "badge-red" : stockBadge[a.nivelStock])}>
                         {a.agotado ? "AGOTADO" : a.nivelStock}
                       </span>

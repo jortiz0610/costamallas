@@ -87,7 +87,7 @@ function ImportarContent() {
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[
             { label: "Total en WooCommerce", value: productos.length, color: "text-gray-800" },
             { label: "Nuevos (sin importar)", value: productos.filter((p) => !p.yaImportado).length, color: "text-blue-600" },

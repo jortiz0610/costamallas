@@ -58,7 +58,7 @@ function NuevaInstalacion({ onClose, onSaved }: { onClose: () => void; onSaved: 
             </select>
             {pedidos.length === 0 && <p className="text-[11px] text-muted mt-1">No hay pedidos. Crea un pedido primero para agendar su instalación.</p>}
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Fecha agendada</label>
               <input type="date" className="input" value={fechaAgendada} onChange={e => setFechaAgendada(e.target.value)} />

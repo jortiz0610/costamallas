@@ -70,7 +70,7 @@ function NuevaPlantilla({ plantilla, onClose, onSaved }: {
           <button onClick={onClose} className="w-8 h-8 rounded-lg surface-2 flex items-center justify-center text-muted"><X size={15} /></button>
         </div>
         <div className="p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Nombre *</label>
               <input className="input" value={form.nombre} onChange={e => upd("nombre", e.target.value)} placeholder="Ej: Saludo inicial" autoFocus />

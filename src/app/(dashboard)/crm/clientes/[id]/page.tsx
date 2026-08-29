@@ -285,7 +285,7 @@ function ClientePerfilContent() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-4 mt-5 pt-5 border-t border-gray-100 dark:border-slate-700/50">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-5 pt-5 border-t border-gray-100 dark:border-slate-700/50">
               {[
                 { l: "Cotizaciones",  v: String(cliente._count.cotizaciones), c: CRM_COLOR,  Icon: ClipboardList },
                 { l: "Pedidos",       v: String(cliente._count.pedidos),      c: "#185FA5",  Icon: ShoppingCart  },
@@ -323,7 +323,7 @@ function ClientePerfilContent() {
           {/* Tab: Información */}
           {tab === "info" && (
             <div className="card p-5 space-y-5 -mt-2 rounded-t-none">
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">Contacto</h3>
                   <Field label="Nombre" value={editando ? nombre : (cliente.nombre ?? "")} onChange={setNombre} editing={editando} />

@@ -814,7 +814,7 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <div className="card p-5 space-y-4">
               <p className="text-xs font-bold uppercase tracking-widest text-muted flex items-center gap-1.5"><LayoutTemplate size={12} /> Documento</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {([
                   { v: "EXPRESS", l: "Express", d: "1-2 hojas" },
                   { v: "PROPUESTA", l: "Propuesta", d: "Dossier completo" },

@@ -97,7 +97,7 @@ export function PanelPolitica({ cotizacionId, datos }: { cotizacionId: string; d
         <Percent size={12} /> Condiciones
       </p>
 
-      <div className="grid grid-cols-2 gap-3 mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted">Descuento</p>
           <p className="text-sm font-bold" style={{ color: pendiente ? "#d97706" : "var(--text-soft)" }}>

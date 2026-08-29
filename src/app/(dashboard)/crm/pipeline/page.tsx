@@ -218,15 +218,15 @@ function PipelineContent() {
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center"><Loader2 size={22} className="animate-spin" style={{ color: CRM_COLOR }} /></div>
         ) : (
-          <div className="flex-1 overflow-x-auto overflow-y-hidden px-5 pb-5">
-            <div className="flex gap-3 h-full min-w-max">
+          <div className="flex-1 overflow-y-auto lg:overflow-x-auto lg:overflow-y-hidden px-3 sm:px-5 pb-5">
+            <div className="flex flex-col lg:flex-row gap-3 h-full lg:min-w-max">
               {COLUMNAS.map(col => {
                 const items = porColumna[col.id] ?? [];
                 const valor = items.reduce((a, p) => a + Number(p.total), 0);
                 return (
                   <div
                     key={col.id}
-                    className="w-[268px] flex flex-col card overflow-hidden"
+                    className="w-full lg:w-[268px] flex flex-col card overflow-hidden"
                     onDragOver={e => e.preventDefault()}
                     onDrop={() => {
                       if (!dragId) return;
@@ -311,7 +311,7 @@ function PipelineContent() {
             </div>
 
             <div className="p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="p-3 rounded-xl surface-2">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted">Valor</p>
                   <p className="text-base font-bold" style={{ color: CRM_COLOR }}>{formatCOP(Number(abierta.total))}</p>

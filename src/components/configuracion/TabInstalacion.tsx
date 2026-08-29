@@ -285,7 +285,7 @@ export function TabInstalacion() {
                 <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Descripción</label>
                 <textarea className="input resize-none" rows={2} value={servicio.descripcion ?? ""} onChange={e => setServicio(p => ({ ...p, descripcion: e.target.value }))} placeholder="Incluye replanteo, excavación, fundida de postes y tensado." />
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Unidad</label>
                   <select className="input" value={servicio.unidad ?? "m2"} onChange={e => setServicio(p => ({ ...p, unidad: e.target.value }))}>
@@ -335,7 +335,7 @@ export function TabInstalacion() {
               <button onClick={() => setCiudad(null)} className="w-8 h-8 rounded-lg surface-2 flex items-center justify-center text-muted"><X size={15} /></button>
             </div>
             <div className="p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Ciudad *</label>
                   <input className="input" value={ciudad.ciudad ?? ""} onChange={e => setCiudad(p => ({ ...p, ciudad: e.target.value }))} placeholder="Santa Marta" autoFocus />

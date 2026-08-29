@@ -103,11 +103,11 @@ function FacturacionContent() {
                     const m = ESTADOS[f.estado] ?? ESTADOS.BORRADOR;
                     return (
                       <tr key={f.id}>
-                        <td className="font-mono text-xs font-bold">{f.numero}</td>
+                        <td data-label="Número" className="font-mono text-xs font-bold">{f.numero}</td>
                         <td className="font-medium text-gray-800 dark:text-gray-100">{f.cliente.nombre}</td>
-                        <td><span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: m.c + "20", color: m.c }}>{m.l}</span></td>
-                        <td className="text-right font-semibold">{formatCOP(Number(f.total))}</td>
-                        <td className="text-right" style={{ color: Number(f.saldoPendiente) > 0 ? "#dc2626" : "#16a34a" }}>{formatCOP(Number(f.saldoPendiente))}</td>
+                        <td data-label="Estado"><span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: m.c + "20", color: m.c }}>{m.l}</span></td>
+                        <td data-label="Total" className="text-right font-semibold">{formatCOP(Number(f.total))}</td>
+                        <td data-label="Saldo" className="text-right" style={{ color: Number(f.saldoPendiente) > 0 ? "#dc2626" : "#16a34a" }}>{formatCOP(Number(f.saldoPendiente))}</td>
                         <td className="text-right">
                           <Link href={`/facturacion/${f.id}`} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold" style={{ backgroundColor: ERP_COLOR + "18", color: ERP_COLOR }}><Eye size={12} /> Ver</Link>
                         </td>

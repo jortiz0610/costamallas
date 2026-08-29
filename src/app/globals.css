@@ -207,8 +207,24 @@ html.dark {
   .dark .badge-blue   { @apply bg-blue-500/15 text-blue-300; }
   .dark .badge-orange { @apply bg-orange-500/15 text-orange-300; }
 
-  /* ── Tabla ── */
-  .table-wrapper { @apply overflow-x-auto rounded-2xl; border: 1px solid var(--border); }
+  /* ── Tabla ──
+   *
+   * En pantalla ancha es una tabla normal. Por debajo de 768 px se
+   * convierte en una lista de FICHAS: cada fila es una tarjeta y cada
+   * celda una línea con su rótulo delante.
+   *
+   * Por qué, y no un `overflow-x-auto`: una tabla de siete columnas
+   * dentro de una caja que se desliza a lo ancho no se lee en un
+   * teléfono. Hay que arrastrar para ver el precio, se pierde de vista
+   * de qué fila era, y en la práctica nadie lo hace — se abre el
+   * escritorio o no se mira. La caja con scroll horizontal parece
+   * responsive y no lo es.
+   *
+   * El rótulo de cada línea sale de `data-label` en el `<td>`. Una celda
+   * sin `data-label` simplemente se apila sin rótulo: es lo correcto
+   * para la columna del nombre y para la de acciones.
+   */
+  .table-wrapper { @apply rounded-2xl; border: 1px solid var(--border); }
   .table { @apply w-full text-sm; }
   .table thead tr { background-color: var(--surface-2); border-bottom: 1px solid var(--border); }
   .table th { @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide; color: var(--text-muted); }
@@ -216,6 +232,44 @@ html.dark {
   .table tbody tr { border-bottom: 1px solid var(--border); transition: background 0.12s; }
   .table tbody tr:hover { background-color: var(--surface-2); }
   .table tbody tr:last-child { border-bottom: none; }
+
+  @media (min-width: 768px) {
+    /* Solo aquí hace falta: si una tabla ancha no cabe en el escritorio,
+       que se deslice antes que romper la página. */
+    .table-wrapper { @apply overflow-x-auto; }
+  }
+
+  @media (max-width: 767px) {
+    .table, .table tbody, .table tr, .table td { display: block; width: 100%; }
+    .table thead { display: none; }
+    .table tbody tr {
+      padding: 0.75rem 0.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .table td {
+      @apply px-3 py-1.5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      text-align: right;
+    }
+    .table td::before {
+      content: attr(data-label);
+      @apply text-[10px] font-semibold uppercase tracking-wide;
+      color: var(--text-muted);
+      text-align: left;
+      flex-shrink: 0;
+    }
+    /* Sin rótulo, la celda ocupa la línea entera y se alinea a la
+       izquierda: es el caso del nombre y el de los botones. */
+    .table td:not([data-label]) { justify-content: flex-start; text-align: left; }
+    .table td:not([data-label])::before { display: none; }
+    /* Una celda que ocupa toda la tabla (mensajes de "sin resultados")
+       no debe convertirse en ficha. */
+    .table td[colspan] { justify-content: center; text-align: center; }
+    .table td[colspan]::before { display: none; }
+  }
 
   /* ── SKU tag ── */
   .sku-tag {

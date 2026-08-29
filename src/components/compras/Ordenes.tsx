@@ -131,7 +131,7 @@ function NuevaOrden({
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
                   onClick={() => setModo("auto")}
                   className={cn("p-3 rounded-xl text-left border transition-all", modo === "auto" ? "border-transparent text-white" : "surface-2 border-transparent")}

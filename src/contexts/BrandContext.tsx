@@ -22,6 +22,14 @@ interface BrandContextValue {
   refreshBrand: () => void;
   toggleDark: () => void;
   setMode: (m: "ERP" | "CRM" | "NEXUS" | "MARKETING") => void;
+  /**
+   * true = el módulo activo lo eligió la persona (o quedó de la visita
+   * anterior). false = todavía es el valor por defecto y el armazón
+   * puede decidir por ella.
+   */
+  modoElegido: boolean;
+  /** Fija el módulo de arranque SIN marcarlo como elegido a mano. */
+  setModoInicial: (m: "ERP" | "CRM" | "NEXUS" | "MARKETING") => void;
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }
@@ -46,6 +54,8 @@ const BrandContext = createContext<BrandContextValue>({
   refreshBrand: () => {},
   toggleDark: () => {},
   setMode: () => {},
+  modoElegido: false,
+  setModoInicial: () => {},
   sidebarOpen: false,
   setSidebarOpen: () => {},
 });
@@ -55,6 +65,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mode, setModeState] = useState<"ERP" | "CRM" | "NEXUS" | "MARKETING">("ERP");
+  const [modoElegido, setModoElegido] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   // Sincronizar desde la BD (fuente de verdad, igual para todos los usuarios).
@@ -91,6 +102,13 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       if (stored) setBrandState({ ...DEFAULT_BRAND, ...JSON.parse(stored) });
       const dark = localStorage.getItem("cm_dark") === "true";
       setDarkMode(dark);
+      // El módulo en el que se quedó la última vez. Sin esto, entrar al
+      // portal siempre devolvía al ERP, incluso a quien vive en Nexus.
+      const guardado = localStorage.getItem("cm_modo");
+      if (guardado === "ERP" || guardado === "CRM" || guardado === "NEXUS" || guardado === "MARKETING") {
+        setModeState(guardado);
+        setModoElegido(true);
+      }
     } catch {}
     setMounted(true);
     refreshBrand();
@@ -129,12 +147,25 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const setMode = useCallback((m: "ERP" | "CRM" | "NEXUS" | "MARKETING") => setModeState(m), []);
+  const setMode = useCallback((m: "ERP" | "CRM" | "NEXUS" | "MARKETING") => {
+    setModeState(m);
+    setModoElegido(true);
+    try { localStorage.setItem("cm_modo", m); } catch {}
+  }, []);
+
+  /**
+   * Lo usa el armazón para abrir en el módulo que corresponde la primera
+   * vez. No se guarda ni se marca como elegido: si mañana la persona
+   * gana o pierde permisos, la decisión se vuelve a tomar sola.
+   */
+  const setModoInicial = useCallback((m: "ERP" | "CRM" | "NEXUS" | "MARKETING") => {
+    setModeState(m);
+  }, []);
 
   if (!mounted) return null;
 
   return (
-    <BrandContext.Provider value={{ brand, darkMode, mode, setBrand, refreshBrand, toggleDark, setMode, sidebarOpen, setSidebarOpen }}>
+    <BrandContext.Provider value={{ brand, darkMode, mode, setBrand, refreshBrand, toggleDark, setMode, modoElegido, setModoInicial, sidebarOpen, setSidebarOpen }}>
       {children}
     </BrandContext.Provider>
   );

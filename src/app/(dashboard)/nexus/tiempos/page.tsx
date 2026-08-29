@@ -313,8 +313,8 @@ function Contenido() {
               <div className="px-5 py-3.5 border-b divider">
                 <p className="text-sm font-bold text-soft">Por asesor</p>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
+              <div className="md:overflow-x-auto">
+                <table className="table text-xs">
                   <thead>
                     <tr className="surface-2">
                       <th className="text-left px-5 py-2.5 font-semibold text-muted uppercase tracking-wider text-[10px]">Asesor</th>
