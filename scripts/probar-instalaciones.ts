@@ -53,8 +53,15 @@ async function main() {
   const hayCorreo = await correoConfigurado();
   const postventa = await getConfigPostventa();
 
+  // Cuántas instalaciones había ANTES de tocar nada. La limpieza se
+  // comprueba contra este número, no contra cero: cuando se escribió
+  // esto la base tenía 0 instalaciones y la comprobación quedó atada a
+  // ese hecho, así que el día que entró la primera instalación DE VERDAD
+  // (PED-07665, 28-ago) el script empezó a fallar sin que hubiera nada roto.
+  const instalacionesAntes = await prisma.instalacion.count();
+
   console.log("\nESTADO DE PARTIDA\n");
-  console.log(`  instalaciones en la base .... ${await prisma.instalacion.count()}`);
+  console.log(`  instalaciones en la base .... ${instalacionesAntes}`);
   console.log(`  coordinador (usuario) ....... ${cfg.coordinadorId || "sin configurar"}`);
   console.log(`  coordinador (correo suelto) . ${cfg.coordinadorEmail || "sin configurar"}`);
   console.log(`  aviso automático ............ ${cfg.avisarAlCerrar ? "encendido" : "apagado"}`);
@@ -354,7 +361,11 @@ async function main() {
     };
     comprobar("no quedan clientes de prueba", restos.clientes === 0, `${restos.clientes}`);
     comprobar("no quedan pedidos de prueba", restos.pedidos === 0, `${restos.pedidos}`);
-    comprobar("la base vuelve a 0 instalaciones", restos.instalaciones === 0, `${restos.instalaciones}`);
+    comprobar(
+      "la base queda con las instalaciones que ya tenía",
+      restos.instalaciones === instalacionesAntes,
+      `antes ${instalacionesAntes}, ahora ${restos.instalaciones}`,
+    );
     comprobar("no quedan notificaciones de prueba", restos.notificaciones === 0, `${restos.notificaciones}`);
     void pedidoId;
     await prisma.$disconnect();
