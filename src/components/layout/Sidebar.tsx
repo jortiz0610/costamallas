@@ -59,7 +59,7 @@ const CRM_ITEMS = [
   { section: "Gestión" },
   { href: "/crm/clientes", label: "Clientes", icon: UserCircle },
   { href: "/crm/cotizaciones", label: "Cotizaciones", icon: ClipboardList },
-  { href: "/crm/pedidos", label: "Pedidos", icon: ShoppingCart },
+  { href: "/crm/pedidos", label: "Pedidos", icon: ShoppingCart },
   { section: "Producción" },
   { href: "/crm/pipeline", label: "Pipeline", icon: Kanban },
   { href: "/crm/instalaciones", label: "Instalaciones", icon: Wrench },
