@@ -22,6 +22,7 @@ import {
 import Link from "next/link";
 import { formatCOP, formatDate, cn } from "@/lib/utils";
 import toast from "react-hot-toast";
+import { PipelineComercial } from "@/components/crm/PipelineComercial";
 
 const CRM_COLOR = "#BA7517";
 
@@ -68,6 +69,7 @@ const av = (n: string) => AV[n.charCodeAt(0) % AV.length];
 const diasDesde = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
 
 function PipelineContent() {
+  const [vista, setVista] = useState<"comercial" | "produccion">("comercial");
   const qc = useQueryClient();
   const [refrescando, setRefrescando] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -132,11 +134,31 @@ function PipelineContent() {
   return (
     <>
       <Topbar title="Pipeline" actions={
-        <button onClick={refrescar} className="btn-secondary btn-sm">
-          <RefreshCw size={13} className={refrescando ? "animate-spin" : ""} /> Actualizar
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Dos tableros distintos y los dos hacen falta: el COMERCIAL
+              sigue la oferta hasta que se cierra, y el de PRODUCCION
+              sigue el pedido hasta que se entrega. Meterlos en uno solo
+              obligaria a una tarjeta a estar en dos columnas. */}
+          <div className="flex rounded-xl p-0.5 gap-0.5" style={{ backgroundColor: "var(--surface-3)" }}>
+            {([["comercial", "Comercial"], ["produccion", "Produccion"]] as const).map(([k, l]) => (
+              <button key={k} onClick={() => setVista(k)}
+                className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                style={vista === k ? { backgroundColor: CRM_COLOR, color: "white" } : { color: "var(--text-muted)" }}>
+                {l}
+              </button>
+            ))}
+          </div>
+          <button onClick={refrescar} className="btn-secondary btn-sm">
+            <RefreshCw size={13} className={refrescando ? "animate-spin" : ""} /> Actualizar
+          </button>
+        </div>
       } />
 
+      {vista === "comercial" ? (
+        <div className="flex-1 overflow-y-auto page-bg p-5">
+          <PipelineComercial />
+        </div>
+      ) : (
       <div className="flex-1 overflow-hidden page-bg flex flex-col">
         <div className="p-5 pb-3 space-y-3 flex-shrink-0">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -273,6 +295,7 @@ function PipelineContent() {
           </div>
         )}
       </div>
+      )}
 
       {/* Ficha lateral */}
       {abierta && (

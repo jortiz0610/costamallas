@@ -1,0 +1,92 @@
+# ============================================================
+# El reloj del portal, cada 15 minutos.
+#
+# POR QUÉ EXISTE
+# --------------
+# Vercel en plan Hobby permite 2 crons y SOLO frecuencia diaria. Y no
+# falla suave: un cron más frecuente que diario rompe el deploy entero y
+# el auto-deploy se cae en silencio.
+#
+# Media docena de cosas del portal necesitan un reloj más fino que "una
+# vez al día":
+#
+#   · El toque 1 del seguimiento va a las 24 h de enviar la oferta. Con
+#     corrida diaria puede salir con 23 h de retraso.
+#   · El aviso por incumplir el compromiso de responder en una hora
+#     llegaba al día siguiente. Para un compromiso de una hora, eso es
+#     como no avisar.
+#   · Las notificaciones de "para llamar" al vendedor tienen que caer en
+#     horario laboral, no a las 3 de la mañana que es cuando corre el
+#     cron de Vercel.
+#
+# Esto lo resuelve desde fuera: GitHub Actions llama la MISMA ruta que
+# llama Vercel Cron, con el mismo secreto. No hay código duplicado ni una
+# segunda implementación que se desincronice.
+#
+# CUANDO MIGREMOS AL VPS de Hostinger habrá cron de verdad: entonces se
+# borra este archivo y se pone la línea en el crontab. Hasta entonces,
+# esto es lo que hace que la automatización funcione HOY.
+#
+# QUÉ HAY QUE CONFIGURAR (una vez)
+# --------------------------------
+# En GitHub → Settings → Secrets and variables → Actions → New secret:
+#
+#   CRON_SECRET   el mismo valor que la variable CRON_SECRET de Vercel
+#   PORTAL_URL    https://portal.costamallas.com   (opcional; ese es el
+#                 valor por defecto)
+#
+# Sin el secreto, la ruta responde 401 y el job falla — que es lo
+# correcto: es mejor un job en rojo que un reloj que no hace nada y nadie
+# se entera.
+# ============================================================
+
+name: Corrida frecuente del portal
+
+on:
+  schedule:
+    # Cada 15 minutos. GitHub no garantiza el minuto exacto y puede
+    # retrasarse cuando hay cola; da igual: todo lo que se dispara aquí
+    # está pensado para ejecutarse "cuando ya pasó su hora", no en una
+    # ventana estrecha.
+    - cron: "*/15 * * * *"
+  # Para poder dispararla a mano desde la pestaña Actions cuando se está
+  # depurando algo.
+  workflow_dispatch:
+
+# Si una corrida se demora, que la siguiente no se le encime.
+concurrency:
+  group: corrida-frecuente
+  cancel-in-progress: false
+
+jobs:
+  disparar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Llamar la corrida del portal
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          PORTAL_URL: ${{ secrets.PORTAL_URL || 'https://portal.costamallas.com' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "Falta el secreto CRON_SECRET en este repositorio."
+            echo "GitHub → Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+          # -sS: sin barra de progreso pero SÍ con el error si lo hay.
+          # -w: se añade el código HTTP al final para poder comprobarlo.
+          respuesta=$(curl -sS -m 120 -w "\n%{http_code}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$PORTAL_URL/api/cron/diario")
+
+          codigo=$(echo "$respuesta" | tail -n1)
+          cuerpo=$(echo "$respuesta" | sed '$d')
+
+          echo "HTTP $codigo"
+          echo "$cuerpo"
+
+          if [ "$codigo" != "200" ]; then
+            echo "La corrida no respondió 200. Revisa CRON_SECRET y el deploy."
+            exit 1
+          fi

@@ -2,7 +2,7 @@
 import { useState, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { ChevronRight, Package, Wrench, ClipboardList, Truck, CheckCircle2, Clock, Globe, RefreshCw, Download, Loader2, MessageSquare, ShoppingBag } from "lucide-react";
+import { ChevronRight, Package, Wrench, ClipboardList, Truck, CheckCircle2, Clock, Globe, RefreshCw, MessageSquare, ShoppingBag } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import { formatCOP } from "@/lib/utils";
@@ -112,7 +112,6 @@ function PedidosContent() {
     queryFn: async () => (await (await fetch("/api/crm/pedidos")).json()).data ?? [],
   });
 
-  const [importando, setImportando] = useState(false);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -121,17 +120,15 @@ function PedidosContent() {
     setTimeout(() => setRefreshing(false), 2000);
   };
 
-  const importarWC = async () => {
-    setImportando(true);
-    try {
-      const res = await fetch("/api/woocommerce/import-orders", { method: "POST" });
-      const json = await res.json();
-      if (!res.ok || !json.success) { toast.error(json.error ?? "Error al importar"); return; }
-      const d = json.data;
-      toast.success(`${d.importados} pedidos importados · ${d.clientesCreados} clientes nuevos · ${d.omitidos} ya existían`);
-      qc.invalidateQueries({ queryKey: ["crm-pedidos"] });
-    } catch { toast.error("Error de conexión"); } finally { setImportando(false); }
-  };
+  // El botón "Importar de WooCommerce" vivía aquí y se quitó por
+  // decisión de gerencia: traer pedidos de la tienda a mano, desde la
+  // pantalla donde el equipo trabaja todos los días, es la forma más
+  // fácil de duplicar ventas sin darse cuenta. La sincronización con la
+  // tienda tiene su propio módulo (ERP → Sincronización WC), que es de
+  // administración y avisa de lo que hace.
+  //
+  // El endpoint /api/woocommerce/import-orders sigue existiendo: lo usa
+  // ese módulo. Lo que desaparece es el atajo desde Pedidos.
 
   const avanzar = async (pedido: Pedido) => {
     const current = ESTADOS_FLUJO.find(e => e.v === pedido.estado);
@@ -166,10 +163,6 @@ function PedidosContent() {
     <>
       <Topbar title="Pedidos" actions={
         <div className="flex items-center gap-2">
-          <button onClick={importarWC} disabled={importando}
-            className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5 disabled:opacity-60" style={{ backgroundColor: "#7c3aed" }}>
-            {importando ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} Importar de WooCommerce
-          </button>
           <button onClick={handleRefresh} className={`btn-secondary btn-sm transition-all ${refreshing ? "animate-refresh-success" : ""}`}>
             <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} /> Actualizar
           </button>

@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { formatCOP } from "@/lib/utils";
 import { CIUDADES } from "@/lib/colombia";
 import { FichaInstalacion } from "@/components/crm/FichaInstalacion";
+import { CalendarioInstalaciones } from "@/components/crm/CalendarioInstalaciones";
 
 interface PedidoOpt { id: string; numero: string; total: number; cliente: { nombre: string; empresa?: string }; }
 interface TecnicoOpt { id: string; nombre: string; }
@@ -184,7 +185,7 @@ function InstalacionesContent() {
         {/* Semana / Lista */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex gap-1 p-1 rounded-xl surface-2">
-            {([{ v: "semana", l: "Semana" }, { v: "lista", l: "Lista" }] as const).map(v => (
+            {([{ v: "semana", l: "Calendario" }, { v: "lista", l: "Lista" }] as const).map(v => (
               <button key={v.v} onClick={() => setVista(v.v)}
                 className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
                 style={vista === v.v ? { backgroundColor: CRM_COLOR, color: "white" } : { color: "var(--text-muted)" }}>
@@ -193,13 +194,7 @@ function InstalacionesContent() {
             ))}
           </div>
 
-          {vista === "semana" ? (
-            <div className="flex items-center gap-2 ml-auto">
-              <button onClick={() => setSemana(s => { const d = new Date(s); d.setDate(d.getDate() - 7); return d; })} className="btn-secondary btn-sm">←</button>
-              <button onClick={() => setSemana(lunesDe(new Date()))} className="btn-secondary btn-sm">Esta semana</button>
-              <button onClick={() => setSemana(s => { const d = new Date(s); d.setDate(d.getDate() + 7); return d; })} className="btn-secondary btn-sm">→</button>
-            </div>
-          ) : (
+          {vista === "semana" ? null : (
             <div className="flex gap-2 flex-wrap">
               {([{ v: "todos", l: "Todas" }, ...ESTADOS] as { v: string; l: string }[]).map(e => (
                 <button key={e.v} onClick={() => setFiltro(e.v)}
@@ -215,56 +210,27 @@ function InstalacionesContent() {
         {/* Calendario semanal: se ve de un vistazo quién tiene qué día
             ocupado, que es lo que evita mandar al mismo técnico a dos
             obras el mismo día. */}
+        {/* El calendario vive en su propio componente: tres vistas —mes,
+            semana y día— porque son tres preguntas distintas, y la de
+            SEMANA no tiene domingo, que es lo que pidió gerencia: en
+            Costamallas no se instala en domingo y esa columna vacía le
+            robaba un séptimo del ancho a los días de trabajo. */}
         {vista === "semana" && (
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
-            {Array.from({ length: 7 }, (_, i) => {
-              const dia = new Date(semana);
-              dia.setDate(dia.getDate() + i);
-              const esHoy = dia.toDateString() === new Date().toDateString();
-              const delDia = instalaciones.filter(inst =>
-                inst.fechaAgendada && new Date(inst.fechaAgendada).toDateString() === dia.toDateString(),
-              );
-              const tecnicosDelDia = new Set(delDia.map(d => d.tecnico?.nombre).filter(Boolean));
-              const choque = delDia.length > tecnicosDelDia.size && tecnicosDelDia.size > 0;
-
-              return (
-                <div key={i} className="card overflow-hidden flex flex-col" style={{ minHeight: "180px", ...(esHoy ? { borderTop: `3px solid ${CRM_COLOR}` } : {}) }}>
-                  <div className="px-2.5 py-2 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)" }}>
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted">{DIAS_SEMANA[i]}</p>
-                      <p className="text-sm font-bold" style={{ color: esHoy ? CRM_COLOR : undefined }}>{dia.getDate()}</p>
-                    </div>
-                    {delDia.length > 0 && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: CRM_COLOR + "20", color: CRM_COLOR }}>
-                        {delDia.length}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex-1 p-1.5 space-y-1.5">
-                    {choque && (
-                      <p className="text-[9px] font-bold text-red-600 flex items-center gap-1 px-1">
-                        <AlertCircle size={9} /> Técnico repetido
-                      </p>
-                    )}
-                    {delDia.length === 0 && <p className="text-[10px] text-muted text-center pt-4">—</p>}
-                    {delDia.map(inst => (
-                      <button
-                        key={inst.id}
-                        onClick={() => setAbierta(inst.id)}
-                        className="w-full text-left p-2 rounded-lg surface-2 hover:brand-bg-10 transition-colors"
-                        style={{ borderLeft: `3px solid ${av(inst.pedido.cliente.nombre)}` }}
-                      >
-                        <p className="text-[10px] font-bold text-soft truncate">{inst.pedido.cliente.empresa || inst.pedido.cliente.nombre}</p>
-                        <p className="text-[9px] text-muted truncate">{inst.tecnico?.nombre ?? "Sin técnico"}</p>
-                        {inst.ciudad && <p className="text-[9px] text-muted truncate">{inst.ciudad}</p>}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <CalendarioInstalaciones
+            instalaciones={instalaciones.map(i => ({
+              id: i.id,
+              estado: i.estado,
+              fechaAgendada: i.fechaAgendada ?? null,
+              ciudad: i.ciudad ?? null,
+              direccion: i.direccion ?? null,
+              tecnico: i.tecnico ?? null,
+              pedido: {
+                id: i.pedido.id ?? "",
+                numero: i.pedido.numero,
+                cliente: { nombre: i.pedido.cliente.nombre, empresa: i.pedido.cliente.empresa ?? null },
+              },
+            }))}
+          />
         )}
         <div className={vista === "semana" ? "hidden" : "space-y-3"}>
           {isLoading ? <div className="card p-8 text-center text-sm text-gray-400">Cargando...</div>

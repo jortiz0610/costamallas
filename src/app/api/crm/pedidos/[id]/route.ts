@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
+import { esAdmin } from "@/lib/permisos";
+
+/** El orden del flujo. El indice dice si un cambio avanza o retrocede. */
+const FLUJO = ["NUEVO", "CONFIRMADO", "EN_PRODUCCION", "LISTO", "DESPACHADO", "ENTREGADO", "INSTALADO"];
 
 type P = { params: Promise<{ id: string }> };
 
@@ -36,6 +40,30 @@ export async function PUT(req: NextRequest, { params }: P) {
   // de verdad: si se guarda el mismo estado, el pedido no se movió.
   const previo = estado ? await prisma.pedido.findUnique({ where: { id }, select: { estado: true } }) : null;
   const cambioEstado = Boolean(estado && previo && previo.estado !== estado);
+
+  // Ir HACIA ATRÁS en el flujo lo hace solo un administrador.
+  //
+  // Es la decisión de gerencia de que "solo el admin puede devolver un
+  // pedido a cotización", y aquí es donde de verdad se puede imponer:
+  // retroceder un pedido descuadra el stock que ya se descontó, deja al
+  // coordinador con una obra agendada que quizá no va, y borra el rastro
+  // de por qué el negocio se movió.
+  if (cambioEstado && estado) {
+    const antes = FLUJO.indexOf(previo!.estado);
+    const ahora = FLUJO.indexOf(estado);
+    const retrocede = antes >= 0 && ahora >= 0 && ahora < antes;
+    if (retrocede && !esAdmin(user.rol)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            `Devolver un pedido de ${previo!.estado} a ${estado} lo tiene que hacer un ` +
+            "administrador. Retroceder descuadra el stock ya descontado y la obra agendada.",
+        },
+        { status: 403 },
+      );
+    }
+  }
 
   const updated = await prisma.pedido.update({
     where: { id },
