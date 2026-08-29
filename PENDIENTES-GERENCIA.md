@@ -8,7 +8,7 @@
 > Todo lo de aquí se cambia desde el portal en dos minutos. No hace falta
 > tocar código ni pedir un desarrollo.
 >
-> Última revisión: 2026-08-26 (segunda del día)
+> Última revisión: **2026-08-29**
 
 ---
 
@@ -38,25 +38,29 @@ antigüedad con la fecha de emisión y no hay contra qué decir que está vencid
 
 ---
 
-## 2. Tope de descuento y anticipo mínimo
+## 2. Anticipo mínimo
 
-**Lo que está puesto:** descuento máximo **5 %** sin aprobación, anticipo mínimo
-**50 %**. El 5 % viene de la instrucción original; el 50 % se eligió como valor
-de arranque para fabricación a medida e instalación.
+**El descuento ya se decidió** (29-ago): el vendedor tiene un tope **libre del
+10 %** — puede poner 3, 6,5 u 8; lo que no puede es pasarse de 10. Por encima,
+la oferta queda esperando visto bueno de un administrador y no se puede enviar.
+Ya está cargado en el portal.
+
+**Lo que sigue pendiente:** el anticipo mínimo. Está puesto en **50 %** como
+valor de arranque para fabricación a medida e instalación.
 
 **Preguntas concretas:**
 
-- ¿El tope del 5 % aplica igual a todos los productos, o hay líneas donde el
-  margen da para más (o para menos)?
 - ¿El anticipo del 50 % es para todo, o cambia entre material suelto y obra con
   instalación?
-- ¿Quién puede autorizar pasarse? Hoy lo hace cualquier ADMIN o SUPERADMIN del
-  portal.
+- ¿El tope del 10 % aplica igual a todos los productos? Hay una casilla nueva
+  por producto —**«no admite descuento»**— para las líneas de margen mínimo:
+  esas no se pueden rebajar línea por línea, pero sí entran en el descuento
+  global de la oferta. Falta decir cuáles son.
+- ¿Quién puede autorizar pasarse? Hoy lo hace cualquier ADMIN o SUPERADMIN.
 
-**Dónde se carga:** Configuración → Reglas comerciales.
+**Dónde se carga:** Configuración → Lo comercial → Reglas comerciales.
 
 ---
-
 ## 3. Política de envíos ⚠️ no existe el documento
 
 **Qué se necesita:** confirmar el texto de la política de envíos que se publica
@@ -243,6 +247,67 @@ tope diario, tope por conversación y máximo de mensajes, configurables.
 
 ---
 
+## 12. El PDF del catálogo, para el banner de los correos ⚠️ nuevo
+
+**Qué se necesita:** subir `Catalogo PRO CM 2026.pdf` a algún sitio público —la
+biblioteca de WordPress sirve— y pegar su dirección en el portal.
+
+**Por qué importa:** todos los correos que salen del portal llevan ahora un
+banner con dos botones: la tienda y el catálogo. La tienda ya funciona. El del
+catálogo **no sale** mientras no haya PDF, a propósito: un enlace roto en un
+correo a un cliente es peor que un botón que falta.
+
+**Dónde se carga:** Configuración → Comunicación → Plantillas de correo, en el
+recuadro de arriba.
+
+---
+
+## 13. Un secreto en GitHub, para que la automatización corra ⚠️ nuevo
+
+**Qué se necesita:** crear el secreto `CRON_SECRET` en el repositorio de GitHub
+(Settings → Secrets and variables → Actions → New repository secret), con el
+**mismo valor** que la variable `CRON_SECRET` que ya está en Vercel.
+
+**Por qué importa:** Vercel en plan Hobby solo permite crons **diarios**. El
+toque de las 24 h del seguimiento salía con hasta 23 horas de retraso, y el
+aviso por incumplir el compromiso de responder en una hora llegaba al día
+siguiente. Ahora hay un disparador en GitHub Actions que llama la misma ruta
+**cada 15 minutos**. Sin el secreto, ese trabajo falla en rojo y la
+automatización se queda como estaba.
+
+Es un paso de dos minutos y no cuesta nada. Cuando migremos al VPS de
+Hostinger habrá cron de verdad y esto se borra.
+
+---
+
+## 14. El cupo diario de la IA en el chat ⚠️ nuevo, cuando se programe la Fase 7
+
+**Qué se necesita:** cuánto puede gastar el equipo al día en `@mallita` —la
+ayuda de IA dentro del inbox— y quién puede subir ese tope.
+
+**Referencia:** el agente de la web tiene US$ 3 al día y hasta ahora no se ha
+acercado. `@mallita` la usarían los vendedores, así que el consumo sería otro.
+
+---
+
+## 15. Almacenamiento privado para los documentos de SG-SST ⚠️ nuevo
+
+**Qué pasa hoy:** el módulo de trabajos ya registra qué documento entregó cada
+trabajador y cuándo —que es lo que hace falta para saber si puede entrar a la
+obra—, **pero el archivo no se guarda**. La pantalla lo dice con todas las
+letras.
+
+**Por qué:** son datos personales de terceros (cédulas, planillas de seguridad
+social, exámenes médicos) y los dos sitios donde el portal sabe subir archivos
+no sirven: el FTP está roto, y la biblioteca de WordPress es **pública** con
+direcciones adivinables. Subir ahí la cédula de un trabajador sería una fuga de
+datos, no un atajo.
+
+**Qué se decidió (29-ago):** esperar a la migración al VPS de Hostinger, que
+tendrá disco privado. El código ya está preparado: hay que escribir un
+conector y cambiar una línea.
+
+---
 ## Lo que está bloqueado esperando otra cosa (no es pregunta de gerencia)
 
 | Qué | Qué falta |
@@ -251,11 +316,30 @@ tope diario, tope por conversación y máximo de mensajes, configurables.
 | Correo saliente (SMTP) | Cargar credenciales **desde el portal en producción**. Sigue vacío |
 | Facturación electrónica DIAN | Elegir y contratar proveedor (Factus / Siigo / Alegra) |
 | Marketplaces | Cuentas de vendedor **y** construir la integración: hoy no existe backend |
-| Plan de Vercel | Hoy es Hobby: prohíbe uso comercial y solo permite 2 crons diarios |
+| Plan de Vercel | Hoy es Hobby: **prohíbe el uso comercial**. Lo de los crons ya se resolvió por fuera (ver punto 13), pero el uso comercial sigue siendo un riesgo real |
+| Guardar los documentos de SG-SST | Almacenamiento privado. Ver punto 15 |
 
 ---
 
 ## Ya resuelto (para que no se vuelva a pedir)
+
+### 29 de agosto
+
+- **Tope de descuento al 10 %**, libre hasta ahí. Cargado.
+- **Los nueve COT-00001…09 se borraron**, con respaldo previo en
+  `docs/respaldo-cotizaciones-00001-00009.json`. Los 3 pedidos que habían
+  nacido de ellas **no se borraron** —un pedido entregado es una venta real— y
+  quedaron anotados con su oferta de origen.
+- **El estado del cliente ya no se escribe a mano**: se calcula. 12 de 31
+  fichas estaban desfasadas y se corrigieron.
+- **Las miniaturas de la cotización**: arregladas por los dos lados. De 19
+  ítems sin foto, 13 son productos que de verdad **no tienen ninguna foto** en
+  el catálogo — eso no lo arregla el código (ver punto 10).
+- **Los correos ya se pueden editar desde el portal**, con vista previa.
+- **El icono del chat de la web** dejó de ser el emoji que en Windows parecía
+  una nube.
+
+### 26 de agosto y antes
 
 - **WordPress conectado** (26-ago). Las imágenes, fichas técnicas y fotos de obra
   que se suban desde el portal ya quedan en la biblioteca del sitio y se ven.

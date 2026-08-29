@@ -5,7 +5,7 @@
 > cómo está construido, dónde está alojado y cómo se conecta con los servicios externos
 > (Vercel, Supabase, WooCommerce, FTP, IA, plataformas de Ads).
 >
-> **Última actualización:** 2026-08-05 · Commit de referencia: `10d3a49`
+> **Última actualización:** 2026-08-29 · Commit de referencia: `c566d9c`
 > _Mantén este archivo actualizado cuando cambie la arquitectura o las integraciones._
 >
 > **Antes de tocar nada, lee también:**
@@ -317,6 +317,26 @@ headers en vez de re-verificar el token.
   - API sin auth → `401`; página sin auth → redirect a `/login`.
 - **Roles (`enum Rol`):** `SUPERADMIN, ADMIN, USUARIO, VENDEDOR, PRODUCCION, BODEGA,
   SOLO_LECTURA, CLIENTE`. `canWrite()` = cualquiera excepto `SOLO_LECTURA`.
+- **Permisos por SUBMÓDULO y por USUARIO** (desde el 28-ago). Dos capas que
+  conviene no confundir:
+  1. El **rol** trae un juego por defecto, en código (`PERMISOS_POR_ROL` de
+     `lib/permisos.ts`). Es política de la empresa: si mañana se agrega una
+     pantalla, todos los vendedores la ganan a la vez.
+  2. Cada **persona** puede tener EXCEPCIONES, en la tabla `permisos_usuario`.
+     **Solo las excepciones** — si se guardara el juego completo por usuario, el
+     día que el rol gane una pantalla no la vería nadie.
+
+  Se aplica en tres sitios, y solo el tercero protege datos:
+  · `Sidebar`/`MobileNav` filtran el menú (presentación).
+  · `GuardiaRuta` en el layout cierra la pantalla si se llega escribiendo la URL.
+    Va en el layout y no en cada página por lo mismo que el bloqueo del modo
+    prueba vive en el middleware: una comprobación por página falla el día que
+    alguien agregue una.
+  · `exigirPermiso()` en las route handlers. Es lo único que un `fetch` desde la
+    consola del navegador no puede saltarse.
+
+  Al **SUPERADMIN** no se le puede quitar nada, a propósito: una excepción mal
+  puesta que le cerrara la pantalla de usuarios no tendría cómo deshacerse.
   ⚠️ Ojo: `isAdmin()` de `lib/auth.ts` compara **solo** con `ADMIN` y deja fuera a
   `SUPERADMIN`. Para permisos nuevos usa `esAdmin()` de `lib/permisos.ts`, que sí
   incluye a los dos.
@@ -440,6 +460,27 @@ repetido o con saltos es un problema ante la DIAN.
 
 ---
 
+### Tablas nuevas (28/29-ago)
+
+| Tabla | Para qué | Nota |
+|-------|----------|------|
+| `permisos_usuario` | Las EXCEPCIONES de permisos de cada persona | Solo excepciones, nunca el juego completo. Ver §5 |
+| `visitas_tecnicas` | La visita previa a cotizar en firme | Una por cotización (índice único). El formulario va en JSON: son dos formatos muy distintos —cerca eléctrica y malla invisible— y una columna por casilla obligaría a migrar cada vez que producción pida una medida |
+| `sgsst_personas` | Una fila por PERSONA del proceso SG-SST | `documentos` guarda el REGISTRO de lo entregado con `almacenado: false`: el archivo todavía no se guarda |
+
+**Columnas nuevas que conviene conocer:**
+
+- `cotizaciones.esPrueba` · `pedidos.esPrueba` — la marca se hereda. Filtrar con
+  `SIN_PRUEBAS` de `lib/cotizaciones-prueba.ts`.
+- `cotizaciones.prorrogaDias` / `prorrogas` — aplazar el vencimiento. Se guarda
+  **aparte** de `validezDias` para que el documento siga diciendo la validez que
+  se le ofreció al cliente.
+- `cotizaciones.requiereVisita` / `requiereSgsst` — las dos casillas del cotizador.
+- `clientes.ultimaInteraccionEn` / `estadoCalculadoEn` — el estado calculado.
+- `productos.sinDescuento` — no admite rebaja por línea; sí entra en el global.
+
+---
+
 ## 9. Puesta en marcha (local)
 
 ```bash
@@ -504,7 +545,19 @@ Después vinieron sesiones más espaciadas, cada una con un tema:
   restringido a SUPERADMIN · **agente de atención al cliente para
   costamallas.com**.
 
-Último commit de referencia de este documento: **`451d8e4`**.
+- **28/29-ago:** la sesión más larga del proyecto. **Permisos por submódulo y
+  por usuario** (tabla `permisos_usuario`, pantalla de administración, tres
+  capas de aplicación) · el **ERP visto por quien vende**: ficha comercial en
+  lugar del formulario, filtro técnico en imágenes, copiar la ficha y mandarla
+  a un chat · **el estado del cliente pasa a calcularse** en vez de escribirse
+  · **alta de cliente y de empresa separadas** · borrado de COT-00001…09 con
+  respaldo · **cotizaciones de prueba**, **aplazar vencidas**, **visita
+  técnica y SG-SST** con su bandeja de producción · **tablero comercial** con
+  las siete etapas · **disparador cada 15 min** por GitHub Actions ·
+  **plantillas de correo editables con vista previa** · icono nuevo y **mini
+  registro** en el chat de la web.
+
+Último commit de referencia de este documento: **`c566d9c`**.
 
 ---
 
@@ -525,13 +578,35 @@ lo dicen en pantalla con el motivo.
 | QR de encuesta | El enlace de reseñas de Google | No se genera ningún QR (uno impreso que no funciona no se puede corregir) |
 | Facturación electrónica | Elegir proveedor (Factus/Siigo/Alegra) | Modo "manual": la factura se emite sin ir a la DIAN |
 | Marketplaces | Cuentas de vendedor | Pestañas de configuración vacías |
+| Documentos de SG-SST | Almacenamiento privado (llega con el VPS) | Se registra QUÉ documento entregó cada persona y cuándo; **el archivo NO se guarda** y la pantalla lo dice. Ver `lib/almacenamiento-documentos.ts` |
+| Botón del catálogo en los correos | Subir el PDF y pegar su dirección | El botón sencillamente no sale. Un enlace roto en un correo es peor que un botón que falta |
+| Disparador cada 15 min | El secreto `CRON_SECRET` en GitHub | El workflow existe y falla en rojo. La corrida diaria de Vercel sigue funcionando |
+| Nexus móvil (Fase 7) | Visto bueno de los mockups | Nada programado todavía; los mockups están hechos |
 | Plazos de pago reales | Confirmación de gerencia | Contado 0 / crédito 30 como valor de arranque |
 
 Detalle y preguntas concretas en **`PENDIENTES-GERENCIA.md`**.
 
 ---
 
-## 10.2 Estado real de los datos (2026-08-26)
+## 10.2 Estado real de los datos
+
+### Al 29 de agosto (lo que cambió)
+
+| Qué | Antes (26-ago) | Ahora | Por qué |
+|-----|----------------|-------|---------|
+| Cotizaciones | 20 | **11** (1 aprobada, 10 borradores) | Se borraron las nueve de la numeración vieja, con respaldo en `docs/` |
+| Pedidos | 19 | **21** | Dos nuevos; los 3 que venían de las COT borradas siguen ahí, anotados con su origen |
+| Clientes por estado | 19 activos / 9 interesados / 2 recurrentes / 1 prospecto, **escritos a mano** | **12 activos / 8 interesados / 11 prospectos**, calculados | 12 de 31 fichas estaban desfasadas. Ver `lib/estados-cliente.ts` |
+| Estados en uso | `CLIENTE_ACTIVO`, `INTERESADO`, `RECURRENTE`, `PROSPECTO` | `CLIENTE_ACTIVO`, `INTERESADO`, `PROSPECTO` | `RECURRENTE`, `CALIFICADO` y `NO_CALIFICADO` se retiraron |
+| Conversaciones de Nexus | 0 | **5** | El agente de la web ya está atendiendo |
+| Productos sin ninguna foto | 113 | **113** | Sigue igual: es la lista de precios de agosto. **Es la causa real de que falten miniaturas en las cotizaciones** |
+| Excepciones de permisos | — | **0** | La tabla existe y está vacía: todo el mundo tiene lo que trae su rol |
+| Visitas técnicas / SG-SST | — | **0 / 0** | Las tablas existen; nadie ha marcado todavía una cotización con visita |
+
+**Usuarios activos (7):** 1 superadmin, 1 admin, 2 vendedores, 1 producción,
+2 solo lectura.
+
+### Al 26 de agosto (el detalle largo)
 
 Medido contra la base de producción. Importa porque el código puede estar bien y
 aun así no verse funcionar: media docena de módulos de este repo llevan semanas
@@ -656,12 +731,15 @@ npx tsx scripts/aplicar-migracion.ts prisma/migrations/<carpeta>/migration.sql
 build falla con `EINVAL readlink`. No es el código. Si `Remove-Item` se queja de que
 un archivo está en uso, insiste o cierra lo que tenga abierto el directorio.
 
-### `src/components/layout/Sidebar.tsx`
+### `src/components/layout/Sidebar.tsx` — ya está arreglado
 
-Tiene **finales de línea mezclados**. Si lo editas con una herramienta normal, el
-diff se infla a 500+ líneas y se vuelve irrevisable. Párchalo con reemplazos
-puntuales de texto (`[System.IO.File]::ReadAllText` + `.Replace` + `WriteAllText` en
-PowerShell) y comprueba con `git diff --stat` que el diff sean unas pocas líneas.
+**Tenía** finales de línea mezclados —CRLF, LF suelto y hasta `\r\r\n`— y por eso
+un cambio de dos líneas producía un diff de 600. Se normalizó a CRLF el 28-ago en
+un commit aparte (`b8a7d65`), que no toca ni un carácter de código.
+
+Ya se puede editar con normalidad. Lo que sigue valiendo: **comprueba siempre con
+`git diff --stat`**. Si un cambio pequeño produce un diff enorme, el problema son
+los saltos de línea y hay que mirarlo antes de commitear, no después.
 
 ### Cada llamada a Bash es un shell nuevo
 
@@ -676,6 +754,26 @@ los finales de línea**: la mayoría de archivos son CRLF, así que insertar una
 línea con `
 ` a secas ensucia el diff. Comprobar siempre con
 `git diff --stat`.
+
+### El widget del chat emite JavaScript desde un template literal
+
+`api/public/agente/widget.js/route.ts` devuelve JavaScript construido con una
+plantilla de TypeScript. Ahí **las barras invertidas van dobles**: una `\s`
+sola se pierde al evaluar la plantilla y llega al navegador como la letra `s`.
+Pasó de verdad con el validador de correo del registro, que rechazaba cualquier
+dirección que llevara una ese.
+
+`scripts/probar-widget-agente.ts` comprueba el JavaScript **emitido**, no el
+código fuente: evalúa la expresión regular tal como le llega al navegador y
+verifica que el archivo entero compile. Es lo único que sirve para esto.
+
+### Los heredocs de Bash se comen las barras invertidas
+
+En este entorno, un `cat > archivo <<'EOF'` **no** conserva `\\` aunque el
+delimitador esté entre comillas, y un `node -e "…"` con una clase de caracteres
+revienta con «Unterminated regexp». Para parchear archivos: escribir el script
+de Node **a un archivo** con la herramienta de edición y ejecutarlo. Para
+cambios de una línea, la herramienta de edición directamente.
 
 ### Probar
 
@@ -698,6 +796,15 @@ al terminar, incluso si algo falla; lo que crean lleva el prefijo `VERIF-`):
 | `probar-seo-cola.ts` | La estimación de costo y que aprobar escribe lo aprobado |
 | `probar-alerta-tiempos.ts` | Fabrica conversaciones vencidas y comprueba el aviso |
 | `probar-instalaciones.ts` | Fabrica una venta con instalación: aviso y acta |
+| `probar-permisos.ts` | 92 comprobaciones del sistema de permisos. Crea y borra su usuario VERIF- |
+| `probar-ficha-vendedor.ts` | La ficha comercial y el candado del stock |
+| `probar-estados-cliente.ts` | Los estados automáticos. Con `--aplicar` los escribe |
+| `probar-cotizacion-fase4.ts` | Miniaturas, prórroga, cotizaciones de prueba |
+| `probar-trabajos.ts` | Visita técnica y SG-SST. Vigila que nadie active un almacén sin querer |
+| `probar-pipeline.ts` | En qué columna cae cada oferta. Lógica pura + datos reales |
+| `probar-correos.ts` | Las plantillas. Compara el texto de gerencia frase por frase |
+| `probar-widget-agente.ts` | El JavaScript **emitido** del chat de la web |
+| `respaldar-y-borrar-cot-viejas.ts` | Exporta a `docs/` y borra. Con `--borrar` |
 
 ### Ejecutar algo EN PRODUCCIÓN sin iniciar sesión
 
