@@ -124,6 +124,11 @@ export async function GET(req: NextRequest) {
     // la unidad evita que el asesor tenga que escribirla a mano.
     acfFabricacionMedida: p.acfFabricacionMedida,
     acfUnidadVenta: p.acfUnidadVenta,
+    // Y el filtro tecnico de la biblioteca de imagenes: buscar la foto
+    // por medida, sin acordarse del nombre del producto.
+    largoCm: p.largoCm ? Number(p.largoCm) : null,
+    anchoCm: p.anchoCm ? Number(p.anchoCm) : null,
+    altoCm: p.altoCm ? Number(p.altoCm) : null,
     _count: { imagenes: p._count.imagenes },
   }));
 

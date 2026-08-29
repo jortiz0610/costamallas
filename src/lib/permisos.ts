@@ -297,6 +297,8 @@ export const RUTAS_PROTEGIDAS: Record<string, string> = {
   "/": "erp.dashboard",
   "/productos": "erp.productos",
   "/productos/seo": "erp.seo",
+  // Crear un producto es editar el catálogo, no solo verlo.
+  "/productos/nuevo": "erp.productos.editar",
   "/imagenes": "erp.imagenes",
   "/stock": "erp.stock",
   "/categorias": "erp.catalogos",

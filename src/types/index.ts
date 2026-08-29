@@ -110,6 +110,11 @@ export interface ProductoListItem {
   /** Se fabrica a la medida: al cotizarlo se piden largo y ancho. */
   acfFabricacionMedida?: boolean;
   acfUnidadVenta?: string | null;
+  /** Para el filtro por medida de la biblioteca de imágenes. */
+  largoCm?: number | null;
+  anchoCm?: number | null;
+  altoCm?: number | null;
+  _count?: { imagenes: number };
 }
 
 export interface ProductoDetalle extends ProductoListItem {

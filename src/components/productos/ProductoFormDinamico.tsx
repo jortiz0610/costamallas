@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
+import { useAuth } from "@/hooks/useAuth";
 
 type FD = Record<string, unknown>;
 interface Props { initialData?: FD; productoId?: string; modo: "crear" | "editar"; }
@@ -1250,6 +1251,14 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
   const [tab, setTab] = useState<TabId>("producto");
   const [saving, setSaving] = useState(false);
 
+  // Las pestañas de SEO y del asistente cuestan dinero cada vez que se
+  // usan, así que van detrás de su propio permiso. Quien no lo tiene ni
+  // las ve; si tenía una abierta, cae de vuelta en "Producto".
+  const { puedeVer } = useAuth();
+  const puedeIA = puedeVer("erp.productos.ia");
+  const tabsVisibles = puedeIA ? TABS : TABS.filter(t => t.id !== "seo" && t.id !== "ia");
+  const tabActual: TabId = !puedeIA && ["seo", "ia"].includes(tab) ? "producto" : tab;
+
   // Solo el conteo, para la guía de completitud. Comparte queryKey con
   // GaleriaProducto, así que al subir o borrar una foto el progreso se
   // actualiza solo, sin pedir los datos dos veces.
@@ -1330,16 +1339,16 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
       {/* ── Barra de tabs ── */}
       <div className="bg-white border-b border-gray-100 px-6 flex items-center gap-0.5">
         <div className="flex items-center flex-1 overflow-x-auto">
-          {TABS.map(t => (
+          {tabsVisibles.map(t => (
             <button key={t.id} onClick={() => setTab(t.id as TabId)}
-              className={`flex items-center gap-1.5 px-4 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-all -mb-px ${tab === t.id ? "border-gray-900 text-gray-900 dark:border-gray-100" : "border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-200"}`}>
-              {t.id === "ia" && <Sparkles size={13} style={{ color: tab === t.id ? "var(--brand-color)" : undefined }} />}
+              className={`flex items-center gap-1.5 px-4 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-all -mb-px ${tabActual === t.id ? "border-gray-900 text-gray-900 dark:border-gray-100" : "border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-200"}`}>
+              {t.id === "ia" && <Sparkles size={13} style={{ color: tabActual === t.id ? "var(--brand-color)" : undefined }} />}
               {t.label}
             </button>
           ))}
           {fichasActivas.length > 0 && (
             <button onClick={() => setTab("ficha")}
-              className={`flex items-center gap-2 px-4 py-3.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-all -mb-px ${tab === "ficha" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
+              className={`flex items-center gap-2 px-4 py-3.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-all -mb-px ${tabActual === "ficha" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
               Ficha Técnica
               {fichasActivas.length > 1 && <span className="text-[10px] font-bold bg-gray-900 text-white px-1.5 py-0.5 rounded-full">{fichasActivas.length}</span>}
             </button>
@@ -1366,7 +1375,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
 
 
         {/* PESTAÑA: PRODUCTO */}
-        {tab === "producto" && (
+        {tabActual === "producto" && (
           <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5">
 
             {/* Columna principal */}
@@ -1459,7 +1468,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
         )}
 
         {/* PESTAÑA: DESCRIPCIÓN */}
-        {tab === "descripcion" && (
+        {tabActual === "descripcion" && (
           <div className="max-w-3xl mx-auto space-y-5">
             <div className="card p-5 space-y-4">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Textos del producto</p>
@@ -1476,7 +1485,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
         )}
 
         {/* PESTAÑA: CALIDAD */}
-        {tab === "calidad" && (
+        {tabActual === "calidad" && (
           <div className="max-w-3xl mx-auto space-y-5">
             <div className="card p-5 space-y-5">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Calidad y Certificaciones</p>
@@ -1496,7 +1505,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
         )}
 
         {/* PESTAÑA: FICHA TÉCNICA */}
-        {tab === "ficha" && (
+        {tabActual === "ficha" && (
           <div className="max-w-4xl mx-auto space-y-5">
             {/* Campos personalizados por categoría (definidos por admin en Catálogos) */}
             <CamposDinamicos categorias={Array.isArray(form.categorias) ? form.categorias as string[] : []} d={(form.acfExtra as FD) ?? {}} s={setX} />
@@ -1541,7 +1550,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
         )}
 
         {/* PESTAÑA: IMÁGENES */}
-        {tab === "imagenes" && (
+        {tabActual === "imagenes" && (
           <div className="max-w-3xl mx-auto">
             {productoId ? (
               <GaleriaProducto productoId={productoId} />
@@ -1556,10 +1565,10 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
         )}
 
         {/* PESTAÑA: SEO */}
-        {tab === "seo" && <SeoTab form={form as Record<string, unknown>} set={set} productoId={productoId} />}
+        {tabActual === "seo" && <SeoTab form={form as Record<string, unknown>} set={set} productoId={productoId} />}
 
         {/* PESTAÑA: ASISTENTE IA */}
-        {tab === "ia" && (
+        {tabActual === "ia" && (
           <AsistenteProducto productoId={productoId} form={form as Record<string, unknown>} set={set} />
         )}
 

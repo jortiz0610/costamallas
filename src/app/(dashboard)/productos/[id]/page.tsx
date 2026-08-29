@@ -8,6 +8,8 @@ import { Trash2, ArrowLeft, Loader2, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import ProductoFormDinamico from "@/components/productos/ProductoFormDinamico";
+import { FichaVendedor } from "@/components/productos/FichaVendedor";
+import { useAuth } from "@/hooks/useAuth";
 
 async function fetchProducto(id: string) {
   const res = await fetch(`/api/productos/${id}`);
@@ -19,6 +21,10 @@ function ProductoDetallePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
+  const { puedeVer } = useAuth();
+  // Sin permiso de editar, la ficha es otra pantalla —la comercial— y no
+  // el formulario con los campos apagados. Ver `FichaVendedor`.
+  const puedeEditar = puedeVer("erp.productos.editar");
 
   const { data: producto, isLoading, error } = useQuery({
     queryKey: ["producto", id],
@@ -62,11 +68,15 @@ function ProductoDetallePage() {
                 <ExternalLink size={13} /> Ver en tienda
               </a>
             )}
-            <button onClick={handleDelete} className="btn-secondary btn-sm text-red-500"><Trash2 size={13} /></button>
+            {puedeEditar && (
+              <button onClick={handleDelete} className="btn-secondary btn-sm text-red-500"><Trash2 size={13} /></button>
+            )}
           </div>
         }
       />
-      <ProductoFormDinamico modo="editar" productoId={id} initialData={producto} />
+      {puedeEditar
+        ? <ProductoFormDinamico modo="editar" productoId={id} initialData={producto} />
+        : <FichaVendedor productoId={id} producto={producto} />}
     </>
   );
 }

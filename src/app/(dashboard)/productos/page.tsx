@@ -15,8 +15,10 @@ import { Topbar } from "@/components/layout/Topbar";
 import Link from "next/link";
 import {
   Plus, Search, RefreshCw, Package, X, SlidersHorizontal, ArrowUpDown, ImageOff,
-  DollarSign, Globe, Ruler, FileWarning, CheckCircle2,
+  DollarSign, Globe, Ruler, FileWarning, CheckCircle2, Copy, Check, Send,
 } from "lucide-react";
+import { fichaParaCliente } from "@/lib/ficha-cliente";
+import { EnviarANexus } from "@/components/nexus/EnviarANexus";
 import toast from "react-hot-toast";
 import { formatCOP, cn } from "@/lib/utils";
 import type { ProductoListItem, NivelStock, EstadoProducto } from "@/types";
@@ -92,6 +94,19 @@ export default function ProductosPage() {
   const [orden, setOrden] = useState("updatedAt:desc");
   const [atajos, setAtajos] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState(1);
+  // Copiar la ficha y mandarla a un chat: las dos cosas que hace un
+  // vendedor con el catálogo abierto. El texto sale de
+  // lib/ficha-cliente.ts, el mismo que usa la ficha del producto.
+  const [copiado, setCopiado] = useState<string | null>(null);
+  const [aNexus, setANexus] = useState<string | null>(null);
+  const copiarFicha = async (prod: ProductoListItem) => {
+    try {
+      await navigator.clipboard.writeText(fichaParaCliente(prod));
+      setCopiado(prod.id);
+      toast.success("Ficha copiada");
+      setTimeout(() => setCopiado(null), 1800);
+    } catch { toast.error("El navegador no dejó copiar"); }
+  };
   const [refrescando, setRefrescando] = useState(false);
 
   /** Cualquier cambio de filtro devuelve a la página 1: si no, se queda
@@ -252,14 +267,15 @@ export default function ProductosPage() {
                 <th>Stock</th>
                 <th>Estado</th>
                 <th>WC</th>
+                <th className="w-20"></th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={7} className="text-center py-12 text-gray-400">Cargando…</td></tr>
+                <tr><td colSpan={8} className="text-center py-12 text-gray-400">Cargando…</td></tr>
               ) : !data?.data.length ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12">
+                  <td colSpan={8} className="text-center py-12">
                     <Package size={24} className="text-gray-300 mx-auto mb-2" />
                     <p className="text-[12px] text-gray-400">
                       {activos > 0 ? "Ningún producto cumple estos filtros" : "No se encontraron productos"}
@@ -312,6 +328,26 @@ export default function ProductosPage() {
                         : <span className="badge-gray badge">—</span>
                       }
                     </td>
+                    {/* Lo que se hace de verdad con un producto cuando hay
+                        un cliente esperando: mandárselo. Sin abrir la ficha. */}
+                    <td>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => copiarFicha(p)}
+                          title="Copiar la ficha para mandársela al cliente"
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                        >
+                          {copiado === p.id ? <Check size={13} /> : <Copy size={13} />}
+                        </button>
+                        <button
+                          onClick={() => setANexus(fichaParaCliente(p))}
+                          title="Mandarla a un chat de Nexus"
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-600 transition-colors"
+                        >
+                          <Send size={13} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -334,6 +370,13 @@ export default function ProductosPage() {
           </div>
         )}
       </div>
+      {aNexus && (
+        <EnviarANexus
+          contenido={aNexus}
+          titulo="Mandar la ficha a un chat"
+          onClose={() => setANexus(null)}
+        />
+      )}
     </>
   );
 }

@@ -5,17 +5,37 @@ import { Topbar } from "@/components/layout/Topbar";
 import {
   Upload, Trash2, Star, Loader2, ImageIcon, Search, RefreshCw,
   AlertTriangle, CheckCircle, Plus, ChevronRight, Layers,
+  Copy, Check, Send, Globe, Ruler, X as XIcon,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Image from "next/image";
 import { useBrand } from "@/contexts/BrandContext";
+import { useAuth } from "@/hooks/useAuth";
+import { EnviarANexus } from "@/components/nexus/EnviarANexus";
 
 interface AcfImagen { id: string; productoId: string; urlImagen: string; altText: string | null; esPrincipal: boolean; posicion: number; }
 interface ProductoConImagenes {
   id: string; sku: string; nombre: string; categorias: string[]; intEstado: string;
   _count: { imagenes: number }; imagenPrincipal?: string | null;
+  publicado?: boolean;
+  largoCm?: number | null; anchoCm?: number | null; altoCm?: number | null;
 }
 type FiltroImg = "todos" | "con_imagenes" | "sin_imagenes";
+
+/**
+ * La medida escrita como la busca quien atiende: "2x1", "2 x 1,20",
+ * "1.20". Se compara contra los tres campos de dimensiones Y contra el
+ * nombre, porque en este catálogo la medida está casi siempre en el
+ * nombre del producto y casi nunca en los centímetros.
+ */
+function coincideMedida(p: ProductoConImagenes, texto: string): boolean {
+  const t = texto.trim().toLowerCase().replace(/,/g, ".");
+  if (!t) return true;
+  const numeros = t.split(/[x×\s]+/).filter(Boolean);
+  const dims = [p.largoCm, p.anchoCm, p.altoCm].filter(v => v != null).map(v => String(v));
+  const nombre = p.nombre.toLowerCase().replace(/,/g, ".");
+  return numeros.every(n => nombre.includes(n) || dims.some(d => d.startsWith(n)));
+}
 
 async function fetchProductos(busqueda: string): Promise<ProductoConImagenes[]> {
   const params = new URLSearchParams({ limit: "100", orderBy: "nombre", order: "asc" });
@@ -32,10 +52,25 @@ async function fetchImagenes(productoId: string): Promise<AcfImagen[]> {
 function PanelProducto({ producto }: { producto: ProductoConImagenes }) {
   const qc = useQueryClient();
   const { brand } = useBrand();
+  const { puedeVer } = useAuth();
+  // Sin permiso de subir, la biblioteca es de CONSULTA: se ve, se copia
+  // y se manda a un chat, pero no se sube, no se borra y no se reordena.
+  const puedeSubir = puedeVer("erp.imagenes.subir");
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [dragImgId, setDragImgId] = useState<string | null>(null);
+  const [copiada, setCopiada] = useState<string | null>(null);
+  const [aNexus, setANexus] = useState<string | null>(null);
+
+  const copiarUrl = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiada(url);
+      toast.success("Enlace copiado");
+      setTimeout(() => setCopiada(null), 1800);
+    } catch { toast.error("El navegador no dejó copiar"); }
+  };
 
   const { data: imagenes = [], isLoading } = useQuery({
     queryKey: ["imagenes", producto.id],
@@ -108,38 +143,48 @@ function PanelProducto({ producto }: { producto: ProductoConImagenes }) {
           </div>
         </div>
         <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={e => upload(e.target.files)} />
-        <button onClick={() => fileRef.current?.click()} disabled={uploading}
-          className="px-4 py-2 rounded-xl text-sm font-semibold text-white flex items-center gap-2 disabled:opacity-50 flex-shrink-0" style={{ backgroundColor: brand.brandColor }}>
-          {uploading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Subir imágenes
-        </button>
+        {puedeSubir && (
+          <button onClick={() => fileRef.current?.click()} disabled={uploading}
+            className="px-4 py-2 rounded-xl text-sm font-semibold text-white flex items-center gap-2 disabled:opacity-50 flex-shrink-0" style={{ backgroundColor: brand.brandColor }}>
+            {uploading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Subir imágenes
+          </button>
+        )}
       </div>
 
       {/* Zona de drop + galería */}
       <div className="flex-1 overflow-y-auto p-6">
         <div
-          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragOver={e => { if (!puedeSubir) return; e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
-          onDrop={e => { e.preventDefault(); setDragOver(false); upload(e.dataTransfer.files); }}
-          className="rounded-2xl border-2 border-dashed transition-all p-1"
+          onDrop={e => { if (!puedeSubir) return; e.preventDefault(); setDragOver(false); upload(e.dataTransfer.files); }}
+          className={`rounded-2xl transition-all p-1 ${puedeSubir ? "border-2 border-dashed" : ""}`}
           style={{ borderColor: dragOver ? brand.brandColor : "var(--border)", backgroundColor: dragOver ? brand.brandColor + "0c" : "transparent" }}
         >
           {isLoading ? (
             <div className="h-40 flex items-center justify-center"><Loader2 size={20} className="animate-spin" style={{ color: brand.brandColor }} /></div>
           ) : imagenes.length === 0 ? (
-            <div onClick={() => fileRef.current?.click()} className="h-48 flex flex-col items-center justify-center gap-2 cursor-pointer">
-              <div className="w-14 h-14 rounded-2xl surface-2 flex items-center justify-center"><Upload size={24} className="text-muted" /></div>
-              <p className="text-sm font-semibold text-soft">Arrastra imágenes aquí o haz clic para subir</p>
-              <p className="text-xs text-muted">JPG, PNG, WEBP · varias a la vez</p>
-            </div>
+            puedeSubir ? (
+              <div onClick={() => fileRef.current?.click()} className="h-48 flex flex-col items-center justify-center gap-2 cursor-pointer">
+                <div className="w-14 h-14 rounded-2xl surface-2 flex items-center justify-center"><Upload size={24} className="text-muted" /></div>
+                <p className="text-sm font-semibold text-soft">Arrastra imágenes aquí o haz clic para subir</p>
+                <p className="text-xs text-muted">JPG, PNG, WEBP · varias a la vez</p>
+              </div>
+            ) : (
+              <div className="h-48 flex flex-col items-center justify-center gap-2">
+                <ImageIcon size={24} className="text-muted" />
+                <p className="text-sm font-semibold text-soft">Este producto todavía no tiene fotos</p>
+                <p className="text-xs text-muted">Pídeselas a quien administra el catálogo.</p>
+              </div>
+            )
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 p-3">
               {imagenes.map((img, idx) => (
-                <div key={img.id} draggable
+                <div key={img.id} draggable={puedeSubir}
                   onDragStart={() => setDragImgId(img.id)}
                   onDragEnd={() => setDragImgId(null)}
                   onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
-                  onDrop={e => { e.preventDefault(); e.stopPropagation(); setDragOver(false); reordenar(img.id); }}
-                  className={`relative group aspect-square rounded-xl overflow-hidden border-2 cursor-grab active:cursor-grabbing ${dragImgId === img.id ? "opacity-40" : ""}`}
+                  onDrop={e => { if (!puedeSubir) return; e.preventDefault(); e.stopPropagation(); setDragOver(false); reordenar(img.id); }}
+                  className={`relative group aspect-square rounded-xl overflow-hidden border-2 ${puedeSubir ? "cursor-grab active:cursor-grabbing" : ""} ${dragImgId === img.id ? "opacity-40" : ""}`}
                   style={{ borderColor: img.esPrincipal ? "#FFCC00" : "var(--border)" }}>
                   <Image src={img.urlImagen} alt={img.altText ?? ""} fill className="object-cover" unoptimized />
                   <div className="absolute bottom-2 left-2 min-w-5 h-5 px-1 rounded-full bg-black/60 text-white text-[10px] font-bold flex items-center justify-center">{idx + 1}</div>
@@ -149,24 +194,49 @@ function PanelProducto({ producto }: { producto: ProductoConImagenes }) {
                     </div>
                   )}
                   <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    {!img.esPrincipal && (
+                    {/* Estas dos las tiene todo el mundo: son las que hacen
+                        útil la biblioteca para quien vende. */}
+                    <button onClick={() => copiarUrl(img.urlImagen)} className="w-9 h-9 rounded-xl bg-white/90 text-gray-700 flex items-center justify-center" title="Copiar el enlace de la foto">
+                      {copiada === img.urlImagen ? <Check size={15} /> : <Copy size={15} />}
+                    </button>
+                    <button onClick={() => setANexus(img.urlImagen)} className="w-9 h-9 rounded-xl bg-violet-500 text-white flex items-center justify-center" title="Mandarla a un chat de Nexus">
+                      <Send size={15} />
+                    </button>
+                    {puedeSubir && !img.esPrincipal && (
                       <button onClick={() => principal(img.id)} className="w-9 h-9 rounded-xl bg-yellow-400 text-white flex items-center justify-center" title="Marcar principal"><Star size={15} /></button>
                     )}
-                    <button onClick={() => eliminar(img.id)} className="w-9 h-9 rounded-xl bg-red-500 text-white flex items-center justify-center" title="Eliminar"><Trash2 size={15} /></button>
+                    {puedeSubir && (
+                      <button onClick={() => eliminar(img.id)} className="w-9 h-9 rounded-xl bg-red-500 text-white flex items-center justify-center" title="Eliminar"><Trash2 size={15} /></button>
+                    )}
                   </div>
                 </div>
               ))}
               {/* Tile agregar */}
-              <button onClick={() => fileRef.current?.click()} disabled={uploading}
-                className="aspect-square rounded-xl border-2 border-dashed divider flex flex-col items-center justify-center gap-1.5 hover:surface-2 transition-colors">
-                {uploading ? <Loader2 size={20} className="animate-spin text-muted" /> : <Plus size={20} className="text-muted" />}
-                <span className="text-[11px] text-muted font-medium">Agregar</span>
-              </button>
+              {puedeSubir && (
+                <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                  className="aspect-square rounded-xl border-2 border-dashed divider flex flex-col items-center justify-center gap-1.5 hover:surface-2 transition-colors">
+                  {uploading ? <Loader2 size={20} className="animate-spin text-muted" /> : <Plus size={20} className="text-muted" />}
+                  <span className="text-[11px] text-muted font-medium">Agregar</span>
+                </button>
+              )}
             </div>
           )}
         </div>
-        <p className="text-[11px] text-muted mt-3 text-center">Arrastra las miniaturas para cambiar el orden (así aparecerán en WooCommerce). La <span className="font-semibold text-yellow-500">Principal ⭐</span> siempre es la primera y es la que se muestra en la tienda y los listados.</p>
+        <p className="text-[11px] text-muted mt-3 text-center">
+          {puedeSubir
+            ? <>Arrastra las miniaturas para cambiar el orden (así aparecerán en WooCommerce). La <span className="font-semibold text-yellow-500">Principal ⭐</span> siempre es la primera y es la que se muestra en la tienda y los listados.</>
+            : <>Pasa el cursor sobre una foto para copiar su enlace o mandarla a un chat. La <span className="font-semibold text-yellow-500">Principal ⭐</span> es la que se ve en la tienda.</>}
+        </p>
       </div>
+
+      {aNexus && (
+        <EnviarANexus
+          contenido={aNexus}
+          tipo="imagen"
+          titulo="Mandar la foto a un chat"
+          onClose={() => setANexus(null)}
+        />
+      )}
     </div>
   );
 }
@@ -180,6 +250,9 @@ const FILTROS: { key: FiltroImg; label: string; color: string }[] = [
 function ImagenesContent() {
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState<FiltroImg>("todos");
+  const [categoria, setCategoria] = useState("");
+  const [medida, setMedida] = useState("");
+  const [soloPublicados, setSoloPublicados] = useState(false);
   const [selId, setSelId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const { brand } = useBrand();
@@ -194,12 +267,21 @@ function ImagenesContent() {
   const totalImg = productos.reduce((s, p) => s + (p._count?.imagenes ?? 0), 0);
   const cobertura = productos.length > 0 ? Math.round((conImg / productos.length) * 100) : 0;
 
+  // Las categorías salen de lo que hay cargado, no de una lista fija:
+  // una categoría nueva aparece aquí sola.
+  const categorias = Array.from(new Set(productos.flatMap(p => p.categorias ?? []))).sort();
+
   const lista = productos.filter(p => {
     const n = p._count?.imagenes ?? 0;
-    if (filtro === "con_imagenes") return n > 0;
-    if (filtro === "sin_imagenes") return n === 0;
+    if (filtro === "con_imagenes" && n === 0) return false;
+    if (filtro === "sin_imagenes" && n > 0) return false;
+    if (categoria && !(p.categorias ?? []).includes(categoria)) return false;
+    if (soloPublicados && !p.publicado) return false;
+    if (medida && !coincideMedida(p, medida)) return false;
     return true;
   });
+
+  const hayFiltroTecnico = Boolean(categoria || medida || soloPublicados);
 
   // Selección automática del primero
   useEffect(() => {
@@ -256,6 +338,31 @@ function ImagenesContent() {
                 </button>
               ))}
             </div>
+
+            {/* Filtro técnico: encontrar la foto sin acordarse del nombre
+                del producto, que es como se busca de verdad cuando hay un
+                cliente esperando en el chat. */}
+            <select className="input py-1.5 text-xs" value={categoria} onChange={e => setCategoria(e.target.value)}>
+              <option value="">Todas las categorías</option>
+              {categorias.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <div className="relative">
+              <Ruler size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <input value={medida} onChange={e => setMedida(e.target.value)} className="input pl-9 py-1.5 text-xs"
+                placeholder="Medida: 2x1, 1.20…" />
+            </div>
+            <label className="flex items-center gap-2 text-[11px] text-soft cursor-pointer px-1">
+              <input type="checkbox" checked={soloPublicados} onChange={e => setSoloPublicados(e.target.checked)} className="w-3.5 h-3.5 rounded" />
+              <Globe size={11} className="text-muted" /> Solo los que están en la tienda
+            </label>
+            {hayFiltroTecnico && (
+              <button
+                onClick={() => { setCategoria(""); setMedida(""); setSoloPublicados(false); }}
+                className="flex items-center justify-center gap-1 w-full py-1 text-[10.5px] text-muted hover:text-soft transition-colors"
+              >
+                <XIcon size={10} /> Quitar el filtro técnico ({lista.length} de {productos.length})
+              </button>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (

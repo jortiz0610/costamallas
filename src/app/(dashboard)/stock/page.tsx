@@ -15,8 +15,10 @@ import { Topbar } from "@/components/layout/Topbar";
 import { cn } from "@/lib/utils";
 import {
   Archive, Check, X, AlertTriangle, TrendingDown, Search,
-  PackageX, PackageCheck, ChevronLeft, ChevronRight,
+  PackageX, PackageCheck, ChevronLeft, ChevronRight, Copy, Send,
 } from "lucide-react";
+import { EnviarANexus } from "@/components/nexus/EnviarANexus";
+import { PIE_COSTAMALLAS } from "@/lib/ficha-cliente";
 import Link from "next/link";
 import type { NivelStock } from "@/types";
 import toast from "react-hot-toast";
@@ -50,6 +52,7 @@ export default function StockPage() {
   const qc = useQueryClient();
   const [editId, setEditId] = useState<string | null>(null);
   const [editVal, setEditVal] = useState("");
+  const [aNexus, setANexus] = useState<string | null>(null);
 
   const [busqueda, setBusqueda] = useState("");
   const [q, setQ] = useState("");
@@ -118,9 +121,54 @@ export default function StockPage() {
 
   const hayFiltro = Boolean(q || nivel || categoria);
 
+  /**
+   * La disponibilidad de lo que está en pantalla, en texto.
+   *
+   * Es la pregunta que más llega al chat —"¿tienen de esto?"— y hasta
+   * ahora se contestaba mirando la tabla y escribiendo a mano, producto
+   * por producto. Solo salen los que TIENEN existencias: mandarle a un
+   * cliente una lista con ceros no ayuda a nadie.
+   */
+  const textoDisponibilidad = useMemo(() => {
+    const conStock = items.filter(i => i.stock > 0);
+    if (conStock.length === 0) return "";
+    const lineas = conStock.map(i =>
+      `• ${i.nombre} — ${i.stock}${i.acfUnidadVenta ? " " + i.acfUnidadVenta : ""} disponibles`,
+    );
+    return [
+      "*Disponibilidad actual*",
+      "",
+      ...lineas,
+      "",
+      PIE_COSTAMALLAS,
+    ].join("\n");
+  }, [items]);
+
+  const copiarDisponibilidad = async () => {
+    if (!textoDisponibilidad) return toast.error("Nada con existencias en esta vista");
+    try {
+      await navigator.clipboard.writeText(textoDisponibilidad);
+      toast.success(`${items.filter(i => i.stock > 0).length} productos copiados`);
+    } catch { toast.error("El navegador no dejó copiar"); }
+  };
+
   return (
     <>
-      <Topbar title="Control de Stock" />
+      <Topbar
+        title="Control de Stock"
+        actions={
+          <div className="flex items-center gap-2">
+            <button onClick={copiarDisponibilidad} disabled={!textoDisponibilidad} className="btn-secondary btn-sm disabled:opacity-40"
+              title="Copiar en texto lo que hay disponible en esta vista">
+              <Copy size={12} /> Copiar disponibilidad
+            </button>
+            <button onClick={() => setANexus(textoDisponibilidad)} disabled={!textoDisponibilidad} className="btn-secondary btn-sm disabled:opacity-40"
+              title="Mandar la disponibilidad a un chat de Nexus">
+              <Send size={12} /> A un chat
+            </button>
+          </div>
+        }
+      />
       <div className="flex-1 overflow-y-auto page-bg p-4 sm:p-6 space-y-5">
         {/* Resumen */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -304,6 +352,13 @@ export default function StockPage() {
           </div>
         )}
       </div>
+      {aNexus && (
+        <EnviarANexus
+          contenido={aNexus}
+          titulo="Mandar la disponibilidad a un chat"
+          onClose={() => setANexus(null)}
+        />
+      )}
     </>
   );
 }
