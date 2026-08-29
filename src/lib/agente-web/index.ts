@@ -87,7 +87,22 @@ async function conexionWeb(): Promise<string> {
 }
 
 /** Recupera la conversación por su token, o abre una nueva. */
-async function conversacionDe(token: string | null) {
+/**
+ * Quién escribe.
+ *
+ * Antes toda conversación de la web se llamaba "Visitante de la web", y
+ * en la bandeja de Nexus eso significaba una lista de doce filas
+ * idénticas: no se sabía a quién devolverle la llamada. Ahora el widget
+ * pide nombre y correo ANTES de dejar escribir, y esos datos llegan
+ * aquí.
+ *
+ * Se piden con la aceptación de la política de datos: son datos
+ * personales de alguien que no es cliente todavía.
+ */
+async function conversacionDe(
+  token: string | null,
+  visitante?: { nombre?: string; email?: string },
+) {
   if (token) {
     const c = await prisma.nexusConversacion.findUnique({
       where: { tokenWeb: token },
@@ -96,15 +111,21 @@ async function conversacionDe(token: string | null) {
     if (c) return c;
   }
 
+  const nombre = (visitante?.nombre ?? "").trim();
+  const email = (visitante?.email ?? "").trim();
+
   const nuevo = randomBytes(24).toString("base64url");
   const c = await prisma.nexusConversacion.create({
     data: {
       conexionId: await conexionWeb(),
       canal: "WEB",
-      remitente: "Visitante de la web",
+      // Sin nombre se mantiene el texto de siempre: una conversación
+      // anónima sigue siendo mejor que ninguna.
+      remitente: nombre || "Visitante de la web",
+      emailRemit: email || null,
       estado: "ABIERTA",
       tokenWeb: nuevo,
-      etiquetas: ["agente-web"],
+      etiquetas: nombre ? ["agente-web", "identificado"] : ["agente-web"],
     },
     select: { id: true, tokenWeb: true, costoUSD: true, estado: true, clienteId: true },
   });
@@ -114,11 +135,13 @@ async function conversacionDe(token: string | null) {
 export async function responder(opciones: {
   mensaje: string;
   token: string | null;
+  /** Lo que el visitante puso en el registro previo del widget. */
+  visitante?: { nombre?: string; email?: string };
 }): Promise<RespuestaAgente> {
   const cfg = await getConfigAgenteWeb();
   const marca = await getMarca();
 
-  const conv = await conversacionDe(opciones.token);
+  const conv = await conversacionDe(opciones.token, opciones.visitante);
   const token = conv.tokenWeb!;
 
   const rendirse = (motivo: RespuestaAgente["motivo"]): RespuestaAgente => ({

@@ -94,7 +94,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const r = await responder({ mensaje, token });
+  // El registro previo: nombre y correo. Se recortan y se validan aquí,
+  // no en el navegador: lo que llega de una página pública no se cree.
+  const nombre = String(body.nombre ?? "").trim().slice(0, 80);
+  const email = String(body.email ?? "").trim().slice(0, 120);
+  const emailValido = !email || /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+  if (!emailValido) {
+    return NextResponse.json(
+      { success: false, error: "Ese correo no parece válido. Revíselo, por favor." },
+      { status: 400 },
+    );
+  }
+
+  const r = await responder({ mensaje, token, visitante: { nombre, email } });
 
   return NextResponse.json(
     {
