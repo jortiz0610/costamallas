@@ -78,6 +78,14 @@ Está todo en `CONTEXTO-IA.md` §12. Lo que más duele si se olvida:
 4. **Las cotizaciones se sirven desde `cotizacion.costamallas.com`.** Deja el
    código listo para ese dominio (`lib/url-portal.ts` ya centraliza esto) y
    dime los pasos exactos de DNS + Vercel que tengo que hacer yo.
+5. **Descuento del vendedor: tope libre del 10 %.** No es un desplegable de
+   valores fijos — puede poner 3, 6,5 u 8; lo que no puede es pasarse de 10.
+   Por encima, la política comercial ya exige visto bueno de un administrador.
+6. **Cotizaciones de prueba: sí, con marca.** Solo el superadmin las crea. Van
+   marcadas y quedan FUERA de informes, embudo, pipeline y consecutivo real, y
+   se pueden borrar en bloque. Lo mismo para los pedidos y el resto del flujo
+   que nazca de ellas.
+7. **Nombres de las etapas del pipeline: los de la Fase 5.** Ya están decididos.
 
 ## ESTADO VERIFICADO (2026-08-28)
 
@@ -218,7 +226,9 @@ Conectar Clientes con Nexus: iniciar chat de WhatsApp desde la ficha.
   PERSONA de una vez**, con casillas opcionales para marcar qué documentos
   van. ⚠️ Son datos personales: NO al FTP (que está roto) ni a una biblioteca
   pública de WordPress — decide un almacenamiento privado y explícalo.
-- **Descuentos:** el vendedor solo puede 2, 4, 7 o 10 %.
+- **Descuentos:** el vendedor tiene un **tope libre del 10 %** — puede poner
+  cualquier valor hasta ahí (3, 6,5, 8…), no una lista cerrada. Pasarse de 10
+  cae en la política comercial, que ya exige visto bueno de un administrador.
 - **Check «producto sin descuento»** en el ERP: esos productos no admiten
   descuento individual, pero sí entran en el descuento global.
 - **Correos** (ver Fase 6).
@@ -228,24 +238,39 @@ Conectar Clientes con Nexus: iniciar chat de WhatsApp desde la ficha.
   el documento. Añadir **Aprobar con confirmación de «Sí»**. Sin botón de
   rechazar.
 - **Vencidas:** dejar aplazar la fecha unos días más.
-- **Cotizaciones de prueba:** solo el superadmin puede crearlas; marcadas y
-  fuera de informes y embudo. Igual para pedidos y el resto del flujo.
+- **Cotizaciones de prueba:** columna `esPrueba` (aditiva). Solo el superadmin
+  puede crearlas. Quedan fuera de informes, embudo, pipeline y del consecutivo
+  real —usa una numeración aparte tipo `PRUEBA-001` para no quemar números—, se
+  ven marcadas en pantalla y se pueden borrar en bloque. La marca se hereda al
+  pedido y a todo lo que nazca de ellas.
 - **Borrar COT-00001…09** (con respaldo previo en JSON).
 
 ## FASE 5 — Pipeline automatizado y flujo con producción
 
-Cada vendedor ve su propio pipeline. Ponles nombre a las etapas (propón tú).
+Cada vendedor ve su propio pipeline. **Los nombres de las etapas ya están
+decididos** (describen lo que pasó; la única donde el vendedor tiene que actuar
+lleva nombre imperativo a propósito):
+
+| Etapa | Qué significa | Quién actúa |
+|-------|---------------|-------------|
+| **Enviada** | acaba de salir, arrancó el reloj | — |
+| **Recordada** | ya le llegó el correo de las 24 h | automático |
+| **Para llamar** | le toca al vendedor | **el vendedor** |
+| **Por vencer** | salió el último correo, con el botón de aprobar | automático |
+| **Vencidas** | al final, con ojito para ocultar | — |
+| **En producción** | el cliente aprobó | producción |
+| **Completados** | encuesta a las 24 h | — |
 
 ```
-Cotización → (24 h) Llamado 1  · automático: correo al cliente recordando
-           → Llamado 2         · notificaciones al vendedor en horario laboral,
-                                 aleatorias, para que llame; él marca «llamado»
-           → (48-72 h) Llamado 3 · automático: correo con la fecha de vencimiento
-                                 y botón sutil de aprobar
-           → Vencidas          · al final, con ojito para ocultar (no oculto)
-           → Producción        · si aprobó (aquí arranca producción)
-           → Completados       · al salir de producción
-                               · a las 24 h: encuesta de satisfacción por correo
+Enviada  → (24 h)    Recordada   · automático: correo recordando la oferta
+         →           Para llamar · notificaciones al vendedor en horario
+                                   laboral, aleatorias; él marca «llamado»
+         → (48-72 h) Por vencer  · automático: correo con la fecha de
+                                   vencimiento y botón sutil de aprobar
+         →           Vencidas    · al final, con ojito para ocultar (no oculto)
+         →           En producción · si aprobó (aquí arranca producción)
+         →           Completados · al salir de producción
+                                 · a las 24 h: encuesta de satisfacción
 ```
 
 **Vuelta de producción a cotización:** cuando producción entrega la visita
@@ -306,8 +331,27 @@ Enséñamelos y espera mi visto bueno para esta fase.
 ## FASE 8 — Detalles sueltos
 
 - **Chatbot web:** mini registro antes de chatear (nombre y correo mínimo, y
-  aceptación de la política de datos). Cambiar el icono de la nube por uno más
-  profesional.
+  aceptación de la política de datos).
+- **Icono del chatbot: ya está decidido.** Hoy es el emoji 💬, que se ve
+  distinto en cada sistema y por eso parece una nube. Reemplázalo por este SVG
+  en `api/public/agente/widget.js/route.ts` (donde dice `burbuja.textContent`).
+  Es dibujado, no bajado de ningún banco de iconos: sin licencia de por medio y
+  legible a 26 px, que es donde los iconos bonitos se vuelven mugre.
+
+  ```js
+  // Burbuja sólida con tres puntos. Hereda el color del botón.
+  burbuja.innerHTML =
+    '<svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">' +
+    '<path d="M12 2.75c-5.11 0-9.25 3.44-9.25 7.69 0 2.4 1.33 4.54 3.41 5.95v3.36c0 .53.6.84 1.03.53l3.02-2.17c.58.09 1.18.13 1.79.13 5.11 0 9.25-3.44 9.25-7.8S17.11 2.75 12 2.75Z"/>' +
+    '<circle cx="8.2" cy="10.4" r="1.15" fill="#f9df1e"/>' +
+    '<circle cx="12" cy="10.4" r="1.15" fill="#f9df1e"/>' +
+    '<circle cx="15.8" cy="10.4" r="1.15" fill="#f9df1e"/>' +
+    '</svg>';
+  ```
+
+  Los puntos van en amarillo de marca porque la burbuja es negra sobre el
+  círculo amarillo. Si algún día el color de marca cambia, sácalo de
+  `CFG.color` en vez de dejarlo escrito.
 - **Configuración más pro:** agrupar mejor las pestañas y poner iconos «?» de
   ayuda que expliquen qué hace cada opción.
 
