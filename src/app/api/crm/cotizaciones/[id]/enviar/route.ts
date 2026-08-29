@@ -15,7 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
-import { urlPortal } from "@/lib/url-portal";
+import { urlCotizacion } from "@/lib/url-portal";
 import { getUserFromRequest, canWrite } from "@/lib/auth";
 import { enviarCorreo } from "@/lib/correo";
 import { getMarca } from "@/lib/marca";
@@ -78,7 +78,9 @@ export async function POST(req: NextRequest, { params }: P) {
   // apuntaba a la tienda: el cliente abría el correo y veía un 404
   // de WordPress. No se habia notado porque el correo nunca ha
   // llegado a salir — falta el SMTP.
-  const base = urlPortal(req);
+  // Ídem: lo que se le manda al cliente vive en el dominio de
+  // cotizaciones en cuanto esté conectado.
+  const base = urlCotizacion();
   const enlace = `${base}/cotizacion/${publicId}`;
 
   // Con la prórroga incluida: si se aplazó, el correo tiene que decir la

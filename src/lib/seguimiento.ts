@@ -26,7 +26,7 @@
 // ============================================================
 
 import { prisma } from "@/lib/prisma";
-import { urlPortal } from "@/lib/url-portal";
+import { urlPortal, enlaceCotizacion } from "@/lib/url-portal";
 import { enviarCorreo, correoConfigurado } from "@/lib/correo";
 import { enviarWhatsAppDirecto } from "@/lib/nexus/canales";
 import { getMarca } from "@/lib/marca";
@@ -139,7 +139,7 @@ function marcadores(cot: NonNullable<CotizacionSeg>, base: string, nosotros: str
     empresa: cot.cliente.empresa || cot.cliente.nombre,
     numero: cot.numero,
     total: formatCOP(Number(cot.total)),
-    enlace: cot.publicId ? `${base}/cotizacion/${cot.publicId}` : "",
+    enlace: enlaceCotizacion(cot.publicId),
     vence: vence.toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" }),
     diasRestantes: String(dias),
     asesor: cot.vendedor?.nombre ?? nosotros,

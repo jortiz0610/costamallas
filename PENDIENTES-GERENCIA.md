@@ -308,6 +308,64 @@ tendrá disco privado. El código ya está preparado: hay que escribir un
 conector y cambiar una línea.
 
 ---
+## 16. Conectar `cotizacion.costamallas.com` ⚠️ nuevo — son 10 minutos tuyos
+
+**Qué hay que hacer:** apuntar el subdominio a Vercel y cargar una variable.
+Es lo único que falta; el código ya está listo y no hay que tocarlo.
+
+**Por qué un subdominio aparte y no el portal:** lo que se le manda al
+cliente por correo o WhatsApp es un enlace. Un enlace a
+`portal.costamallas.com` invita a curiosear el portal interno. Un
+subdominio dedicado deja claro que ahí solo hay una cosa: su oferta.
+
+### Paso 1 — En Vercel
+
+1. Entra al proyecto **costamallas-erp** → pestaña **Settings** → **Domains**.
+2. **Add Domain** → escribe `cotizacion.costamallas.com` → **Add**.
+3. Vercel te muestra el registro DNS que hay que crear. Anótalo: normalmente
+   es un **CNAME** hacia `cname.vercel-dns.com`.
+   No cierres esa pantalla: ahí te va a decir cuándo quedó verificado.
+
+### Paso 2 — En el DNS de costamallas.com
+
+Donde estén hoy los DNS del dominio (Hostinger, si es el mismo sitio de la
+tienda), crea el registro que te dio Vercel:
+
+| Tipo | Nombre | Valor | TTL |
+|------|--------|-------|-----|
+| CNAME | `cotizacion` | `cname.vercel-dns.com` | el que traiga por defecto |
+
+⚠️ En el campo **Nombre** va solo `cotizacion`, NO
+`cotizacion.costamallas.com`: casi todos los paneles le pegan el dominio
+solos, y escribirlo completo crea `cotizacion.costamallas.com.costamallas.com`.
+
+⚠️ **No toques** los registros de `@` ni de `www`: esos son la tienda.
+
+Tarda entre 5 minutos y 2 horas en propagarse. Vercel lo marca en verde solo.
+
+### Paso 3 — La variable, otra vez en Vercel
+
+Settings → **Environment Variables** → **Add**:
+
+| Clave | Valor | Entornos |
+|-------|-------|----------|
+| `COTIZACION_URL` | `https://cotizacion.costamallas.com` | Production |
+
+Y después **Redeploy** (Deployments → el último → ⋯ → Redeploy). Sin el
+redeploy la variable no entra.
+
+### Cómo saber que quedó
+
+Abre `https://cotizacion.costamallas.com/politicas`. Si carga la página de
+políticas, el dominio está conectado.
+
+**Qué cambia cuando esté:** todos los enlaces de oferta —el de "Enviar", el
+de "Compartir" y los tres del seguimiento— pasan a salir con ese dominio,
+sin tocar código. Mientras tanto siguen saliendo con
+`portal.costamallas.com`, que funciona igual de bien; esto es presentación
+frente al cliente, no una avería.
+
+---
 ## Lo que está bloqueado esperando otra cosa (no es pregunta de gerencia)
 
 | Qué | Qué falta |

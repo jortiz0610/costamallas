@@ -53,3 +53,33 @@ export function urlPortal(req?: { headers: Headers; url: string }): string {
   const env = (process.env.PORTAL_URL ?? "").trim().replace(/\/$/, "");
   return /^https?:\/\//.test(env) ? env : PORTAL;
 }
+
+/**
+ * La dirección desde la que se le sirve la COTIZACIÓN al cliente.
+ *
+ * Se decidió que las ofertas viven en `cotizacion.costamallas.com` y no
+ * en el portal. El motivo no es estético: lo que se le manda a un
+ * cliente por correo o WhatsApp es un enlace, y un enlace a
+ * `portal.costamallas.com` invita a curiosear el portal interno. Un
+ * subdominio dedicado deja claro que ahí solo hay una cosa: su oferta.
+ *
+ * Hasta que el dominio esté conectado en Vercel esto devuelve el portal,
+ * exactamente igual que hoy. En cuanto se cargue `COTIZACION_URL` en
+ * Vercel, TODOS los enlaces del seguimiento y de los correos pasan a
+ * usarlo sin tocar una línea de código.
+ *
+ * ⚠️ NO se usa el host de la petición aquí, al revés que en
+ * `urlPortal()`: estos enlaces se arman casi siempre en la corrida
+ * diaria, donde no hay petición, y los pocos que se arman con una
+ * petición vienen del portal — que es justo el host que NO queremos
+ * pegarle al cliente.
+ */
+export function urlCotizacion(): string {
+  const env = (process.env.COTIZACION_URL ?? "").trim().replace(/\/$/, "");
+  return /^https?:\/\//.test(env) ? env : urlPortal();
+}
+
+/** El enlace completo de una oferta, tal como lo recibe el cliente. */
+export function enlaceCotizacion(publicId: string | null | undefined): string {
+  return publicId ? `${urlCotizacion()}/cotizacion/${publicId}` : "";
+}

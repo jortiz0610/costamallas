@@ -414,6 +414,8 @@ Plantilla en `.env.example`. En **local** van en `.env.local`; en **producción*
 | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_MS` | Límite de requests | — |
 | `FTP_HOST` / `FTP_USER` / `FTP_PASSWORD` / `FTP_BASE_PATH` / `FTP_BASE_URL` | Subida de imágenes a Hostinger | Hostinger (cuenta FTP) |
 | `CRON_SECRET` | Autoriza a Vercel Cron a llamar `/api/cron/*` | Cualquier cadena larga aleatoria |
+| `PORTAL_URL` | El portal, cuando no hay petición de la que sacar el origen (la corrida diaria). Sin ella se usa `portal.costamallas.com` | — |
+| `COTIZACION_URL` | Dominio desde el que se le sirve la oferta al CLIENTE. Sin ella se usa el portal, y todo sigue funcionando | Ver PENDIENTES §16 |
 
 ⚠️ **`NEXT_PUBLIC_APP_URL` no es cosmética.** Es la base de los enlaces que se
 mandan por correo (la cotización pública, el seguimiento, el aviso al coordinador).
