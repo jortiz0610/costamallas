@@ -7,8 +7,9 @@ import {
   Settings, Link2, Check, X, Loader2, Eye, EyeOff, Building2, Palette, Upload, ImageIcon,
   ShoppingBag, Store, Users, Globe, Smartphone, Instagram, Facebook, Mail, MessageSquare,
   Plus, PlugZap, ChevronDown, BookOpen, Radio, Sparkles, Route, Percent, Star, Hash,
-  Bot,
+  Bot, FileText, HelpCircle,
 } from "lucide-react";
+import { TabPlantillasCorreo } from "@/components/configuracion/TabPlantillasCorreo";
 import toast from "react-hot-toast";
 import { useBrand } from "@/contexts/BrandContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -1077,24 +1078,64 @@ function TabCorreo() {
   );
 }
 
+/**
+ * Las pestañas, agrupadas.
+ *
+ * Eran diecisiete en una sola fila que se salía de la pantalla, sin
+ * ninguna relación entre vecinas: "Correo" al lado de "Consecutivos" y
+ * "Facturación" perdida entre las conexiones externas. Ahora van por
+ * grupos, y cada una lleva una línea de ayuda que dice para qué sirve —
+ * que es lo que en realidad se pregunta al llegar aquí.
+ */
+const GRUPOS = [
+  { id: "empresa",   label: "La empresa" },
+  { id: "comercial", label: "Lo comercial" },
+  { id: "comunica",  label: "Comunicación" },
+  { id: "operacion", label: "Operación" },
+  { id: "conexion",  label: "Conexiones" },
+];
+
 const TABS = [
-  { id: "empresa",      label: "Empresa",       icon: Building2   },
-  { id: "ia",           label: "IA",            icon: Sparkles    },
-  { id: "correo",       label: "Correo",        icon: Mail        },
-  { id: "consecutivos", label: "Consecutivos",  icon: Hash        },
-  { id: "cotizacion",   label: "Cotización",    icon: BookOpen    },
-  { id: "seguimiento",  label: "Seguimiento",   icon: Route       },
-  { id: "comercial",    label: "Reglas comerciales", icon: Percent },
-  { id: "postventa",    label: "Postventa",     icon: Star        },
-  { id: "instalacion",  label: "Instalación",   icon: PlugZap     },
-  { id: "facturacion",  label: "Facturación",   icon: Building2   },
-  { id: "canales",      label: "Canales & Redes", icon: Radio     },
-  { id: "agente_web",   label: "Agente web",    icon: Bot         },
-  { id: "marketing",    label: "Conexiones Ads", icon: Radio      },
-  { id: "woocommerce",  label: "WooCommerce",   icon: Link2       },
-  { id: "falabella",    label: "Falabella",     icon: ShoppingBag },
-  { id: "mercadolibre", label: "MercadoLibre",  icon: Store       },
-  { id: "wp_users",     label: "WordPress",     icon: Globe       },
+  { id: "empresa",      grupo: "empresa",   label: "Empresa",       icon: Building2,
+    ayuda: "Nombre, NIT, logo, color y datos de contacto. Salen en la cotización y en los correos." },
+  { id: "consecutivos", grupo: "empresa",   label: "Consecutivos",  icon: Hash,
+    ayuda: "Con qué número van las cotizaciones, los pedidos y las facturas. Sirve para continuar la numeración que traías de SIIGO." },
+  { id: "facturacion",  grupo: "empresa",   label: "Facturación",   icon: Building2,
+    ayuda: "El proveedor de facturación electrónica. Sin uno elegido, la factura se emite en modo manual y no va a la DIAN." },
+
+  { id: "cotizacion",   grupo: "comercial", label: "Cotización",    icon: BookOpen,
+    ayuda: "Qué dice el documento que recibe el cliente: garantías, vigencia, condiciones de pago y el recorte de las fotos." },
+  { id: "comercial",    grupo: "comercial", label: "Reglas comerciales", icon: Percent,
+    ayuda: "Hasta dónde puede llegar un asesor solo: tope de descuento y anticipo mínimo. Pasarse deja la oferta esperando visto bueno." },
+  { id: "seguimiento",  grupo: "comercial", label: "Seguimiento",   icon: Route,
+    ayuda: "Los tres toques que salen después de enviar una oferta: cuándo y con qué texto." },
+
+  { id: "correo",       grupo: "comunica",  label: "Correo (SMTP)", icon: Mail,
+    ayuda: "Las credenciales del servidor de correo. Sin esto NADA se envía: ni cotizaciones, ni recordatorios, ni encuestas." },
+  { id: "plantillas",   grupo: "comunica",  label: "Plantillas de correo", icon: FileText,
+    ayuda: "El texto de cada correo que manda el portal, con vista previa. Se edita sin tocar el código." },
+  { id: "canales",      grupo: "comunica",  label: "Canales & Redes", icon: Radio,
+    ayuda: "WhatsApp, web y correo entrante: por dónde llegan las conversaciones a Nexus." },
+  { id: "agente_web",   grupo: "comunica",  label: "Agente web",    icon: Bot,
+    ayuda: "El asistente que atiende en costamallas.com: si está encendido, qué modelo usa y cuánto puede gastar al día." },
+  { id: "ia",           grupo: "comunica",  label: "IA",            icon: Sparkles,
+    ayuda: "El proveedor de inteligencia artificial y su clave. Es lo que mueve el SEO masivo, el asistente y el agente web." },
+
+  { id: "instalacion",  grupo: "operacion", label: "Instalación",   icon: PlugZap,
+    ayuda: "Los servicios que se pueden cotizar y el recargo por ciudad. Sin recargos, mandar la cuadrilla a Santa Marta cuesta lo mismo que instalar al lado." },
+  { id: "postventa",    grupo: "operacion", label: "Postventa",     icon: Star,
+    ayuda: "La encuesta de satisfacción y las políticas públicas de envíos, devoluciones y datos." },
+
+  { id: "woocommerce",  grupo: "conexion",  label: "WooCommerce",   icon: Link2,
+    ayuda: "La conexión con la tienda costamallas.com: es por donde se publican los productos." },
+  { id: "wp_users",     grupo: "conexion",  label: "WordPress",     icon: Globe,
+    ayuda: "El acceso a WordPress, para subir imágenes a la biblioteca y leer los usuarios de la web." },
+  { id: "marketing",    grupo: "conexion",  label: "Conexiones Ads", icon: Radio,
+    ayuda: "Google, Meta y TikTok Ads, para traer la inversión de las campañas." },
+  { id: "falabella",    grupo: "conexion",  label: "Falabella",     icon: ShoppingBag,
+    ayuda: "Marketplace. Necesita cuenta de vendedor." },
+  { id: "mercadolibre", grupo: "conexion",  label: "MercadoLibre",  icon: Store,
+    ayuda: "Marketplace. Necesita cuenta de vendedor." },
 ];
 
 function ConfiguracionContent() {
@@ -1109,29 +1150,55 @@ function ConfiguracionContent() {
 
   const initial = searchParams.get("tab") ?? "empresa";
   const [tab, setTab] = useState(tabsVisibles.some(t => t.id === initial) ? initial : "empresa");
+  const ayudaActual = TABS.find(t => t.id === tab)?.ayuda ?? null;
   return (
     <>
       <Topbar title="Configuración" />
       <div className="flex-1 overflow-y-auto page-bg">
         <div className="bg-white dark:bg-slate-900 px-6 overflow-x-auto" style={{ borderBottom: "1px solid var(--border)" }}>
-          <div className="flex gap-0.5 min-w-max">
-            {tabsVisibles.map(t => {
-              const Icon = t.icon;
-              const active = tab === t.id;
+          <div className="flex gap-4 min-w-max items-end">
+            {GRUPOS.map(g => {
+              const delGrupo = tabsVisibles.filter(t => t.grupo === g.id);
+              if (!delGrupo.length) return null;
               return (
-                <button key={t.id} onClick={() => setTab(t.id)}
-                  className="flex items-center gap-2 px-4 py-3.5 text-[12px] font-medium border-b-2 transition-all whitespace-nowrap"
-                  style={active ? { borderBottomColor: brand.brandColor, color: brand.brandColor } : { borderBottomColor: "transparent", color: "var(--text-muted)" }}>
-                  <Icon size={13} />{t.label}
-                </button>
+                <div key={g.id} className="flex flex-col">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-gray-300 dark:text-slate-600 px-3 pt-2.5">
+                    {g.label}
+                  </span>
+                  <div className="flex gap-0.5">
+                    {delGrupo.map(t => {
+                      const Icon = t.icon;
+                      const active = tab === t.id;
+                      return (
+                        <button key={t.id} onClick={() => setTab(t.id)}
+                          className="flex items-center gap-2 px-3 py-2.5 text-[12px] font-medium border-b-2 transition-all whitespace-nowrap"
+                          style={active ? { borderBottomColor: brand.brandColor, color: brand.brandColor } : { borderBottomColor: "transparent", color: "var(--text-muted)" }}>
+                          <Icon size={13} />{t.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             })}
           </div>
         </div>
+
+        {/* La ayuda de la pestaña abierta. Va aquí y no en un icono "?"
+            que haya que buscar: la pregunta "¿esto para qué es?" se hace
+            al llegar, no después de cazar un interrogante. */}
+        {ayudaActual && (
+          <div className="px-6 py-2.5 flex items-start gap-2 text-[11.5px]"
+            style={{ backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>
+            <HelpCircle size={13} className="flex-shrink-0 mt-0.5" />
+            <span>{ayudaActual}</span>
+          </div>
+        )}
         <div className="p-6">
           {tab === "empresa"      && <TabEmpresa />}
           {tab === "ia"           && <TabIA />}
           {tab === "correo"       && <TabCorreo />}
+          {tab === "plantillas"   && <TabPlantillasCorreo />}
           {tab === "consecutivos" && <TabConsecutivos />}
           {tab === "cotizacion"   && <TabCotizacion />}
           {tab === "seguimiento"  && <TabSeguimiento />}

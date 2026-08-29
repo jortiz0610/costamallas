@@ -14,6 +14,8 @@ import { prisma } from "@/lib/prisma";
 import { getMarca } from "@/lib/marca";
 import { getConfigCotizacion } from "@/lib/cotizacion-config";
 import { completarFotos } from "@/lib/cotizacion-imagenes";
+import { avisarApertura } from "@/lib/aviso-apertura";
+import { urlPortal } from "@/lib/url-portal";
 import { CotizacionDoc, type CotizacionDocData } from "@/components/crm/CotizacionDoc";
 import { BarraPublica } from "./BarraPublica";
 
@@ -52,6 +54,14 @@ export default async function CotizacionPublica({ params }: P) {
       },
     })
     .catch(() => undefined);
+
+  // La PRIMERA apertura le avisa al asesor: el mejor momento para llamar
+  // es cuando el cliente tiene la oferta en la pantalla. Solo la primera:
+  // un cliente que la abre ocho veces mientras la lee no debe generar
+  // ocho avisos, porque a la tercera el asesor deja de mirarlos.
+  if (!cotizacion.vistaPrimeraEn) {
+    await avisarApertura(cotizacion.id, urlPortal()).catch(() => undefined);
+  }
 
   const [marca, config] = await Promise.all([getMarca(), getConfigCotizacion()]);
 

@@ -19,6 +19,7 @@ import { urlPortal } from "@/lib/url-portal";
 import { getUserFromRequest, canWrite } from "@/lib/auth";
 import { enviarCorreo } from "@/lib/correo";
 import { getMarca } from "@/lib/marca";
+import { armarCorreo } from "@/lib/correo-plantillas-server";
 import { formatCOP } from "@/lib/utils";
 
 type P = { params: Promise<{ id: string }> };
@@ -80,9 +81,15 @@ export async function POST(req: NextRequest, { params }: P) {
   const base = urlPortal(req);
   const enlace = `${base}/cotizacion/${publicId}`;
 
-  const vence = new Date(cot.createdAt.getTime() + cot.validezDias * 86400000)
+  // Con la prórroga incluida: si se aplazó, el correo tiene que decir la
+  // fecha nueva, no la que ya pasó.
+  const vence = new Date(cot.createdAt.getTime() + (cot.validezDias + cot.prorrogaDias) * 86400000)
     .toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" });
 
+  // La TABLA de ítems es el único HTML que arma esta ruta: no se puede
+  // escribir en texto plano sin que se desarme en el teléfono. Todo lo
+  // demás —cabecera, cuerpo, banner y pie— sale de la plantilla, que
+  // gerencia edita en Configuración → Plantillas de correo.
   const filas = cot.items
     .map(i => `<tr>
       <td style="padding:9px 0;border-bottom:1px solid #eee;font-size:13px;color:#2b2d29">
@@ -97,65 +104,50 @@ export async function POST(req: NextRequest, { params }: P) {
     </tr>`)
     .join("");
 
-  const html = `<!doctype html><html lang="es"><body style="margin:0;background:#e9ecef;font-family:system-ui,-apple-system,'Segoe UI',sans-serif">
-  <div style="max-width:640px;margin:0 auto;background:#fff">
-    <div style="background:${NEGRO};padding:26px 28px">
-      <p style="margin:0;font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:${AMARILLO}">${marca.companyName}</p>
-      <h1 style="margin:8px 0 0;font-size:26px;line-height:1;color:#fff;text-transform:uppercase;font-weight:900">Su cotización<br>${cot.numero}</h1>
-    </div>
-    <div style="height:4px;background:${AMARILLO}"></div>
+  const tabla = `
+    <table style="width:100%;border-collapse:collapse;margin:6px 0 18px">
+      <tbody>${filas}</tbody>
+    </table>
+    <table style="width:100%;border-collapse:collapse;background:${NEGRO}">
+      <tr>
+        <td style="padding:14px 16px;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#fff">Total</td>
+        <td style="padding:14px 16px;text-align:right;font-size:22px;font-weight:900;color:${AMARILLO}">${formatCOP(Number(cot.total))}</td>
+      </tr>
+    </table>`;
 
-    <div style="padding:26px 28px">
-      <p style="margin:0 0 16px;font-size:14px;color:#2b2d29;line-height:1.6">
-        ${cot.cliente.empresa ? `Buen día, ${cot.cliente.empresa}` : `Buen día, ${cot.cliente.nombre}`}:<br>
-        Adjuntamos la oferta que preparamos para usted. Puede verla completa y descargarla en PDF desde el botón de abajo.
-      </p>
+  // ¿Es el primer envío o un reenvío de algo que el cliente ya tenía?
+  // El texto es distinto y lo decide quien llama: el botón de "Enviar"
+  // manda el primero, y el aviso de "la cotización cambió" manda el otro.
+  const yaLaTenia = Boolean(cot.enviadaEn);
+  const plantilla = req.nextUrl.searchParams.get("plantilla") === "modificada" || yaLaTenia
+    ? "cotizacion_modificada"
+    : "cotizacion_envio";
 
-      <table style="width:100%;border-collapse:collapse;margin:18px 0">
-        <tbody>${filas}</tbody>
-      </table>
-
-      <table style="width:100%;border-collapse:collapse;background:${NEGRO}">
-        <tr>
-          <td style="padding:14px 16px;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#fff">Total</td>
-          <td style="padding:14px 16px;text-align:right;font-size:22px;font-weight:900;color:${AMARILLO}">${formatCOP(Number(cot.total))}</td>
-        </tr>
-      </table>
-
-      <p style="margin:20px 0;text-align:center">
-        <a href="${enlace}" style="display:inline-block;background:${AMARILLO};color:${NEGRO};text-decoration:none;padding:14px 30px;font-weight:900;font-size:14px;text-transform:uppercase;letter-spacing:.03em">
-          Ver la cotización
-        </a>
-      </p>
-
-      <p style="margin:0;font-size:13px;color:#6b6f6a;line-height:1.6">
-        Esta oferta es válida hasta el <strong>${vence}</strong>.
-        Cualquier ajuste que necesite para avanzar, respóndanos este correo.
-      </p>
-
-      <div style="margin-top:22px;padding-left:14px;border-left:4px solid ${AMARILLO}">
-        <p style="margin:0;font-size:13px;font-weight:800;color:#11110f">${cot.vendedor?.nombre ?? marca.companyName}</p>
-        <p style="margin:2px 0 0;font-size:12px;color:#6b6f6a">
-          ${[cot.vendedor?.telefono || marca.phone, cot.vendedor?.email || marca.email].filter(Boolean).join(" · ")}
-        </p>
-      </div>
-    </div>
-
-    <div style="padding:16px 28px;background:${NEGRO};color:rgba(255,255,255,.45);font-size:11px">
-      ${marca.companyName}${marca.nit ? ` · NIT ${marca.nit}` : ""}${marca.address ? ` · ${marca.address}` : ""}
-    </div>
-  </div></body></html>`;
-
+  const correo = await armarCorreo(
+    plantilla,
+    {
+      cliente: cot.cliente.empresa || cot.cliente.nombre,
+      contacto: cot.cliente.nombre,
+      numero: cot.numero,
+      total: formatCOP(Number(cot.total)),
+      vence,
+      enlace,
+      asesor: cot.vendedor?.nombre ?? "",
+      asesorTelefono: cot.vendedor?.telefono ?? marca.phone ?? "",
+    },
+    {
+      urlBoton: enlace,
+      pieDelBoton: `Válida hasta el ${vence}.`,
+      extraHtml: tabla,
+    },
+  );
   try {
     await enviarCorreo({
       para: destino,
       responderA: cot.vendedor?.email || marca.email || undefined,
-      asunto: `Cotización ${cot.numero} — ${marca.companyName}`,
-      html,
-      texto:
-        `Cotización ${cot.numero} — ${marca.companyName}\n\n` +
-        cot.items.map(i => `· ${Number(i.cantidad).toLocaleString("es-CO")} ${i.unidad ?? ""} — ${i.descripcion}`).join("\n") +
-        `\n\nTotal: ${formatCOP(Number(cot.total))}\nVálida hasta el ${vence}\n\nVerla: ${enlace}`,
+      asunto: correo.asunto,
+      html: correo.html,
+      texto: correo.texto,
     });
   } catch (e) {
     const mensaje = (e as Error).message;
