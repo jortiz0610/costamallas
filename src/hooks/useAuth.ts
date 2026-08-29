@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
-import { esAdmin } from "@/lib/permisos";
+import { esAdmin, permisosEfectivos } from "@/lib/permisos";
 import type { UsuarioDTO } from "@/types";
 
 async function fetchMe(): Promise<UsuarioDTO> {
@@ -39,16 +39,35 @@ export function useAuth() {
     router.push("/login");
   };
 
+  const actual = query.data ?? user;
+
+  // Los permisos vienen calculados del servidor. Si todavía no llegaron
+  // (primer render, o una respuesta vieja en caché de una versión
+  // anterior del portal) se cae al juego por defecto del rol: es lo
+  // mismo que se veía antes de que existieran las excepciones, así que
+  // el menú no parpadea vacío.
+  const permisos = useMemo(
+    () => new Set(actual?.permisos ?? [...permisosEfectivos(actual?.rol)]),
+    [actual?.permisos, actual?.rol],
+  );
+
   return {
-    user: query.data ?? user,
+    user: actual,
     isLoading: query.isLoading,
     // Los dos estaban mal y por eso nadie los usaba: `isAdmin` dejaba
     // fuera al SUPERADMIN y `canWrite` solo daba permiso a ADMIN y
     // USUARIO, cuando en el servidor escribe todo el mundo menos
     // SOLO_LECTURA. Un vendedor no habría podido ni crear un cliente.
     // Ahora dicen lo mismo que el servidor.
-    isAdmin: esAdmin(user?.rol),
-    canWrite: Boolean(user?.rol) && user?.rol !== "SOLO_LECTURA",
+    isAdmin: esAdmin(actual?.rol),
+    canWrite: Boolean(actual?.rol) && actual?.rol !== "SOLO_LECTURA",
+    permisos,
+    /**
+     * ⚠️ Esto sirve para NO PINTAR algo, nunca para protegerlo: corre en
+     * el navegador. El permiso de verdad lo impone la route handler con
+     * `exigirPermiso()`.
+     */
+    puedeVer: (clave: string) => permisos.has(clave),
     logout,
   };
 }

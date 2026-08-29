@@ -43,10 +43,38 @@ model Usuario {
   instalaciones     Instalacion[]
   nexusMensajes     NexusMensaje[]
   tareas            Tarea[]
+  permisos          PermisoUsuario[]
 
   @@index([email])
   @@index([clienteId])
   @@map("usuarios")
+}
+
+/// Excepciones de permisos de UNA persona. El juego por defecto lo trae
+/// el rol y vive en código (lib/permisos.ts); aquí solo se guarda lo
+/// que se le activó o se le quitó a mano. Guardar el juego completo por
+/// usuario haría que una pantalla nueva no la viera nadie.
+model PermisoUsuario {
+  id        String  @id @default(cuid())
+  usuarioId String
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  /// Clave del catálogo: "erp.stock", "erp.productos.editar"…
+  clave     String
+  /// true = concedido aunque el rol no lo traiga.
+  /// false = retirado aunque el rol sí lo traiga.
+  permitido Boolean
+
+  /// Quién lo cambió y por qué. Un permiso suelto que nadie recuerda
+  /// haber dado es la forma más común de que se quede puesto para siempre.
+  otorgadoPorId String?
+  nota          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([usuarioId, clave])
+  @@index([usuarioId])
+  @@map("permisos_usuario")
 }
 
 enum Rol {

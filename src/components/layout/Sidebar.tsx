@@ -7,13 +7,13 @@ import {
   ShoppingCart, Wrench, Kanban, ChevronDown, ShieldCheck, BarChart2,
   MessageSquare, Truck, CheckSquare, MessageSquareText, Zap,
   Megaphone, Target, TrendingUp, Radio, Receipt, PieChart, Star, Timer,
-  Sparkles,
+  Sparkles, HardHat, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useBrand } from "@/contexts/BrandContext";
-import { useState } from "react";
-import { puedeVerModulo, esAdmin, esSuperadmin } from "@/lib/permisos";
+import { useEffect, useState } from "react";
+import { modulosVisibles } from "@/lib/permisos";
 
 const ERP_COLOR   = "#185FA5";
 const CRM_COLOR   = "#BA7517";
@@ -21,66 +21,68 @@ const NEXUS_COLOR = "#7c3aed";
 const MKT_COLOR   = "#db2777";
 
 const MARKETING_ITEMS = [
-  { href: "/marketing", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/marketing", label: "Dashboard", icon: LayoutDashboard, perm: "mkt.dashboard" },
   { section: "Análisis" },
-  { href: "/marketing/campanas", label: "Campañas", icon: Megaphone },
-  { href: "/marketing/atribucion", label: "Atribución de leads", icon: Target },
-  { href: "/marketing/retorno", label: "Retorno real", icon: TrendingUp },
-  { href: "/marketing/reportes", label: "Reportes", icon: TrendingUp },
+  { href: "/marketing/campanas", label: "Campañas", icon: Megaphone, perm: "mkt.campanas" },
+  { href: "/marketing/atribucion", label: "Atribución de leads", icon: Target, perm: "mkt.atribucion" },
+  { href: "/marketing/retorno", label: "Retorno real", icon: TrendingUp, perm: "mkt.retorno" },
+  { href: "/marketing/reportes", label: "Reportes", icon: TrendingUp, perm: "mkt.reportes" },
   { section: "Conecta tus cuentas" },
-  { href: "/configuracion?tab=marketing", label: "Conexiones de Ads", icon: Radio },
+  { href: "/configuracion?tab=marketing", label: "Conexiones de Ads", icon: Radio, perm: "mkt.conexiones" },
 ];
 
+// Cada entrada declara su PERMISO. Quién lo tiene se decide en
+// lib/permisos.ts (juego por defecto del rol) y en la tabla
+// permisos_usuario (excepciones de cada persona). Ya no hay banderas
+// "soloAdmin" sueltas aquí: el criterio vivía en dos sitios y se
+// desincronizaba.
 const ERP_ITEMS = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard, perm: "erp.dashboard" },
   { section: "Catálogo" },
-  { href: "/productos", label: "Productos", icon: Package },
-  // Solo SUPERADMIN: lanzar el lote gasta dinero y aprobarlo publica en la
-  // tienda. Para el resto del equipo es un modulo que no necesitan y que
-  // solo agrega ruido al menu.
-  { href: "/productos/seo", label: "SEO con IA", icon: Sparkles, soloSuperadmin: true },
-  { href: "/imagenes", label: "Imágenes", icon: ImageIcon },
-  { href: "/categorias", label: "Catálogos", icon: Tag },
+  { href: "/productos", label: "Productos", icon: Package, perm: "erp.productos" },
+  { href: "/productos/seo", label: "SEO con IA", icon: Sparkles, perm: "erp.seo" },
+  { href: "/imagenes", label: "Imágenes", icon: ImageIcon, perm: "erp.imagenes" },
+  { href: "/categorias", label: "Catálogos", icon: Tag, perm: "erp.catalogos" },
   { section: "Operaciones" },
-  { href: "/stock", label: "Stock", icon: Archive, alertKey: "stock" },
-  { href: "/compras", label: "Compras", icon: Truck },
-  { href: "/facturacion", label: "Facturación", icon: Receipt },
-  { href: "/facturacion/cartera", label: "Cartera", icon: PieChart },
-  // "Sincronización WC" solo la ven admin y superadmin: toca la tienda en vivo.
-  { href: "/woocommerce", label: "Sincronización WC", icon: FileInput, soloAdmin: true },
+  { href: "/stock", label: "Stock", icon: Archive, alertKey: "stock", perm: "erp.stock" },
+  { href: "/compras", label: "Compras", icon: Truck, perm: "erp.compras" },
+  { href: "/facturacion", label: "Facturación", icon: Receipt, perm: "erp.facturacion" },
+  { href: "/facturacion/cartera", label: "Cartera", icon: PieChart, perm: "erp.cartera" },
+  { href: "/woocommerce", label: "Sincronización WC", icon: FileInput, perm: "erp.woocommerce" },
   // Antes había además un "Errores" (validación) que era una pantalla vacía.
   // Se dejó un único módulo: el reporte de errores que sí reportan los usuarios.
-  { href: "/sistema/reportes", label: "Reporte de errores", icon: AlertTriangle, alertKey: "errores" },
+  { href: "/sistema/reportes", label: "Reporte de errores", icon: AlertTriangle, alertKey: "errores", perm: "erp.errores" },
 ];
 
 const CRM_ITEMS = [
-  { href: "/crm", label: "Resumen", icon: LayoutDashboard },
-  { href: "/crm/embudo", label: "Embudo", icon: Target },
+  { href: "/crm", label: "Resumen", icon: LayoutDashboard, perm: "crm.resumen" },
+  { href: "/crm/embudo", label: "Embudo", icon: Target, perm: "crm.embudo" },
   { section: "Gestión" },
-  { href: "/crm/clientes", label: "Clientes", icon: UserCircle },
-  { href: "/crm/cotizaciones", label: "Cotizaciones", icon: ClipboardList },
-  { href: "/crm/pedidos", label: "Pedidos", icon: ShoppingCart },
+  { href: "/crm/clientes", label: "Clientes", icon: UserCircle, perm: "crm.clientes" },
+  { href: "/crm/cotizaciones", label: "Cotizaciones", icon: ClipboardList, perm: "crm.cotizaciones" },
+  { href: "/crm/pedidos", label: "Pedidos", icon: ShoppingCart, perm: "crm.pedidos" },
   { section: "Producción" },
-  { href: "/crm/pipeline", label: "Pipeline", icon: Kanban },
-  { href: "/crm/instalaciones", label: "Instalaciones", icon: Wrench },
+  { href: "/crm/pipeline", label: "Pipeline", icon: Kanban, perm: "crm.pipeline" },
+  { href: "/crm/instalaciones", label: "Instalaciones", icon: Wrench, perm: "crm.instalaciones" },
+  { href: "/crm/trabajos", label: "Trabajos", icon: HardHat, alertKey: "trabajos", perm: "crm.trabajos" },
   { section: "Postventa" },
-  { href: "/postventa", label: "Encuesta y políticas", icon: Star },
+  { href: "/postventa", label: "Encuesta y políticas", icon: Star, perm: "crm.postventa" },
 ];
 
 const NEXUS_ITEMS = [
-  { href: "/nexus", label: "Inbox", icon: MessageSquare, alertKey: "nexus" },
-  { href: "/nexus/plantillas", label: "Plantillas", icon: MessageSquareText },
-  { href: "/nexus/flujos", label: "Flujos & Automatización", icon: Zap },
-  { href: "/nexus/tiempos", label: "Tiempo de respuesta", icon: Timer },
+  { href: "/nexus", label: "Inbox", icon: MessageSquare, alertKey: "nexus", perm: "nexus.inbox" },
+  { href: "/nexus/plantillas", label: "Plantillas", icon: MessageSquareText, perm: "nexus.plantillas" },
+  { href: "/nexus/flujos", label: "Flujos & Automatización", icon: Zap, perm: "nexus.flujos" },
+  { href: "/nexus/tiempos", label: "Tiempo de respuesta", icon: Timer, perm: "nexus.tiempos" },
   { section: "Configura tus canales" },
-  { href: "/configuracion?tab=canales", label: "Conexiones", icon: Settings },
+  { href: "/configuracion?tab=canales", label: "Conexiones", icon: Settings, perm: "nexus.conexiones" },
 ];
 
 const SYSTEM_ITEMS = [
-  { href: "/usuarios", label: "Usuarios y Roles", icon: Users },
-  { href: "/reportes", label: "Reportes y logs", icon: BarChart2 },
-  { href: "/sistema/seguridad", label: "Seguridad", icon: ShieldCheck },
-  { href: "/configuracion", label: "Configuración", icon: Settings },
+  { href: "/usuarios", label: "Usuarios y Roles", icon: Users, perm: "sistema.usuarios" },
+  { href: "/reportes", label: "Reportes y logs", icon: BarChart2, perm: "sistema.reportes" },
+  { href: "/sistema/seguridad", label: "Seguridad", icon: ShieldCheck, perm: "sistema.seguridad" },
+  { href: "/configuracion", label: "Configuración", icon: Settings, perm: "sistema.configuracion" },
 ];
 
 // Rutas de todo el menu, para resolver cual se ilumina.
@@ -110,6 +112,8 @@ interface SidebarProps {
   erroresPendientes?: number;
   crmPendientes?: number;
   nexusSinLeer?: number;
+  /** Visitas técnicas y documentos SG-SST esperando al coordinador. */
+  trabajosPendientes?: number;
 }
 
 export function Sidebar({
@@ -117,11 +121,25 @@ export function Sidebar({
   erroresPendientes = 0,
   crmPendientes = 0,
   nexusSinLeer = 0,
+  trabajosPendientes = 0,
 }: SidebarProps) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout, permisos } = useAuth();
   const { brand, mode, setMode, setSidebarOpen } = useBrand();
   const [sysOpen, setSysOpen] = useState(false);
+  // Plegado del menú en escritorio. Se recuerda entre visitas: quien lo
+  // pliega es porque necesita el ancho, y volvérselo a abrir en cada
+  // carga es una pelea diaria contra la aplicación.
+  const [plegado, setPlegado] = useState(false);
+  useEffect(() => {
+    setPlegado(localStorage.getItem("cm_menu_plegado") === "1");
+  }, []);
+  const alternarPlegado = () => {
+    setPlegado(v => {
+      localStorage.setItem("cm_menu_plegado", v ? "0" : "1");
+      return !v;
+    });
+  };
   const closeMobile = () => setSidebarOpen(false);
 
   const modeColor =
@@ -131,6 +149,7 @@ export function Sidebar({
     stock: stockCriticos,
     errores: erroresPendientes,
     nexus: nexusSinLeer,
+    trabajos: trabajosPendientes,
   };
 
   const navItems =
@@ -140,16 +159,19 @@ export function Sidebar({
 
   function NavItem({ item }: { item: (typeof ERP_ITEMS)[number] }) {
     if ("section" in item) {
+      if (plegado) {
+        return <div className="mx-4 my-2 border-t" style={{ borderColor: modeColor + "30" }} />;
+      }
       return (
         <p className="px-4 pt-4 pb-1 text-[9px] font-bold uppercase tracking-widest" style={{ color: modeColor + "80" }}>
           {item.section}
         </p>
       );
     }
-    // Módulos reservados a admin/superadmin. Ocultar el enlace es solo
-    // presentación: la ruta y su API validan el rol por su cuenta.
-    if ((item as { soloAdmin?: boolean }).soloAdmin && !esAdmin(user?.rol)) return null;
-    if ((item as { soloSuperadmin?: boolean }).soloSuperadmin && !esSuperadmin(user?.rol)) return null;
+    // Ocultar el enlace es SOLO presentación: la ruta y su API validan
+    // el permiso por su cuenta con exigirPermiso().
+    const requiere = (item as { perm?: string }).perm;
+    if (requiere && !permisos.has(requiere)) return null;
 
     const Icon = item.icon!;
     const href = (item as { href: string }).href;
@@ -162,16 +184,29 @@ export function Sidebar({
       <Link
         href={href}
         onClick={closeMobile}
-        className={cn("flex items-center gap-3 mx-2 px-3 py-2 rounded-lg text-[12.5px] transition-all group")}
+        title={plegado ? item.label : undefined}
+        className={cn(
+          "flex items-center gap-3 mx-2 px-3 py-2 rounded-lg text-[12.5px] transition-all group relative",
+          plegado && "justify-center px-0",
+        )}
         style={isActive ? { backgroundColor: modeColor + "18", color: modeColor } : {}}
       >
         <Icon size={14} className={!isActive ? "text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" : ""} />
-        <span className={cn("flex-1 font-medium", !isActive && "text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200")}>
-          {item.label}
-        </span>
-        {isActive && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: modeColor }} />}
+        {!plegado && (
+          <span className={cn("flex-1 font-medium", !isActive && "text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200")}>
+            {item.label}
+          </span>
+        )}
+        {isActive && !plegado && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: modeColor }} />}
         {badgeCount > 0 && (
-          <span className="px-1.5 py-0.5 text-[9px] font-bold bg-red-500 text-white rounded-full">{badgeCount}</span>
+          <span
+            className={cn(
+              "text-[9px] font-bold bg-red-500 text-white rounded-full",
+              plegado ? "absolute top-0.5 right-1 w-3.5 h-3.5 flex items-center justify-center" : "px-1.5 py-0.5",
+            )}
+          >
+            {plegado && badgeCount > 9 ? "9+" : badgeCount}
+          </span>
         )}
       </Link>
     );
@@ -182,24 +217,43 @@ export function Sidebar({
     { key: "CRM",       label: "CRM",    color: CRM_COLOR,   badge: crmPendientes },
     { key: "NEXUS",     label: "Nexus",  color: NEXUS_COLOR, badge: nexusSinLeer },
     { key: "MARKETING", label: "Growth", color: MKT_COLOR },
-  ] as { key: Mode; label: string; color: string; badge?: number }[]).filter(m => puedeVerModulo(user?.rol, m.key));
+  ] as { key: Mode; label: string; color: string; badge?: number }[])
+    .filter(m => modulosVisibles(permisos).includes(m.key));
 
-  const verSistema = esAdmin(user?.rol);
+  const verSistema = modulosVisibles(permisos).includes("SISTEMA");
 
   return (
-    <aside className="w-[210px] min-w-[210px] flex flex-col h-full sidebar-bg">
-      {/* Logo */}
-      <div className="px-4 py-4" style={{ borderBottom: `1px solid ${modeColor}20` }}>
-        {brand.logoUrl ? (
-          <img src={brand.logoUrl} alt={brand.companyName} className="h-7 object-contain max-w-[150px]" />
+    <aside
+      className={cn(
+        "flex flex-col h-full sidebar-bg transition-[width] duration-200",
+        plegado ? "w-[62px] min-w-[62px]" : "w-[210px] min-w-[210px]",
+      )}
+    >
+      {/* Logo y plegado */}
+      <div
+        className={cn("px-4 py-4 flex items-center gap-2", plegado && "px-2 justify-center")}
+        style={{ borderBottom: `1px solid ${modeColor}20` }}
+      >
+        {!plegado && (brand.logoUrl ? (
+          <img src={brand.logoUrl} alt={brand.companyName} className="h-7 object-contain max-w-[150px] flex-1 min-w-0" />
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0" style={{ backgroundColor: modeColor }}>
               {brand.companyName.charAt(0).toUpperCase()}
             </div>
             <span className="text-[13px] font-semibold text-gray-800 dark:text-gray-100 truncate">{brand.companyName}</span>
           </div>
-        )}
+        ))}
+        {/* Solo en escritorio: en móvil el menú es un cajón que se cierra
+            entero, y un botón de plegar ahí no significa nada. */}
+        <button
+          onClick={alternarPlegado}
+          title={plegado ? "Desplegar el menú" : "Plegar el menú"}
+          aria-label={plegado ? "Desplegar el menú" : "Plegar el menú"}
+          className="hidden lg:flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5 transition-colors flex-shrink-0"
+        >
+          {plegado ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
+        </button>
       </div>
 
       {/* Mode selector — ERP · CRM · Nexus */}
@@ -216,7 +270,7 @@ export function Sidebar({
                   : { color: m.color, opacity: 0.55 }
               }
             >
-              {m.label}
+              {plegado ? m.label.charAt(0) : m.label}
               {(m.badge ?? 0) > 0 && (
                 <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full text-[8px] font-bold flex items-center justify-center border-2 border-white dark:border-slate-800 bg-red-500 text-white">
                   {(m.badge ?? 0) > 9 ? "9+" : m.badge}
@@ -242,12 +296,12 @@ export function Sidebar({
           className="w-full flex items-center gap-3 px-4 py-3 text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
         >
           <Settings size={12} />
-          <span className="flex-1 text-left font-medium">Sistema</span>
-          <ChevronDown size={11} className={cn("transition-transform", sysOpen && "rotate-180")} />
+          {!plegado && <span className="flex-1 text-left font-medium">Sistema</span>}
+          {!plegado && <ChevronDown size={11} className={cn("transition-transform", sysOpen && "rotate-180")} />}
         </button>
         {sysOpen && (
           <div className="pb-1">
-            {SYSTEM_ITEMS.map((item) => {
+            {SYSTEM_ITEMS.filter(i => permisos.has(i.perm)).map((item) => {
               const Icon = item.icon;
               const isActive = item.href === activa;
               return (
@@ -258,9 +312,11 @@ export function Sidebar({
                   style={isActive ? { backgroundColor: "#6b728018", color: "#374151" } : {}}
                 >
                   <Icon size={13} className="text-gray-400" />
-                  <span className={cn("text-gray-500 dark:text-gray-400", isActive && "font-medium text-gray-700 dark:text-gray-200")}>
-                    {item.label}
-                  </span>
+                  {!plegado && (
+                    <span className={cn("text-gray-500 dark:text-gray-400", isActive && "font-medium text-gray-700 dark:text-gray-200")}>
+                      {item.label}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -271,15 +327,19 @@ export function Sidebar({
 
       {/* User */}
       <div className="p-3" style={{ borderTop: "1px solid rgba(100,116,139,0.12)" }}>
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0" style={{ backgroundColor: modeColor }}>
+        <div className={cn("flex items-center gap-2.5", plegado && "justify-center")}>
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
+            style={{ backgroundColor: modeColor }}
+            title={plegado ? `${user?.nombre ?? ""} · ${user?.rol ?? ""}` : undefined}
+          >
             {user ? getInitials(user.nombre) : "?"}
           </div>
-          <div className="flex-1 min-w-0">
+          <div className={cn("flex-1 min-w-0", plegado && "hidden")}>
             <p className="text-[12px] font-semibold text-gray-800 dark:text-gray-200 truncate">{user?.nombre ?? "..."}</p>
             <p className="text-[10px] text-gray-400 truncate">{user?.rol ?? ""}</p>
           </div>
-          <button onClick={logout} className="text-gray-300 hover:text-red-500 transition-colors p-1" title="Cerrar sesión">
+          <button onClick={logout} className={cn("text-gray-300 hover:text-red-500 transition-colors p-1", plegado && "hidden")} title="Cerrar sesión">
             <LogOut size={14} />
           </button>
         </div>
@@ -300,7 +360,7 @@ export function Sidebar({
           <rect x="2" y="13" width="9" height="9" rx="2" fill="currentColor" />
           <rect x="13" y="13" width="9" height="9" rx="2" fill="#6366F1" />
         </svg>
-        <span>Sembla · by ESEK</span>
+        {!plegado && <span>Sembla · by ESEK</span>}
       </a>
     </aside>
   );

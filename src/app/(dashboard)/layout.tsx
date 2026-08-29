@@ -9,6 +9,7 @@ import type { NotificacionDTO } from "@/types";
 import { Sembli } from "@/components/layout/Sembli";
 import { PWA } from "@/components/layout/PWA";
 import { MobileNav } from "@/components/layout/MobileNav";
+import { GuardiaRuta } from "@/components/layout/GuardiaRuta";
 import { useBrand } from "@/contexts/BrandContext";
 
 async function fetchKPIs() {
@@ -156,7 +157,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
             de "ver como…" no es que no funcione, es olvidarse el modo
             puesto y creer que el portal está roto. */}
         <RolPrueba />
-        {children}
+        <GuardiaRuta>{children}</GuardiaRuta>
       </main>
       <MobileNav />
       <NotifToastManager />

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useBrand } from "@/contexts/BrandContext";
+import { useAuth } from "@/hooks/useAuth";
+import { modulosVisibles } from "@/lib/permisos";
 import {
   LayoutDashboard, Package, UserCircle, MessageSquare, Megaphone, Menu,
 } from "lucide-react";
@@ -23,13 +25,19 @@ const MODULOS: Record<string, { label: string; href: string; Icon: React.Element
 export function MobileNav() {
   const pathname = usePathname();
   const { mode, setMode, setSidebarOpen } = useBrand();
+  const { permisos } = useAuth();
 
-  const items = [
+  // Los mismos módulos que el menú de escritorio, filtrados por lo mismo.
+  // Antes esta barra los mostraba los cuatro siempre, así que en el
+  // teléfono un vendedor veía "Mkt" y al tocarlo caía en una pantalla que
+  // no le corresponde.
+  const visibles = modulosVisibles(permisos);
+  const items = ([
     { key: "ERP" as const, ...MODULOS.ERP },
     { key: "CRM" as const, ...MODULOS.CRM },
     { key: "NEXUS" as const, ...MODULOS.NEXUS },
     { key: "MARKETING" as const, ...MODULOS.MARKETING },
-  ];
+  ]).filter(i => visibles.includes(i.key));
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 topbar-bg border-t divider"

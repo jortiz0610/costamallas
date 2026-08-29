@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest, canWrite } from "@/lib/auth";
+import { exigirPermiso } from "@/lib/permisos-server";
 import { filtrosProductosSchema, productoSchema } from "@/lib/validations/producto";
 import { nivelStock, generateSlug } from "@/lib/utils";
 import type { ProductoListItem } from "@/types";
@@ -140,6 +141,9 @@ export async function POST(req: NextRequest) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
   if (!canWrite(user)) return NextResponse.json({ success: false, error: "Sin permisos" }, { status: 403 });
+  // Crear un producto es editar el catálogo.
+  const sinPermiso = await exigirPermiso(req, "erp.productos.editar");
+  if (sinPermiso) return sinPermiso;
 
   try {
     const body = await req.json();

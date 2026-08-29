@@ -60,6 +60,13 @@ export interface UsuarioDTO {
   activo: boolean;
   ultimoAcceso: string | null;
   createdAt: string;
+  /// Permisos ya calculados (rol + excepciones). Los manda /api/auth/me:
+  /// el navegador no puede calcularlos solo porque las excepciones
+  /// viven en la base de datos.
+  permisos?: string[];
+  /// Solo con el modo prueba activo: el rol de verdad de la sesión.
+  rolReal?: Rol;
+  rolPrueba?: boolean;
 }
 
 export interface JWTPayload {

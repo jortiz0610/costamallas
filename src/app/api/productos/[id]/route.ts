@@ -10,8 +10,16 @@ import { getUserFromRequest, canWrite, isAdmin } from "@/lib/auth";
 import { getWCCredentials, syncProductosToWC } from "@/lib/woocommerce";
 import { productoSchema } from "@/lib/validations/producto";
 import { nivelStock } from "@/lib/utils";
+import { exigirPermiso } from "@/lib/permisos-server";
 
 type Params = { params: Promise<{ id: string }> };
+
+/**
+ * Lo único que puede tocar quien NO tiene `erp.productos.editar`.
+ * Es una lista blanca a propósito: si mañana el esquema gana un campo,
+ * el que no tiene permiso sigue sin poder tocarlo.
+ */
+const CAMPOS_DE_STOCK = new Set(["stock", "enStock", "stockMinimo", "permiteBackorders"]);
 
 export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
@@ -61,6 +69,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
         { success: false, error: parsed.error.errors[0]?.message ?? "Datos inválidos" },
         { status: 400 }
       );
+    }
+
+    // Sin `erp.productos.editar` la ficha es de SOLO LECTURA salvo el
+    // stock. Es exactamente lo que necesita un vendedor: corregir
+    // existencias cuando descarga mercancía, sin poder tocar el precio
+    // ni la descripción de un producto que está publicado en la tienda.
+    const soloStock = Object.keys(body as Record<string, unknown>).every(k => CAMPOS_DE_STOCK.has(k));
+    if (!soloStock) {
+      const sinPermiso = await exigirPermiso(req, "erp.productos.editar");
+      if (sinPermiso) return sinPermiso;
     }
 
     const existing = await prisma.producto.findUnique({ where: { id } });

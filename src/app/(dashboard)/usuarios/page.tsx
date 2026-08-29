@@ -3,7 +3,9 @@
 import { useState, useEffect, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { Plus, Shield, Check, X, Loader2, KeyRound, UserX, UserCheck, Pencil, Users, ShieldCheck, Smartphone } from "lucide-react";
+import { Plus, Shield, Check, X, Loader2, KeyRound, UserX, UserCheck, Pencil, Users, ShieldCheck, Smartphone, SlidersHorizontal } from "lucide-react";
+import { ModalPermisos } from "@/components/usuarios/ModalPermisos";
+import { PanelRoles } from "@/components/usuarios/PanelRoles";
 import toast from "react-hot-toast";
 import Image from "next/image";
 import { timeAgo } from "@/lib/utils";
@@ -286,6 +288,7 @@ function UsuariosContent() {
   const soySuper = actual?.rol === "SUPERADMIN";
   const [modal, setModal] = useState<{ open: boolean; usuario?: Usuario }>({ open: false });
   const [modal2fa, setModal2fa] = useState<Usuario | null>(null);
+  const [modalPerm, setModalPerm] = useState<Usuario | null>(null);
   const qc = useQueryClient();
 
   const { data: usuarios = [], isLoading } = useQuery<Usuario[]>({
@@ -333,6 +336,9 @@ function UsuariosContent() {
             </span>
           ))}
         </div>
+
+        {/* Qué trae cada rol de fábrica */}
+        <PanelRoles />
 
         {/* Table */}
         <div className="card overflow-hidden">
@@ -387,6 +393,13 @@ function UsuariosContent() {
                   ) : (
                   <div className="flex items-center gap-1">
                     <button
+                      onClick={() => setModalPerm(u)}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                      title="Permisos: qué pantallas ve y qué puede hacer"
+                    >
+                      <SlidersHorizontal size={14} />
+                    </button>
+                    <button
                       onClick={() => setModal({ open: true, usuario: u })}
                       className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
                       title="Editar usuario"
@@ -414,6 +427,13 @@ function UsuariosContent() {
           usuario={modal.usuario}
           onClose={() => setModal({ open: false })}
           onSaved={() => { setModal({ open: false }); qc.invalidateQueries({ queryKey: ["usuarios"] }); }}
+        />
+      )}
+      {modalPerm && (
+        <ModalPermisos
+          usuario={modalPerm}
+          onClose={() => setModalPerm(null)}
+          onSaved={() => qc.invalidateQueries({ queryKey: ["usuarios"] })}
         />
       )}
       {modal2fa && (
