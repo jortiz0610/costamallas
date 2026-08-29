@@ -17,9 +17,11 @@ import { useState, Suspense, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { Topbar } from "@/components/layout/Topbar";
+import { useAuth } from "@/hooks/useAuth";
 import {
   ArrowLeft, Search, Plus, Trash2, X, Loader2, Save, Ruler, Package,
   UserPlus, Wrench, FileText, LayoutTemplate, MapPin, ShieldAlert,
+  ClipboardCheck, HardHat, FlaskConical,
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -40,6 +42,8 @@ interface Producto {
   id: string; sku: string; nombre: string; precioNormal: number | null; stock: number;
   acfUnidadVenta?: string | null; acfFabricacionMedida?: boolean; imagenPrincipal?: string | null;
   categorias: string[];
+  /// No admite descuento por linea. Viene del catalogo.
+  sinDescuento?: boolean;
 }
 interface Cliente { id: string; nombre: string; empresa?: string; email?: string; telefono?: string; ciudad?: string; nit?: string; }
 
@@ -56,6 +60,8 @@ interface Linea {
   cantidad: number;
   precioUnitario: number;
   descuento: number;
+  /// El producto no admite descuento por línea. Viene del catálogo.
+  sinDescuento?: boolean;
   unidad: string;
   imagenUrl?: string | null;
   tipo: "PRODUCTO" | "INSTALACION";
@@ -96,7 +102,17 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
   const [notas, setNotas] = useState("");
   const [plantilla, setPlantilla] = useState<"EXPRESS" | "PROPUESTA">("EXPRESS");
   const [validezDias, setValidezDias] = useState(3);
+  const { puedeVer } = useAuth();
+  const puedeProbar = puedeVer("crm.cotizaciones.prueba");
   const [incluyeInstalacion, setIncluyeInstalacion] = useState(false);
+  // Trabajo previo que hay que coordinar con producción. No cambian el
+  // precio: cambian a quién le llega la oferta y qué tiene que hacer.
+  const [requiereVisita, setRequiereVisita] = useState(false);
+  const [requiereSgsst, setRequiereSgsst] = useState(false);
+  // Cotización de prueba. La casilla solo se ve con el permiso; el
+  // servidor lo vuelve a comprobar, porque una prueba que se cuela como
+  // oferta real acaba en el embudo.
+  const [esPrueba, setEsPrueba] = useState(false);
   const [ciudadInstalacion, setCiudadInstalacion] = useState("");
   const [direccionInstalacion, setDireccionInstalacion] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -147,6 +163,7 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
       descuento: 0,
       unidad: puedeMedida ? "m2" : (p.acfUnidadVenta ?? "unidad"),
       imagenUrl: p.imagenPrincipal ?? null,
+      sinDescuento: Boolean(p.sinDescuento),
       tipo: "PRODUCTO",
     }]);
     setProdBusq("");
@@ -291,6 +308,9 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
         setPlantilla(c.plantilla === "PROPUESTA" ? "PROPUESTA" : "EXPRESS");
         setValidezDias(c.validezDias ?? 3);
         setIncluyeInstalacion(Boolean(c.tieneInstalacion));
+        setRequiereVisita(Boolean(c.requiereVisita));
+        setRequiereSgsst(Boolean(c.requiereSgsst));
+        setEsPrueba(Boolean(c.esPrueba));
         setCiudadInstalacion(c.ciudadInstalacion ?? "");
         setDireccionInstalacion(c.direccionInstalacion ?? "");
         setAnticipoPct(c.anticipoPct == null ? "" : String(Number(c.anticipoPct)));
@@ -409,6 +429,9 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
           ciudadInstalacion: ciudadInstalacion || undefined,
           direccionInstalacion: direccionInstalacion || undefined,
           anticipoPct: anticipoPct === "" ? null : Number(anticipoPct),
+          requiereVisita,
+          requiereSgsst,
+          esPrueba,
         }),
       });
       const j = await res.json();
@@ -556,6 +579,54 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
               )}
             </div>
 
+            {/* ── Trabajo previo con producción ── */}
+            <div className="mb-4 p-3 rounded-xl surface-2 space-y-3">
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input type="checkbox" className="mt-0.5" checked={requiereVisita}
+                  onChange={e => setRequiereVisita(e.target.checked)} />
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-soft flex items-center gap-1.5">
+                    <ClipboardCheck size={12} /> Asignación de visita técnica
+                  </p>
+                  <p className="text-[11px] text-muted mt-0.5">
+                    Hay que ir a medir antes de cotizar en firme. Al guardar, al coordinador de
+                    producción le llega la solicitud en su módulo de trabajos.
+                  </p>
+                </div>
+              </label>
+
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input type="checkbox" className="mt-0.5" checked={requiereSgsst}
+                  onChange={e => setRequiereSgsst(e.target.checked)} />
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-soft flex items-center gap-1.5">
+                    <HardHat size={12} /> Proceso de SG-SST requerido
+                  </p>
+                  <p className="text-[11px] text-muted mt-0.5">
+                    Habilita al coordinador la carga de documentos por trabajador: cédula, planilla
+                    de seguridad social, certificado de alturas, y los coordinadores de SST y alturas.
+                  </p>
+                </div>
+              </label>
+
+              {puedeProbar && (
+                <label className="flex items-start gap-2.5 cursor-pointer pt-3 border-t divider">
+                  <input type="checkbox" className="mt-0.5" checked={esPrueba}
+                    onChange={e => setEsPrueba(e.target.checked)} disabled={editando} />
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold flex items-center gap-1.5" style={{ color: "#b45309" }}>
+                      <FlaskConical size={12} /> Cotización de prueba
+                    </p>
+                    <p className="text-[11px] text-muted mt-0.5">
+                      Lleva numeración aparte (PRUEBA-001), no gasta consecutivo real y queda fuera de
+                      informes, embudo y pipeline. La marca se hereda al pedido.
+                      {editando && " No se puede cambiar después de crearla."}
+                    </p>
+                  </div>
+                </label>
+              )}
+            </div>
+
             {/* ── ¿Lleva instalación? ── */}
             <div className="mb-4 p-3 rounded-xl surface-2">
               <label className="flex items-start gap-2.5 cursor-pointer">
@@ -680,8 +751,21 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
                         <input type="number" className="input py-1 text-xs" value={l.precioUnitario} onChange={e => actualizar(i, { precioUnitario: Number(e.target.value) })} />
                       </div>
                       <div>
-                        <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">Desc. %</label>
-                        <input type="number" className="input py-1 text-xs" value={l.descuento} onChange={e => actualizar(i, { descuento: Number(e.target.value) })} />
+                        <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">
+                          Desc. %{l.sinDescuento && <span className="text-[8px] normal-case font-normal"> · no admite</span>}
+                        </label>
+                        {/* El producto marcado como "sin descuento" no admite
+                            rebaja POR LÍNEA (margen mínimo). Sí entra en el
+                            descuento global: ese es una decisión sobre el
+                            negocio completo, no sobre este producto. */}
+                        <input
+                          type="number"
+                          className="input py-1 text-xs disabled:opacity-40"
+                          value={l.descuento}
+                          disabled={l.sinDescuento}
+                          title={l.sinDescuento ? "Este producto no admite descuento por línea. Sí entra en el descuento global." : undefined}
+                          onChange={e => actualizar(i, { descuento: Number(e.target.value) })}
+                        />
                       </div>
                       <div className={l.aMedida ? "" : "md:col-span-2"}>
                         <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">Subtotal</label>

@@ -2,7 +2,11 @@
 import { useState, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { Plus, Search, X, Loader2, Trash2, FileText, ExternalLink, Eye, Pencil } from "lucide-react";
+import { Plus, Search, X, Loader2, Trash2, FileText, ExternalLink, Eye, Pencil, FlaskConical, ClipboardCheck, HardHat, CalendarPlus } from "lucide-react";
+import { ModalAplazar } from "@/components/crm/ModalAplazar";
+import { BorrarPruebas } from "@/components/crm/BorrarPruebas";
+import { useAuth } from "@/hooks/useAuth";
+import { esSuperadmin } from "@/lib/permisos";
 import toast from "react-hot-toast";
 import { formatCOP } from "@/lib/utils";
 import { calcularCotizacion } from "@/lib/cotizacion-calculo";
@@ -10,6 +14,12 @@ import Link from "next/link";
 
 interface Cotizacion {
   id: string; numero: string; estado: string; total: number; createdAt: string;
+  esPrueba?: boolean;
+  requiereVisita?: boolean;
+  requiereSgsst?: boolean;
+  prorrogas?: number;
+  validezDias?: number;
+  prorrogaDias?: number;
   aprobacionEstado?: string;
   cliente: { nombre: string; empresa?: string };
   vendedor?: { nombre: string };
@@ -174,8 +184,11 @@ function NuevaCotizacion({ onClose, onSaved }: { onClose: () => void; onSaved: (
 
 function CotizacionesContent() {
   const [filtroEstado, setFiltroEstado] = useState("");
+  const [aplazando, setAplazando] = useState<Cotizacion | null>(null);
+  const { user } = useAuth();
+  const esSuper = esSuperadmin(user?.rol);
   const qc = useQueryClient();
-  const { data: cotizaciones = [], isLoading } = useQuery<Cotizacion[]>({
+  const { data: cotizaciones = [], isLoading, refetch } = useQuery<Cotizacion[]>({
     queryKey: ["crm-cotizaciones", filtroEstado],
     queryFn: async () => {
       const qs = filtroEstado ? `?estado=${filtroEstado}` : "";
@@ -194,9 +207,12 @@ function CotizacionesContent() {
   return (
     <>
       <Topbar title="Cotizaciones" actions={
-        <Link href="/crm/cotizaciones/nueva" className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: CRM_COLOR }}>
-          <Plus size={13} /> Nueva cotización
-        </Link>
+        <div className="flex items-center gap-2">
+          {esSuper && <BorrarPruebas onBorrado={() => refetch()} />}
+          <Link href="/crm/cotizaciones/nueva" className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: CRM_COLOR }}>
+            <Plus size={13} /> Nueva cotización
+          </Link>
+        </div>
       } />
       <div className="flex-1 overflow-y-auto page-bg p-5 space-y-4">
         <div className="grid grid-cols-5 gap-3">
@@ -221,6 +237,36 @@ function CotizacionesContent() {
               <div className="flex-shrink-0"><p className="text-xs font-mono font-bold text-gray-500">{c.numero}</p><p className="text-[10px] text-gray-400">{new Date(c.createdAt).toLocaleDateString("es-CO")}</p></div>
               <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{c.cliente.nombre}</p>{c.cliente.empresa && <p className="text-xs text-gray-400">{c.cliente.empresa}</p>}</div>
               <Badge estado={c.estado} />
+              {/* La marca de prueba va PEGADA al estado y en ámbar: si se
+                  pudiera confundir con una oferta real, todo el mecanismo
+                  de excluirlas de los informes sobraría. */}
+              {c.esPrueba && (
+                <span className="text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap flex items-center gap-1"
+                  style={{ backgroundColor: "#fef3c7", color: "#b45309" }}>
+                  <FlaskConical size={10} /> Prueba
+                </span>
+              )}
+              {c.requiereVisita && (
+                <span title="Necesita visita técnica antes de cotizar en firme"
+                  className="text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap flex items-center gap-1"
+                  style={{ backgroundColor: "#e0f2fe", color: "#0369a1" }}>
+                  <ClipboardCheck size={10} /> Visita
+                </span>
+              )}
+              {c.requiereSgsst && (
+                <span title="Requiere documentos de SG-SST"
+                  className="text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap flex items-center gap-1"
+                  style={{ backgroundColor: "#f5f3ff", color: "#6d28d9" }}>
+                  <HardHat size={10} /> SG-SST
+                </span>
+              )}
+              {(c.prorrogas ?? 0) > 0 && (
+                <span title={`Se aplazó ${c.prorrogas} vez/veces, ${c.prorrogaDias} días en total`}
+                  className="text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap flex items-center gap-1"
+                  style={{ backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>
+                  <CalendarPlus size={10} /> +{c.prorrogaDias}d
+                </span>
+              )}
               {/* Una oferta fuera de la política se ve desde la lista:
                   es lo que un administrador entra a buscar. */}
               {c.aprobacionEstado === "PENDIENTE" && (
@@ -236,6 +282,15 @@ function CotizacionesContent() {
               <p className="text-sm font-bold text-gray-900 dark:text-gray-100 w-32 text-right">{formatCOP(c.total)}</p>
               <div className="flex items-center gap-1.5">
                 {c.estado === "BORRADOR" && <button onClick={() => cambiarEstado(c.id,"ENVIADA")} className="px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Enviar</button>}
+                {/* Aplazar: el caso real de "el cliente pidió unos días
+                    más". Antes la única salida era rehacer la oferta, lo
+                    que quemaba un consecutivo y perdía el seguimiento. */}
+                {(c.estado === "VENCIDA" || c.estado === "ENVIADA") && (
+                  <button onClick={() => setAplazando(c)}
+                    className="px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 surface-2 text-muted hover:text-soft">
+                    <CalendarPlus size={12} /> Aplazar
+                  </button>
+                )}
                 {c.estado === "ENVIADA" && <>
                   <button onClick={() => cambiarEstado(c.id,"APROBADA")} className="px-2.5 py-1 rounded-lg bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Aprobar</button>
                   <button onClick={() => cambiarEstado(c.id,"RECHAZADA")} className="px-2.5 py-1 rounded-lg bg-red-100 dark:bg-red-500/15 text-red-600 dark:text-red-300 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Rechazar</button>
@@ -259,6 +314,14 @@ function CotizacionesContent() {
           ))}
         </div>
       </div>
+
+      {aplazando && (
+        <ModalAplazar
+          cotizacion={aplazando}
+          onClose={() => setAplazando(null)}
+          onHecho={() => { setAplazando(null); refetch(); }}
+        />
+      )}
     </>
   );
 }

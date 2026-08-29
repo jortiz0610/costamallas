@@ -6,6 +6,9 @@ import { getUserFromRequest } from "@/lib/auth";
 import { siguienteNumeroSeguro } from "@/lib/consecutivos";
 import { recalcularCliente } from "@/lib/estados-cliente-server";
 import { filtroPorVendedor } from "@/lib/alcance-crm";
+import { conFotoDelCatalogo, type ItemGuardable } from "@/lib/cotizacion-imagenes";
+import { siguienteNumeroPrueba } from "@/lib/cotizaciones-prueba";
+import { peticionPuede } from "@/lib/permisos-server";
 import {
   getPoliticaComercial, descuentoEfectivoPct, evaluarPolitica,
 } from "@/lib/politica-comercial";
@@ -46,7 +49,21 @@ export async function POST(req: NextRequest) {
   const {
     clienteId, items, notas, tieneInstalacion, validezDias, descuentoGlobal,
     plantilla, ciudadInstalacion, direccionInstalacion, anticipoPct, tiempoEntrega,
+    requiereVisita, requiereSgsst,
   } = body;
+
+  // ── ¿Es una cotización de prueba? ──
+  // El permiso lo tiene por defecto solo el superadministrador. Se
+  // comprueba en el servidor y no se confía en la casilla del navegador:
+  // una prueba que se cuela como oferta real acaba en el embudo.
+  const quierePrueba = body.esPrueba === true;
+  const esPrueba = quierePrueba && (await peticionPuede(req, "crm.cotizaciones.prueba"));
+  if (quierePrueba && !esPrueba) {
+    return NextResponse.json(
+      { success: false, error: "No tienes permiso para crear cotizaciones de prueba." },
+      { status: 403 },
+    );
+  }
 
   if (!clienteId) return NextResponse.json({ success: false, error: "clienteId requerido" }, { status: 400 });
   if (!items?.length) return NextResponse.json({ success: false, error: "Agrega al menos un producto" }, { status: 400 });
@@ -54,7 +71,7 @@ export async function POST(req: NextRequest) {
   // Calcular totales. La cuenta vive en lib/cotizacion-calculo.ts:
   // estaba duplicada aquí y en el PUT, con el 19 % escrito en los dos.
   const aiu = leerAIU(body);
-  const itemsData = items.map((item: {
+  const itemsData: ItemGuardable[] = items.map((item: {
     productoId?: string; descripcion: string; cantidad: number; precioUnitario: number;
     descuento?: number; unidad?: string; tipo?: string; imagenUrl?: string; detalle?: string;
   }, i: number) => {
@@ -77,8 +94,13 @@ export async function POST(req: NextRequest) {
     };
   });
 
+  // Si el ítem trae producto y llegó sin foto, se busca la del catálogo.
+  // Es la mitad "al guardar" del arreglo de las miniaturas; la otra mitad
+  // —rellenar lo que ya está escrito— vive en lib/cotizacion-imagenes.ts.
+  const itemsConFoto = await conFotoDelCatalogo(itemsData);
+
   const descGlobal = descuentoGlobal ?? 0;
-  const cuenta = calcularCotizacion(itemsData, descGlobal, aiu);
+  const cuenta = calcularCotizacion(itemsConFoto, descGlobal, aiu);
   const subtotal = cuenta.subtotal;
 
   // ── Política comercial ──
@@ -92,7 +114,11 @@ export async function POST(req: NextRequest) {
 
   // Consecutivo atómico. Antes era `count() + 1`, que repetía números
   // si se borraba una cotización y chocaba entre usuarios simultáneos.
-  const numero = await siguienteNumeroSeguro("COT");
+  //
+  // Las pruebas llevan contador PROPIO (PRUEBA-001): el de COT viene de
+  // SIIGO y va por el 12075, y quemar esos números para ensayar es
+  // justamente lo que no se quiere.
+  const numero = esPrueba ? await siguienteNumeroPrueba() : await siguienteNumeroSeguro("COT");
 
   // El token del enlace público es aleatorio y largo a propósito: la
   // cotización se comparte sin login, así que no puede llegarse a ella
@@ -128,8 +154,11 @@ export async function POST(req: NextRequest) {
       anticipoPct: anticipo,
       aprobacionEstado: veredicto.requiere ? "PENDIENTE" : "NO_REQUIERE",
       aprobacionMotivo: veredicto.motivo,
+      esPrueba,
+      requiereVisita: Boolean(requiereVisita),
+      requiereSgsst: Boolean(requiereSgsst),
       publicId,
-      items: { create: itemsData },
+      items: { create: itemsConFoto },
     },
     include: {
       items: true,

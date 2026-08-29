@@ -13,6 +13,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getMarca } from "@/lib/marca";
 import { getConfigCotizacion } from "@/lib/cotizacion-config";
+import { completarFotos } from "@/lib/cotizacion-imagenes";
 import { CotizacionDoc, type CotizacionDocData } from "@/components/crm/CotizacionDoc";
 import { BarraPublica } from "./BarraPublica";
 
@@ -89,7 +90,10 @@ export default async function CotizacionPublica({ params }: P) {
       cedula: cotizacion.cliente.cedula,
     },
     vendedor: cotizacion.vendedor,
-    items: cotizacion.items.map(i => ({
+    // Las cotizaciones anteriores al arreglo se guardaron sin foto aunque
+    // el producto sí la tuviera. Se rellena al mostrar, para no tener que
+    // reescribir ofertas ya enviadas.
+    items: await completarFotos(cotizacion.items.map(i => ({
       descripcion: i.descripcion,
       detalle: i.detalle,
       cantidad: Number(i.cantidad),
@@ -97,11 +101,13 @@ export default async function CotizacionPublica({ params }: P) {
       subtotal: Number(i.subtotal),
       unidad: i.unidad,
       tipo: i.tipo,
+      productoId: i.productoId,
       imagenUrl: i.imagenUrl,
-    })),
+    }))),
   };
 
-  const vence = new Date(cotizacion.createdAt.getTime() + cotizacion.validezDias * 86400000);
+  // El vencimiento incluye lo que se haya aplazado.
+  const vence = new Date(cotizacion.createdAt.getTime() + (cotizacion.validezDias + cotizacion.prorrogaDias) * 86400000);
   const vencida = vence.getTime() < Date.now();
 
   return (
@@ -112,8 +118,13 @@ export default async function CotizacionPublica({ params }: P) {
         venceEl={vence.toLocaleDateString("es-CO", { day: "2-digit", month: "long", year: "numeric" })}
         asesor={cotizacion.vendedor?.nombre ?? null}
         telefono={cotizacion.vendedor?.telefono ?? marca.phone ?? null}
+        token={token}
+        estado={cotizacion.estado}
+        enRevision={cotizacion.aprobacionEstado === "PENDIENTE"}
       />
-      <div className="py-6 print-area">
+      {/* pb-24: la barra de acciones es fija; sin este relleno taparia
+          el final del documento, que es justo donde estan los totales. */}
+      <div className="pt-6 pb-24 print:pb-0 print-area">
         <div className="mx-auto shadow-2xl print:shadow-none" style={{ maxWidth: "210mm" }}>
           <CotizacionDoc data={doc} brand={marca} config={config} />
         </div>

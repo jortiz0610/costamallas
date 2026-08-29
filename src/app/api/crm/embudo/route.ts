@@ -16,6 +16,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { SIN_PRUEBAS } from "@/lib/cotizaciones-prueba";
 import { getUserFromRequest } from "@/lib/auth";
 
 const HORA = 3_600_000;
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
   const desde = new Date(Date.now() - dias * 86_400_000);
 
   const cotizaciones = await prisma.cotizacion.findMany({
-    where: { createdAt: { gte: desde } },
+    where: { ...SIN_PRUEBAS, createdAt: { gte: desde } },
     select: {
       id: true, estado: true, total: true, createdAt: true,
       enviadaEn: true, vistaPrimeraEn: true, vistas: true, updatedAt: true,

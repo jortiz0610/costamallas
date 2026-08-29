@@ -124,6 +124,8 @@ export async function GET(req: NextRequest) {
     // la unidad evita que el asesor tenga que escribirla a mano.
     acfFabricacionMedida: p.acfFabricacionMedida,
     acfUnidadVenta: p.acfUnidadVenta,
+    // El cotizador lo necesita para bloquear el descuento por linea.
+    sinDescuento: p.sinDescuento,
     // Y el filtro tecnico de la biblioteca de imagenes: buscar la foto
     // por medida, sin acordarse del nombre del producto.
     largoCm: p.largoCm ? Number(p.largoCm) : null,

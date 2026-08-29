@@ -118,3 +118,16 @@ export function evaluarPolitica(
     ? { requiere: true, motivo: motivos.join(". ") + "." }
     : { requiere: false, motivo: null };
 }
+
+// ─────────────────────────────────────────────
+// Aplazar el vencimiento de una oferta
+// ─────────────────────────────────────────────
+
+/**
+ * Lo que puede estirar un VENDEDOR, decidido por gerencia.
+ *
+ * Un administrador no tiene tope: a esas alturas el plazo ya se está
+ * negociando, y quien negocia es quien firma.
+ */
+export const DIAS_MAX_VENDEDOR = 15;
+export const PRORROGAS_MAX_VENDEDOR = 2;

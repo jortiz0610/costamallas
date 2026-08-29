@@ -1276,7 +1276,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
     stock: 0, stockMinimo: 15, permiteBackorders: "no",
     pesoKg: "", largoCm: "", anchoCm: "", altoCm: "",
     categorias: [], etiquetas: [],
-    publicado: false, destacado: false,
+    publicado: false, destacado: false, sinDescuento: false,
     intEstado: "BORRADOR", intListoExportar: false, intObservaciones: "",
     acfSkuInterno: "", acfMarcaFabricante: "", acfUnidadVenta: "",
     acfFabricacionMedida: false, acfInstalacion: false, acfGarantiaAnos: "",
@@ -1417,6 +1417,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
                 { id: "servicios", titulo: "Servicios adicionales", contenido: (<>
                 <SToggle label="Fabricación a Medida" desc="Se puede fabricar según especificaciones del cliente" checked={Boolean(form.acfFabricacionMedida)} onChange={v => set("acfFabricacionMedida", v)} />
                 <SToggle label="Instalación Disponible" desc="Costamallas ofrece servicio de instalación para este producto" checked={Boolean(form.acfInstalacion)} onChange={v => set("acfInstalacion", v)} />
+                <SToggle label="No admite descuento" desc="Margen mínimo: el asesor no puede rebajarlo línea por línea. Sí entra en el descuento global de la oferta." checked={Boolean(form.sinDescuento)} onChange={v => set("sinDescuento", v)} />
                 </>) },
               ]}
             />

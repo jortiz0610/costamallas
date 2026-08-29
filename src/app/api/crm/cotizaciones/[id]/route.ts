@@ -4,10 +4,11 @@ import { calcularCotizacion, leerAIU } from "@/lib/cotizacion-calculo";
 import { getUserFromRequest } from "@/lib/auth";
 import { siguienteNumeroSeguro } from "@/lib/consecutivos";
 import { recalcularCliente } from "@/lib/estados-cliente-server";
+import { conFotoDelCatalogo, type ItemGuardable } from "@/lib/cotizacion-imagenes";
 import {
   getPoliticaComercial, descuentoEfectivoPct, evaluarPolitica,
 } from "@/lib/politica-comercial";
-import { avisarInstalacionNueva } from "@/lib/instalaciones";
+import { crearPedidoDeAprobacion } from "@/lib/aprobar-cotizacion";
 
 type P = { params: Promise<{ id: string }> };
 
@@ -35,7 +36,7 @@ export async function PUT(req: NextRequest, { params }: P) {
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
 
   const body = await req.json();
-  const { estado, notas, items, plantilla, validezDias, descuentoGlobal, ciudadInstalacion, direccionInstalacion, tieneInstalacion, anticipoPct, tiempoEntrega } = body;
+  const { estado, notas, items, plantilla, validezDias, descuentoGlobal, ciudadInstalacion, direccionInstalacion, tieneInstalacion, anticipoPct, tiempoEntrega, requiereVisita, requiereSgsst } = body;
 
   // ── Edición de los ítems ──
   //
@@ -68,7 +69,7 @@ export async function PUT(req: NextRequest, { params }: P) {
 
     // La cuenta vive en lib/cotizacion-calculo.ts.
     const aiu = leerAIU(body);
-    const itemsData = items.map((item: {
+    const itemsData: ItemGuardable[] = items.map((item: {
       productoId?: string; descripcion: string; cantidad: number; precioUnitario: number;
       descuento?: number; unidad?: string; tipo?: string; imagenUrl?: string; detalle?: string;
     }, i: number) => {
@@ -90,7 +91,9 @@ export async function PUT(req: NextRequest, { params }: P) {
     });
 
     const descGlobal = descuentoGlobal ?? 0;
-    const cuenta = calcularCotizacion(itemsData, descGlobal, aiu);
+    // Igual que al crear: la foto que falte se busca en el catálogo.
+    const itemsConFoto = await conFotoDelCatalogo(itemsData);
+    const cuenta = calcularCotizacion(itemsConFoto, descGlobal, aiu);
     const subtotal = cuenta.subtotal;
 
     // ── Política comercial ──
@@ -138,7 +141,7 @@ export async function PUT(req: NextRequest, { params }: P) {
           ...(veredicto.requiere
             ? {}
             : { aprobadaPorId: null, aprobadaPorNombre: null, aprobadaEn: null, aprobacionNota: null }),
-          items: { create: itemsData },
+          items: { create: itemsConFoto },
         },
         include: { items: { orderBy: { orden: "asc" } } },
       });
@@ -238,6 +241,8 @@ export async function PUT(req: NextRequest, { params }: P) {
       ...(notas !== undefined && { notas }),
       ...(plantilla && { plantilla: plantilla === "PROPUESTA" ? "PROPUESTA" : "EXPRESS" }),
       ...(tiempoEntrega !== undefined && { tiempoEntrega: tiempoEntrega || null }),
+      ...(requiereVisita !== undefined && { requiereVisita: Boolean(requiereVisita) }),
+      ...(requiereSgsst !== undefined && { requiereSgsst: Boolean(requiereSgsst) }),
       ...recalculo,
     },
   });
@@ -248,67 +253,14 @@ export async function PUT(req: NextRequest, { params }: P) {
   // el vendedor tiene la ficha abierta al lado.
   await recalcularCliente(updated.clienteId);
 
-  // Si se aprueba, crear pedido automáticamente.
-  // Solo si no hay uno ya: guardar dos veces con el estado en APROBADA
-  // creaba un pedido nuevo cada vez, y el mismo negocio aparecía dos
-  // veces en el pipeline y en la plata del embudo.
-  const yaTienePedido =
-    estado === "APROBADA" && (await prisma.pedido.count({ where: { cotizacionId: id } })) > 0;
-
+  // Si se aprueba, se crea el pedido. La mecánica vive en
+  // lib/aprobar-cotizacion.ts porque ahora hay dos puertas a la misma
+  // decisión: esta, y el botón "Aprobar" que ve el cliente en la oferta
+  // pública. Es idempotente: llamarla dos veces no crea dos pedidos.
   let avisoInstalacion: string | undefined;
-
-  if (estado === "APROBADA" && !yaTienePedido) {
-    const cotizacion = await prisma.cotizacion.findUnique({
-      where: { id }, include: { items: true },
-    });
-    if (cotizacion) {
-      // Consecutivo atómico compartido: aquí también estaba el `count + 1`
-      // que repetía número si se borraba un pedido.
-      const numero = await siguienteNumeroSeguro("PED");
-      const pedido = await prisma.pedido.create({
-        data: {
-          numero,
-          cotizacionId: id,
-          clienteId: cotizacion.clienteId,
-          vendedorId: cotizacion.vendedorId,
-          estado: "NUEVO",
-          origen: "COTIZACION",
-          origenRef: cotizacion.numero,
-          tieneInstalacion: cotizacion.tieneInstalacion,
-          total: cotizacion.total,
-          items: {
-            create: cotizacion.items.map((item) => ({
-              productoId: item.productoId,
-              descripcion: item.descripcion,
-              cantidad: item.cantidad,
-              precioUnitario: item.precioUnitario,
-              subtotal: item.subtotal,
-              unidad: item.unidad,
-              orden: item.orden,
-            })),
-          },
-        },
-      });
-
-      // Venta cerrada con instalación: se crea la obra y se le avisa al
-      // coordinador. Antes se enteraba cuando el cliente llamaba
-      // preguntando cuándo van.
-      //
-      // Si el aviso falla NO se tumba la aprobación: el negocio ya se
-      // cerró y perder eso por un correo sería absurdo. Queda en el log.
-      if (cotizacion.tieneInstalacion) {
-        const r = await avisarInstalacionNueva(pedido.id);
-        avisoInstalacion = r.detalle;
-        await prisma.log.create({
-          data: {
-            usuarioId: user.sub,
-            accion: "INSTALACION_AVISO_COORDINADOR",
-            detalle: `${pedido.numero}: ${r.detalle}`,
-            resultado: r.ok ? "OK" : "ERROR",
-          },
-        }).catch(() => undefined);
-      }
-    }
+  if (estado === "APROBADA") {
+    const r = await crearPedidoDeAprobacion(id, user.sub);
+    avisoInstalacion = r.avisoInstalacion;
   }
 
   return NextResponse.json({

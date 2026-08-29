@@ -4,6 +4,7 @@ import { getUserFromRequest } from "@/lib/auth";
 import { siguienteNumeroSeguro } from "@/lib/consecutivos";
 import { avisarInstalacionNueva } from "@/lib/instalaciones";
 import { filtroPorVendedor } from "@/lib/alcance-crm";
+import { SIN_PRUEBAS } from "@/lib/cotizaciones-prueba";
 
 const ESTADOS_PEDIDO = ["NUEVO","CONFIRMADO","EN_PRODUCCION","LISTO","DESPACHADO","ENTREGADO","INSTALADO","CANCELADO"];
 
@@ -17,9 +18,15 @@ export async function GET(req: NextRequest) {
   // Sin `crm.ver_todo`, cada vendedor ve solo sus propios pedidos.
   const suyos = await filtroPorVendedor(req);
 
+  // Los pedidos de PRUEBA quedan fuera salvo que se pidan a propósito
+  // (?pruebas=1). El pipeline y el resumen del CRM leen de aquí, y una
+  // prueba en la cifra de ventas es peor que no poder probar.
+  const conPruebas = req.nextUrl.searchParams.get("pruebas") === "1";
+
   const pedidos = await prisma.pedido.findMany({
     where: {
       ...suyos,
+      ...(conPruebas ? {} : SIN_PRUEBAS),
       ...(estado ? { estado } : {}),
       ...(clienteId ? { clienteId } : {}),
     },

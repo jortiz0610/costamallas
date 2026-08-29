@@ -38,11 +38,15 @@ export async function marcarVencidos(opts: { dry?: boolean } = {}): Promise<Resu
   // aprobada o rechazada ya terminó su vida.
   const cotizaciones = await prisma.cotizacion.findMany({
     where: { estado: "ENVIADA" },
-    select: { id: true, numero: true, createdAt: true, validezDias: true },
+    select: { id: true, numero: true, createdAt: true, validezDias: true, prorrogaDias: true },
   });
 
+  // La prórroga se suma aparte de validezDias: el documento sigue
+  // diciendo la validez que se le ofreció al cliente, y aquí se tiene en
+  // cuenta lo que se estiró después. Sin esto, aplazar una oferta no
+  // servía de nada: la corrida de esa noche la volvía a vencer.
   const cotVencidas = cotizaciones.filter(
-    c => c.createdAt.getTime() + c.validezDias * DIA < ahora,
+    c => c.createdAt.getTime() + (c.validezDias + c.prorrogaDias) * DIA < ahora,
   );
 
   if (!opts.dry && cotVencidas.length) {

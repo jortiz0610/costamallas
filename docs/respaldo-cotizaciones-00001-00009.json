@@ -1,5 +1,5 @@
 {
-  "generadoEn": "2026-08-29T05:29:26.444Z",
+  "generadoEn": "2026-08-29T05:29:47.372Z",
   "motivo": "Gerencia pidió borrar la numeración vieja COT-00001..09. Se exporta antes porque es irreversible y cuatro pedidos nacieron de estas ofertas.",
   "advertencia": "Los PEDIDOS no se borraron: Pedido.cotizacionId es SetNull, así que siguen existiendo sin oferta de origen. Aquí queda su contenido.",
   "numerosPedidos": [

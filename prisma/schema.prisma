@@ -447,18 +447,127 @@ model Cotizacion {
   aprobadaEn        DateTime?
   aprobacionNota    String?   @db.Text
 
+  // ── Cotización de PRUEBA ──
+  /// Solo el superadministrador las crea. Van marcadas en pantalla y
+  /// quedan FUERA de informes, embudo, pipeline y del consecutivo real:
+  /// llevan numeración aparte (PRUEBA-001) para no quemar números de COT.
+  /// La marca se hereda al pedido y a todo lo que nazca de ellas.
+  esPrueba Boolean @default(false)
+
+  // ── Trabajo previo que hay que coordinar con producción ──
+  /// Hace falta ir a medir antes de cotizar en firme. Al coordinador le
+  /// llega la solicitud en su módulo de trabajos.
+  requiereVisita Boolean @default(false)
+  /// Habilita al coordinador la carga de documentos por trabajador.
+  requiereSgsst  Boolean @default(false)
+
+  // ── Aplazar el vencimiento ──
+  /// El vencimiento sale de createdAt + validezDias. La prórroga se
+  /// guarda APARTE y no sumada a validezDias, para que el documento siga
+  /// diciendo la validez que se le ofreció al cliente y quede claro
+  /// cuánto se estiró después.
+  prorrogaDias    Int       @default(0)
+  /// Cuántas veces se aplazó. El vendedor tiene tope de 2; un
+  /// administrador no tiene tope.
+  prorrogas       Int       @default(0)
+  prorrogadaEn    DateTime?
+  prorrogadaPorId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   items        ItemCotizacion[]
   pedidos      Pedido[]
   seguimientos SeguimientoCotizacion[]
+  visita       VisitaTecnica?
+  sgsst        SgsstPersona[]
 
   @@index([clienteId])
   @@index([vendedorId])
   @@index([estado])
   @@index([aprobacionEstado])
+  @@index([esPrueba])
   @@map("cotizaciones")
+}
+
+/// La visita técnica previa a cotizar en firme.
+///
+/// Base: el formato "F. Visita tecnica.xlsx" de la empresa. Los datos
+/// del formulario van en JSON y no en 30 columnas porque el formato
+/// tiene dos bloques muy distintos —cerca eléctrica y malla invisible— y
+/// una columna por casilla obligaría a migrar la base cada vez que
+/// producción añada una medida.
+model VisitaTecnica {
+  id           String     @id @default(cuid())
+  cotizacionId String     @unique
+  cotizacion   Cotizacion @relation(fields: [cotizacionId], references: [id], onDelete: Cascade)
+
+  /// SOLICITADA · AGENDADA · REALIZADA · CANCELADA
+  estado          String    @default("SOLICITADA")
+  solicitadaPorId String?
+  coordinadorId   String?
+  fechaAgendada   DateTime?
+  fechaRealizada  DateTime?
+
+  direccion String?
+  ciudad    String?
+  contacto  String?
+  telefono  String?
+
+  /// El formulario lleno. Ver lib/visita-tecnica.ts para las secciones.
+  datos       Json @default("{}")
+  /// [{ url, titulo, momento }]
+  fotos       Json @default("[]")
+  /// El FORMATO REQUISICION DE MATERIALES Y HERRAMIENTAS que producción
+  /// entrega al volver.
+  requisicion Json @default("{}")
+
+  observaciones String? @db.Text
+  /// Cuándo producción entregó la visita y la oportunidad volvió a
+  /// "pendiente cotización" del lado del vendedor.
+  devueltaEn    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([estado])
+  @@map("visitas_tecnicas")
+}
+
+/// Una PERSONA del proceso SG-SST, con sus documentos.
+///
+/// La carga es por persona de una vez —cédula, planilla, alturas— y no
+/// documento a documento, porque así es como llegan: el contratista
+/// manda la carpeta de un trabajador completa.
+model SgsstPersona {
+  id           String     @id @default(cuid())
+  cotizacionId String
+  cotizacion   Cotizacion @relation(fields: [cotizacionId], references: [id], onDelete: Cascade)
+
+  nombre String
+  cedula String?
+  /// TRABAJADOR · COORD_SST · COORD_ALTURAS
+  rol    String @default("TRABAJADOR")
+
+  /// Qué documentos aplican a esta persona. Son casillas OPCIONALES: no
+  /// todo trabajador necesita certificado de alturas.
+  requeridos Json @default("{}")
+  /// Lo entregado: [{ tipo, nombreArchivo, tamano, subidoEn, subidoPorId,
+  /// almacenado, motivo }].
+  ///
+  /// ⚠️ `almacenado` es false mientras no haya dónde guardarlos. Son
+  /// datos personales: no van al FTP (roto) ni a la biblioteca pública de
+  /// WordPress. Hasta la migración al VPS se registra QUÉ documento se
+  /// entregó y cuándo, y la pantalla lo dice con todas las letras.
+  documentos Json @default("[]")
+
+  observaciones String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cotizacionId])
+  @@map("sgsst_personas")
 }
 
 /// Los tres toques posteriores al envío de una oferta. Existen como
@@ -595,6 +704,10 @@ model Pedido {
   /// que un pedido estancado parezca recién movido.
   estadoDesde DateTime?
 
+  /// Nació de una cotización de prueba. La marca se hereda para que un
+  /// pedido de mentira no ensucie el pipeline ni la plata del embudo.
+  esPrueba Boolean @default(false)
+
   fechaEntrega     DateTime?
   direccionEntrega String?
   notas            String?   @db.Text
@@ -716,6 +829,11 @@ model Producto {
 
   estadoImpuesto String?
   claseImpuesto  String?
+
+  /// No admite descuento POR LÍNEA (margen mínimo). Sí entra en el
+  /// descuento global de la oferta: el global es una decisión sobre el
+  /// negocio completo, no sobre este producto en particular.
+  sinDescuento Boolean @default(false)
 
   enStock           Boolean @default(true)
   stock             Int     @default(0)

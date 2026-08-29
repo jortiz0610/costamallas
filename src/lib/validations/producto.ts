@@ -36,6 +36,8 @@ export const productoSchema = z.object({
   acfUnidadVenta: z.string().optional().nullable(),
   acfFabricacionMedida: z.boolean().default(false),
   acfInstalacion: z.boolean().default(false),
+  // No admite descuento por linea. Si entra en el descuento global.
+  sinDescuento: z.boolean().default(false),
   acfGarantiaAnos: z.number().int().min(0).optional().nullable(),
   acfAplicaciones: z.array(z.string()).default([]),
   acfColores: z.array(z.string()).default([]),
