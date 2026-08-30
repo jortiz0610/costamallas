@@ -44,6 +44,16 @@ async function main() {
   const { alertarSinRespuesta } = await import("../src/lib/nexus/alertas");
   const { getConfigTiempos, minutosHabiles } = await import("../src/lib/nexus/tiempos");
 
+  const { correoConfigurado } = await import("../src/lib/correo");
+  // Con SMTP cargado esta prueba manda correos DE VERDAD. Se dice aquí
+  // arriba para que nadie lo descubra por la bandeja de entrada.
+  const hayCorreo = await correoConfigurado();
+  if (hayCorreo) {
+    console.log("\n⚠️  El SMTP está cargado: esta prueba ENVÍA correos reales a los");
+    console.log("   administradores, con una conversación inventada. Es a propósito");
+    console.log("   —es lo que se está verificando— pero conviene saberlo antes.");
+  }
+
   const cfg = await getConfigTiempos();
   console.log(
     `\nCompromiso: ${cfg.compromisoMin} min · horario ${cfg.horaInicio}:00–${cfg.horaFin}:00 · ` +
@@ -154,10 +164,22 @@ async function main() {
       "no se avisa dos veces a la misma persona",
       new Set(accion?.notificados ?? []).size === (accion?.notificados ?? []).length,
     );
+    // ⚠️ Esta comprobación daba por hecho que el SMTP NO estaba
+    // cargado, que era cierto cuando se escribió. Gerencia lo cargó el
+    // 28-ago a las 21:40 y desde entonces el aviso SÍ sale — así que la
+    // prueba empezó a "fallar" justo cuando la función empezó a hacer su
+    // trabajo completo. Ahora se comprueba lo que de verdad importa: que
+    // el resultado diga la verdad sobre el correo, en cualquiera de los
+    // dos mundos.
+    //
+    // Ojo con lo que implica: con SMTP cargado, correr este script manda
+    // correos DE VERDAD a los administradores, con conversaciones
+    // inventadas. Por eso el envío se prueba una sola vez y las corridas
+    // siguientes van en seco.
     comprobar(
-      "el correo se salta porque el SMTP no está cargado",
-      accion?.correo === "sin-configurar",
-      `estado del correo: ${accion?.correo}`,
+      "el resultado dice qué pasó con el correo, y coincide con la configuración",
+      hayCorreo ? accion?.correo === "enviado" : accion?.correo === "sin-configurar",
+      `SMTP ${hayCorreo ? "cargado" : "sin cargar"} · estado del correo: ${accion?.correo}`,
     );
 
     const notifs = await prisma.notificacion.findMany({
@@ -186,7 +208,11 @@ async function main() {
 
     // ── Y no se repite ──
     console.log("\n3. SEGUNDA CORRIDA (el mismo día siguiente, sin que nadie conteste)\n");
-    const otra = await alertarSinRespuesta({ dry: false });
+    // En seco: lo que se comprueba aquí es que NO se vuelve a avisar de
+    // la misma conversación, y para eso no hace falta mandar nada. Con
+    // el SMTP ya cargado, una corrida real más es un correo más en la
+    // bandeja de los administradores.
+    const otra = await alertarSinRespuesta({ dry: true });
     comprobar(
       "NO se vuelve a avisar de la misma",
       !otra.acciones.some(a => a.conversacionId === vencida.id),

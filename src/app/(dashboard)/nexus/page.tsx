@@ -8,6 +8,7 @@ import {
   Globe, Smartphone, Instagram, CheckCheck,
   X, Mail, MessageSquareText,
   Inbox, PlugZap, Facebook, Sparkles, Loader2, StickyNote, ChevronLeft,
+  Archive, UserPlus,
 } from "lucide-react";
 import Link from "next/link";
 import { useBrand } from "@/contexts/BrandContext";
@@ -18,8 +19,12 @@ import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import { CostoIA } from "@/components/ia/CostoIA";
 import { BotonFiltros } from "@/components/nexus/FiltrosInbox";
+import { Adjuntar, type Adjunto } from "@/components/nexus/Adjuntar";
+import { ContenidoMensaje } from "@/components/nexus/ContenidoMensaje";
+import { MenuComandos } from "@/components/nexus/MenuComandos";
+import { leerEntrada, sugerir, sinMencion, MENCION_IA, type Comando } from "@/lib/nexus/comandos";
 import {
-  leerPrefs, guardarPrefs, sonarMensaje,
+  leerPrefs, guardarPrefs, sonarMensaje, temaDe, normalizarCanal,
   type PrefsNexus, PREFS_POR_DEFECTO,
 } from "@/lib/nexus-preferencias";
 
@@ -95,8 +100,9 @@ function ConversacionItem({ conv, activa, onClick, nombreAsignado, prefs }: {
   // El color y el nombre del canal salen de lo que configuró ESTA
   // persona, no de una tabla fija: es lo que le permite distinguir de un
   // vistazo un WhatsApp de un correo sin leer la etiqueta.
-  const color = prefs.colores[conv.canal] ?? "#6b7280";
-  const etiqueta = prefs.etiquetas[conv.canal] ?? conv.canal;
+  const canal = normalizarCanal(conv.canal);
+  const color = prefs.colores[canal] ?? "#6b7280";
+  const etiqueta = prefs.etiquetas[canal] ?? canal;
   return (
     <div onClick={onClick}
       className={cn("flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors border-b",
@@ -159,7 +165,10 @@ function ConversacionItem({ conv, activa, onClick, nombreAsignado, prefs }: {
 
 // ── Vista de mensajes (der) ──────────────────────────────────────
 
-function ChatView({ conv, onMarcarResuelta, onVolver }: { conv: Conversacion; onMarcarResuelta: () => void; onVolver: () => void }) {
+function ChatView({ conv, onMarcarResuelta, onVolver, prefs }: {
+  conv: Conversacion; onMarcarResuelta: () => void; onVolver: () => void; prefs: PrefsNexus;
+}) {
+  const tema = temaDe(prefs);
   const { brand } = useBrand();
   const { user, puedeVer } = useAuth();
   const qc = useQueryClient();
@@ -184,14 +193,27 @@ function ChatView({ conv, onMarcarResuelta, onVolver }: { conv: Conversacion; on
     else toast.error(json.error ?? "Error");
   };
 
-  const sugerirIA = async () => {
+  const sugerirIA = async (instruccion?: string) => {
     setSugiriendo(true);
     try {
-      const res = await fetch("/api/ai/nexus-reply", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversacionId: conv.id }) });
+      const res = await fetch("/api/ai/nexus-reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversacionId: conv.id, instruccion }),
+      });
       const json = await res.json();
-      if (!json.success) { toast.error(json.sinClave ? "Configura la IA en Configuración → IA" : (json.error ?? "Error")); return; }
+      if (!json.success) {
+        toast.error(json.sinClave ? "Configura la IA en Configuración → IA" : (json.error ?? "Error"), { duration: 7000 });
+        return;
+      }
       setTexto(json.data.respuesta);
-      if (json.data.transferir) toast("La IA sugiere transferir a un asesor humano", { icon: "🤝" });
+      if (json.data.transferir) toast("Mallita sugiere pasarlo con una persona", { icon: "🤝" });
+      // El cupo se avisa cuando queda poco, no en cada uso: un aviso que
+      // sale siempre deja de leerse.
+      const cupo = json.data.cupo;
+      if (cupo && cupo.quedan <= 3) {
+        toast(`Te quedan ${cupo.quedan} ayudas de IA hoy.`, { icon: "⏳", duration: 6000 });
+      }
     } catch { toast.error("Error al sugerir"); } finally { setSugiriendo(false); }
   };
 
@@ -245,7 +267,70 @@ function ChatView({ conv, onMarcarResuelta, onVolver }: { conv: Conversacion; on
     onError: (e: Error) => toast.error(e.message, { duration: 6000 }),
   });
 
-  const handleSend = () => { if (texto.trim()) sendMutation.mutate({ contenido: texto.trim() }); };
+  // ── Comandos y menciones ──
+  const entrada = leerEntrada(texto);
+  const [menuAbierto, setMenuAbierto] = useState(true);
+  const comandosVisibles = entrada.esComando && menuAbierto && !entrada.argumento
+    ? sugerir(entrada.nombre, true)
+    : [];
+
+  // Al cambiar lo escrito, el menú vuelve a estar disponible: cerrarlo
+  // con Escape no debe dejarlo cerrado para siempre.
+  useEffect(() => { setMenuAbierto(true); }, [entrada.esComando, entrada.nombre]);
+
+  const [guardandoCliente, setGuardandoCliente] = useState(false);
+
+  /** Guardar a quien escribe como cliente del CRM, sin salir del chat. */
+  const guardarComoCliente = async () => {
+    if (conv.cliente) { toast("Ya está en el CRM", { icon: "✅" }); return; }
+    setGuardandoCliente(true);
+    try {
+      const res = await fetch(`/api/nexus/conversaciones/${conv.id}/cliente`, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || !json.success) return toast.error(json.error ?? "No se pudo guardar");
+      toast.success(`${json.data.nombre} quedó en el CRM`);
+      qc.invalidateQueries({ queryKey: ["nexus-conversaciones"] });
+      qc.invalidateQueries({ queryKey: ["crm-clientes"] });
+    } catch { toast.error("Error de conexión"); }
+    finally { setGuardandoCliente(false); }
+  };
+
+  /** Lo que hace cada comando al elegirlo. */
+  const ejecutar = (c: Comando) => {
+    setMenuAbierto(false);
+    if (c.nombre === "ia") { setTexto(`${MENCION_IA} `); return; }
+    if (c.nombre === "cliente") { setTexto(""); void guardarComoCliente(); return; }
+    // Los que llevan argumento dejan la barra escrita esperando el dato.
+    setTexto(`/${c.nombre} `);
+  };
+
+  const handleSend = () => {
+    const crudo = texto.trim();
+    if (!crudo) return;
+
+    // Un comando NO se manda al cliente. Es una orden para el portal, y
+    // mandarle "/cliente" a alguien por WhatsApp es de las cosas que uno
+    // no puede deshacer.
+    const e = leerEntrada(crudo);
+    if (e.esComando) {
+      const c = sugerir(e.nombre, true).find(x => x.nombre === e.nombre);
+      if (!c) return toast.error(`No existe el comando /${e.nombre}`);
+      ejecutar(c);
+      return;
+    }
+
+    // @mallita redacta en vez de enviar: la IA propone y la persona
+    // decide. Que un modelo escriba directo al cliente no está sobre la
+    // mesa.
+    if (e.llamaALaIA) { void sugerirIA(sinMencion(crudo)); return; }
+
+    sendMutation.mutate({ contenido: crudo });
+  };
+
+  /** Adjuntar: se manda como un mensaje aparte, con su URL. */
+  const mandarAdjunto = (a: Adjunto) => {
+    sendMutation.mutate({ contenido: a.url });
+  };
   const handleNota = () => { if (texto.trim()) sendMutation.mutate({ contenido: texto.trim(), soloNota: true }); };
 
   const meta = CANAL_META[conv.canal];
@@ -286,31 +371,40 @@ function ChatView({ conv, onMarcarResuelta, onVolver }: { conv: Conversacion; on
             </select>
           )}
           {!puedeTransferir && asignado && <span className="text-[10px] text-muted hidden sm:inline">Asignado: {asignado.nombre}</span>}
+          {/* Ya no hay botón de "resolver": todos son chats, y lo único
+              que los diferencia es el canal. Archivar sigue existiendo
+              —una bandeja que solo crece no se puede atender— pero es una
+              acción secundaria, no el botón más grande de la cabecera. */}
           {conv.estado === "ABIERTA" && (
             <button onClick={onMarcarResuelta}
-              title="Marcar como resuelta"
-              className="px-2 sm:px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors"
-              style={{ backgroundColor: "#16a34a" }}>
-              <CheckCheck size={12} className="inline sm:mr-1" />
-              <span className="hidden sm:inline">Resolver</span>
+              title="Archivar: sale de la bandeja y se puede volver a abrir desde el filtro"
+              aria-label="Archivar la conversación"
+              className="w-9 h-9 rounded-lg flex items-center justify-center border divider text-muted hover:surface-2 transition-colors flex-shrink-0">
+              <Archive size={15} />
             </button>
           )}
-          <span className={cn("px-2.5 py-1 rounded-full text-[10px] font-semibold hidden sm:inline",
-            conv.estado === "ABIERTA" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500")}>
-            {conv.estado}
-          </span>
         </div>
       </div>
 
-      {/* Lectura del bot: lo que se sabe antes de leer el hilo entero */}
-      {(conv.etiquetas?.length || conv.cliente) && (
-        <div className="px-5 py-2.5 flex items-center gap-2 flex-wrap border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
+      {/* Lectura del bot y vínculo con el CRM. Sale siempre: cuando NO
+          hay cliente es justo cuando hace falta el botón de guardarlo. */}
+      <div className="px-3 sm:px-5 py-2.5 flex items-center gap-2 flex-wrap border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
           <Sparkles size={12} className="text-muted flex-shrink-0" />
-          {conv.cliente && (
+          {conv.cliente ? (
             <Link href={`/crm/clientes/${conv.cliente.id}`}
               className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 hover:underline">
               {conv.cliente.empresa || conv.cliente.nombre} · ver en CRM
             </Link>
+          ) : (
+            /* Guardarlo desde aquí. Antes había que copiar el teléfono,
+               abrir Clientes, pegar y volver: seis pasos con alguien
+               esperando al otro lado, así que no se hacía. */
+            <button onClick={guardarComoCliente} disabled={guardandoCliente}
+              className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded transition-colors disabled:opacity-50"
+              style={{ backgroundColor: "var(--brand-color-10)", color: "var(--brand-color)" }}>
+              {guardandoCliente ? <Loader2 size={10} className="animate-spin" /> : <UserPlus size={10} />}
+              Guardar en el CRM
+            </button>
           )}
           {(conv.etiquetas ?? []).map((e, i) => {
             const urgente = e === "urgencia:alta";
@@ -325,11 +419,10 @@ function ChatView({ conv, onMarcarResuelta, onVolver }: { conv: Conversacion; on
           {conv.primeraRespuestaEn && (
             <span className="text-[10px] text-emerald-600 ml-auto">Respondida</span>
           )}
-        </div>
-      )}
+      </div>
 
       {/* Mensajes */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-slate-50/50 dark:bg-slate-950/50">
+      <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 space-y-3" style={{ backgroundColor: tema.fondo }}>
         {isLoading ? (
           <div className="flex items-center justify-center h-full text-slate-400 text-sm">Cargando mensajes…</div>
         ) : mensajes.length === 0 ? (
@@ -342,23 +435,26 @@ function ChatView({ conv, onMarcarResuelta, onVolver }: { conv: Conversacion; on
             <div key={m.id} className={cn("flex", m.origen === "agente" ? "justify-end" : "justify-start")}>
               {m.origen === "contacto" && (
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold mr-2 mt-0.5 flex-shrink-0"
-                  style={{ backgroundColor: meta?.color ?? "#6366f1" }}>
+                  style={{ backgroundColor: prefs.colores[normalizarCanal(conv.canal)] ?? "#6366f1" }}>
                   {conv.remitente.charAt(0)}
                 </div>
               )}
-              <div className={cn("max-w-xs lg:max-w-md")}>
-                <div className={cn("px-4 py-2.5 rounded-2xl text-sm leading-relaxed",
-                  m.origen === "agente"
-                    ? "text-white rounded-br-sm"
-                    : "text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 rounded-bl-sm border border-slate-100 dark:border-slate-700"
+              <div className="max-w-[80%] sm:max-w-xs lg:max-w-md">
+                {/* Los colores salen del tema que eligió esta persona. */}
+                <div className={cn("px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed",
+                  m.origen === "agente" ? "text-white rounded-br-sm" : "rounded-bl-sm border divider"
                 )}
                   style={
                     m.origen === "nota"
                       ? { backgroundColor: "#fef3c7", color: "#78350f" }
-                      : m.origen === "agente" ? { backgroundColor: brand.brandColor } : {}
+                      : m.origen === "agente"
+                        ? { backgroundColor: tema.mia }
+                        : { backgroundColor: tema.suya, color: tema.textoSuya }
                   }>
                   {m.origen === "nota" && <span className="block text-[9px] font-bold uppercase tracking-wider mb-0.5 opacity-70">Nota interna</span>}
-                  {m.contenido}
+                  {/* Fotos, audios, archivos y enlaces se pintan como lo
+                      que son, no como una ristra de 120 caracteres. */}
+                  <ContenidoMensaje contenido={m.contenido} tipo={m.tipo} claro={m.origen === "agente"} />
                 </div>
                 <div className={cn("mt-0.5 text-[10px] text-slate-400", m.origen === "agente" ? "text-right" : "text-left")}>
                   {timeAgoCO(m.createdAt)}
@@ -383,15 +479,24 @@ function ChatView({ conv, onMarcarResuelta, onVolver }: { conv: Conversacion; on
 
       {/* Input de respuesta */}
       {conv.estado === "ABIERTA" ? (
-        <div className="flex items-center gap-2 px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
-          {/* El costo va flotando sobre el botón: la barra de respuesta no
-              tiene sitio para una etiqueta más sin apretarlo todo. */}
+        <div className="relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
+          {comandosVisibles.length > 0 && (
+            <MenuComandos
+              comandos={comandosVisibles}
+              onElegir={ejecutar}
+              onCerrar={() => setMenuAbierto(false)}
+            />
+          )}
+
+          <Adjuntar onAdjunto={mandarAdjunto} deshabilitado={sendMutation.isPending} />
+
           {/* El asistente cuesta dinero cada vez que se usa, así que va
               detrás de `nexus.ia`: el administrador lo activa persona por
-              persona desde Usuarios y Roles. */}
+              persona desde Usuarios y Roles. También responde a @mallita
+              escrito en el mensaje. */}
           {puedeIA && (
-            <div className="relative flex-shrink-0">
-              <button onClick={sugerirIA} disabled={sugiriendo} title="Sugerir respuesta con IA"
+            <div className="relative flex-shrink-0 hidden sm:block">
+              <button onClick={() => sugerirIA()} disabled={sugiriendo} title="Que Mallita redacte la respuesta (o escribe @mallita)"
                 className="w-10 h-10 rounded-xl flex items-center justify-center border divider text-muted hover:surface-2 transition-all disabled:opacity-50">
                 {sugiriendo ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} style={{ color: brand.brandColor }} />}
               </button>
@@ -403,9 +508,14 @@ function ChatView({ conv, onMarcarResuelta, onVolver }: { conv: Conversacion; on
           <input
             value={texto}
             onChange={e => setTexto(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleSend()}
-            className="input flex-1 py-2 text-sm"
-            placeholder="Escribe una respuesta… (Enter para enviar)"
+            onKeyDown={e => {
+              // Con el menú de comandos abierto, Enter lo elige él: si no,
+              // el primer Enter mandaría "/plan" como mensaje.
+              if (comandosVisibles.length > 0) return;
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+            }}
+            className="input flex-1 min-w-0 py-2 text-sm"
+            placeholder={puedeIA ? "Escribe, / para atajos, @mallita para ayuda…" : "Escribe una respuesta… (/ para atajos)"}
           />
           {/* Nota interna: queda en el hilo para quien retome la
               conversación, pero NO se le manda al cliente. */}
@@ -631,7 +741,7 @@ function NexusContent() {
         {/* Centro: chat */}
         <div className={cn("flex-1 overflow-hidden", convActiva ? "flex" : "hidden lg:flex")}>
           {convActiva ? (
-            <ChatView conv={convActiva} onMarcarResuelta={marcarResuelta} onVolver={() => setConvActiva(null)} />
+            <ChatView conv={convActiva} onMarcarResuelta={marcarResuelta} onVolver={() => setConvActiva(null)} prefs={prefs} />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-8 page-bg">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ backgroundColor: brand.brandColor + "18" }}>

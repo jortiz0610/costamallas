@@ -403,7 +403,7 @@ cualquier pantalla puntual sin tocar el rol de los demás.
 | Qué | Qué falta |
 |-----|-----------|
 | WhatsApp / Nexus de punta a punta | Aprobación de Meta. Hoy hay **0 conexiones** configuradas |
-| Correo saliente (SMTP) | Cargar credenciales **desde el portal en producción**. Sigue vacío |
+| ~~Correo saliente (SMTP)~~ | ✅ **Resuelto el 28-ago**: credenciales cargadas desde el portal. Los correos salen |
 | Facturación electrónica DIAN | Elegir y contratar proveedor (Factus / Siigo / Alegra) |
 | Marketplaces | Cuentas de vendedor **y** construir la integración: hoy no existe backend |
 | Plan de Vercel | Hoy es Hobby: **prohíbe el uso comercial**. Lo de los crons ya se resolvió por fuera (ver punto 13), pero el uso comercial sigue siendo un riesgo real |

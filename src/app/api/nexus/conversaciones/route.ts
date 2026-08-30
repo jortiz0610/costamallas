@@ -15,7 +15,21 @@ export async function GET(req: NextRequest) {
 
   const where: Record<string, unknown> = {};
   if (estado) where.estado = estado;
-  if (canal) where.canal = canal;
+  // El filtro llega en su forma canónica (ver `normalizarCanal`), pero en
+  // la base conviven mayúsculas, minúsculas y el nombre viejo del
+  // formulario de WordPress. Se busca por TODAS las formas que
+  // correspondan a ese canal, si no el filtro no encuentra nada.
+  if (canal) {
+    const formas: Record<string, string[]> = {
+      // El formulario de WordPress se atiende como correo.
+      EMAIL: ["EMAIL", "email", "Email", "wordpress_form", "WORDPRESS_FORM", "MAIL", "CORREO"],
+      WEB: ["WEB", "web", "Web"],
+      WHATSAPP: ["WHATSAPP", "whatsapp", "WhatsApp"],
+      INSTAGRAM: ["INSTAGRAM", "instagram"],
+      FACEBOOK: ["FACEBOOK", "facebook"],
+    };
+    where.canal = { in: formas[canal.toUpperCase()] ?? [canal] };
+  }
   if (prioridad) where.prioridad = prioridad;
   if (soloNoLeidas) where.leida = false;
 

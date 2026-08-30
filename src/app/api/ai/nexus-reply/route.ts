@@ -13,6 +13,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { pedirTexto } from "@/lib/sembli/agente";
+import { exigirPermiso } from "@/lib/permisos-server";
+import { estadoCupo, apuntarUso } from "@/lib/nexus/cupo-ia";
 
 interface NodoFlujo { tipo: string; config: Record<string, unknown> }
 interface Flujo {
@@ -24,7 +26,25 @@ export async function POST(req: NextRequest) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
 
-  const { conversacionId } = await req.json();
+  // El asistente cuesta dinero cada vez. Dos candados, y los dos ANTES
+  // de llamar al modelo: contar lo gastado cuando ya se gastó no es un
+  // tope, es un informe.
+  const sinPermiso = await exigirPermiso(req, "nexus.ia");
+  if (sinPermiso) return sinPermiso;
+
+  const cupo = await estadoCupo(user.sub);
+  if (cupo.agotado) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Ya usaste las ${cupo.tope} ayudas de IA de hoy. Vuelve mañana, o pídele a un administrador que suba el cupo.`,
+        cupo,
+      },
+      { status: 429 },
+    );
+  }
+
+  const { conversacionId, instruccion } = await req.json();
   if (!conversacionId) return NextResponse.json({ success: false, error: "Falta conversacionId" }, { status: 400 });
 
   const conv = await prisma.nexusConversacion.findUnique({
@@ -112,7 +132,15 @@ export async function POST(req: NextRequest) {
     const { texto, costoUSD } = await pedirTexto({
       tarea: "nexus",
       system,
-      mensaje: `Conversación hasta ahora:\n${historial || "(sin mensajes)"}\n\nRedacta la siguiente respuesta del asesor.`,
+      // `instruccion` es lo que el asesor escribió junto a @mallita
+      // ("dile que el lunes lo llamamos"). Sin ella se pide la respuesta
+      // normal, que es como funcionaba el botón.
+      mensaje: [
+        `Conversación hasta ahora:\n${historial || "(sin mensajes)"}`,
+        instruccion
+          ? `\nEl asesor te pide concretamente: "${String(instruccion).slice(0, 400)}".\nRedacta la respuesta siguiendo esa indicación.`
+          : "\nRedacta la siguiente respuesta del asesor.",
+      ].join(""),
       maxTokens: 700,
     });
 
@@ -131,10 +159,20 @@ export async function POST(req: NextRequest) {
       })
       .catch(() => undefined);
 
+    // Se apunta DESPUÉS de que el modelo respondiera bien: cobrarle a
+    // alguien un intento que falló por un error nuestro es la clase de
+    // detalle que hace que la gente deje de usar la herramienta.
+    await apuntarUso(user.sub);
+
     const transferir = texto.includes("[TRANSFERIR]");
     return NextResponse.json({
       success: true,
-      data: { respuesta: texto.replace("[TRANSFERIR]", "").trim(), transferir, costoUSD },
+      data: {
+        respuesta: texto.replace("[TRANSFERIR]", "").trim(),
+        transferir,
+        costoUSD,
+        cupo: { ...cupo, usado: cupo.usado + 1, quedan: Math.max(0, cupo.quedan - 1) },
+      },
     });
   } catch (e) {
     const msg = (e as Error).message;

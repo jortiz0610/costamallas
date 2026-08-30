@@ -569,9 +569,15 @@ Esto es lo que más se malinterpreta al leer el código: hay módulos completos
 esperando un dato que no depende del código. **Ninguno simula funcionar**: todos
 lo dicen en pantalla con el motivo.
 
+> ⚠️ **El SMTP ya está cargado** (28-ago 21:40). Era el bloqueador
+> número uno de este proyecto: media docena de módulos llevaban semanas
+> escritos y sin ejecutarse porque no había por dónde mandar un correo.
+> Ahora **salen de verdad**, y eso cambia cómo se prueban las cosas:
+> correr scripts/probar-alerta-tiempos.ts manda correos reales a los
+> administradores. El script lo avisa antes de empezar.
+
 | Módulo | Qué falta | Qué pasa mientras tanto |
 |--------|-----------|--------------------------|
-| Todo lo que manda correo | Cargar SMTP **desde el portal en producción** | Los toques del seguimiento quedan PENDIENTES con el motivo y se reintentan cada día; los demás avisan en pantalla |
 | WhatsApp / Nexus | Aprobación de Meta | El texto se arma y se guarda; el envío se registra como fallido con el motivo real |
 | Recargo de instalación por ciudad | Que gerencia los cargue | Los 17 servicios ya están; sin recargo, la cuadrilla a Santa Marta cuesta lo mismo que instalar al lado |
 | Alerta de tiempo de respuesta | Nada — funciona | Pero avisa en la corrida DIARIA, no al minuto 61: Hobby no deja más de un cron al día |
@@ -859,3 +865,65 @@ están cifradas con la `ENCRYPTION_KEY` de producción, que **no** es la de loca
 ⚠️ Una ruta así tiene que estar en `PUBLIC_PATHS` del middleware o no llega
 siquiera a ejecutarse: el middleware corta antes con "No autenticado". Estar en
 esa lista **no la hace pública** — la ruta se autoriza sola.
+
+---
+
+## 13. Nexus: lo que hay que saber antes de tocarlo
+
+### El canal es una cadena, y en la base hay de todo
+
+Conviven `WEB` (el agente de la página), `wordpress_form` y las
+minúsculas del mapa viejo (`whatsapp`, `email`). **Siempre** pasar por
+`normalizarCanal()` de `lib/nexus-preferencias.ts` antes de comparar o de
+buscar un color: comparar sin normalizar hacía que el color que la
+persona configuró no se aplicara nunca.
+
+Ahí también se decide que **el formulario de WordPress se atiende como
+correo**: los dos se contestan por escrito y sin nadie esperando al otro
+lado. El chat en vivo de la web (`WEB`) NO se une a correo, justamente
+porque ahí sí hay alguien delante de la pantalla.
+
+Al filtrar por canal en el servidor hay que buscar por TODAS las formas
+de ese canal (ver `/api/nexus/conversaciones`), no por la cadena tal cual.
+
+### Las preferencias del inbox viven en el navegador
+
+Colores, etiquetas, sonido y tema están en `localStorage`
+(`lib/nexus-preferencias.ts`). Son gustos de quien atiende, no datos de
+la empresa: guardarlos en el servidor costaría una consulta más en cada
+carga del inbox para algo que a nadie más le importa.
+
+### La IA del chat tiene dos candados
+
+1. El permiso `nexus.ia`, que el administrador enciende o apaga persona
+   por persona desde Usuarios y Roles.
+2. Un **cupo diario por persona** (`lib/nexus/cupo-ia.ts`), comprobado
+   ANTES de llamar al modelo. El contador vive en `configuracion` con una
+   clave por persona y día, así que se recicla solo. El uso se apunta
+   DESPUÉS de una respuesta buena: cobrar un intento que falló por un
+   error nuestro es la forma de que la gente deje de usar la herramienta.
+
+Un tope de 0 apaga el asistente para todos sin tocar permisos.
+
+### Los adjuntos van a la biblioteca de WordPress
+
+`/api/nexus/adjunto`. Tiene que ser una URL **pública**: la API de
+WhatsApp no recibe el archivo, recibe un enlace y lo descarga ella.
+
+⚠️ Por eso mismo ese endpoint **no sirve** para los documentos de SG-SST:
+cédulas y planillas son datos personales y no pueden quedar en una URL
+adivinable. Esos siguen en `lib/almacenamiento-documentos.ts`, esperando
+el disco privado del VPS.
+
+Si WordPress rechaza un tipo de archivo —pasa con los audios `webm` en
+instalaciones por defecto— se devuelve el error real del servidor, no un
+"no se pudo subir" que no le dice a nadie qué hay que habilitar.
+
+### Comandos
+
+`/` abre el menú **solo si la barra abre el mensaje**: un `/` en mitad de
+una frase ("2/4 de pulgada") no debe abrirlo, y aquí eso se escribe todo
+el día. Un comando NUNCA se manda como mensaje — mandarle "/cliente" a un
+cliente por WhatsApp no se puede deshacer.
+
+`@mallita` redacta, no envía: la IA propone y la persona decide.

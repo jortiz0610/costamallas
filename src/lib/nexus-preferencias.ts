@@ -17,13 +17,77 @@ export interface PrefsNexus {
   colores: Record<string, string>;
   /** Etiqueta corta por canal, la que se pinta en la lista. */
   etiquetas: Record<string, string>;
+  /** Fondo del chat. Ver `TEMAS`. */
+  tema: ClaveTema;
 }
 
+export type ClaveTema = "claro" | "papel" | "noche";
+
+export interface Tema {
+  v: ClaveTema;
+  l: string;
+  /** El fondo de la zona de mensajes. */
+  fondo: string;
+  /** La burbuja de quien escribe (la nuestra). */
+  mia: string;
+  /** La burbuja de la otra persona. */
+  suya: string;
+  /** Color del texto sobre `suya`. */
+  textoSuya: string;
+}
+
+/**
+ * Tres fondos, no doce.
+ *
+ * Los tres son legibles: no hay ninguno donde el texto gris sobre el
+ * fondo se pierda. Un selector con veinte fotos de paisajes se ve muy
+ * bien el primer día y deja a alguien leyendo negro sobre azul el resto
+ * del año.
+ */
+export const TEMAS: Tema[] = [
+  { v: "claro", l: "Claro", fondo: "#f6f7f9", mia: "#7c3aed", suya: "#ffffff", textoSuya: "#1f2937" },
+  { v: "papel", l: "Papel", fondo: "#f3efe6", mia: "#8a6d1f", suya: "#fffdf7", textoSuya: "#3b352a" },
+  { v: "noche", l: "Noche", fondo: "#0f172a", mia: "#7c3aed", suya: "#1e293b", textoSuya: "#e2e8f0" },
+];
+
+export const TEMA_POR_CLAVE: Record<string, Tema> =
+  Object.fromEntries(TEMAS.map(t => [t.v, t]));
+
+export const temaDe = (prefs: PrefsNexus): Tema =>
+  TEMA_POR_CLAVE[prefs.tema] ?? TEMAS[0];
+
 export const CANALES_CONOCIDOS = ["WHATSAPP", "WEB", "EMAIL", "INSTAGRAM", "FACEBOOK", "INTERNO"] as const;
+
+/**
+ * El canal, en su forma canónica.
+ *
+ * Dos motivos para que exista:
+ *
+ *   1. En la base conviven mayúsculas y minúsculas: el agente web
+ *      guarda `WEB` y el mapa de canales del inbox estaba escrito en
+ *      minúsculas (`whatsapp`, `email`). Comparar sin normalizar hacía
+ *      que el color configurado no se aplicara nunca.
+ *   2. **El formulario de WordPress y el correo son el mismo canal.** A
+ *      quien atiende le da igual si el mensaje entró por el formulario de
+ *      la página o por el buzón: los dos se contestan por escrito, sin
+ *      nadie esperando en vivo al otro lado. Tenerlos separados obligaba
+ *      a mirar dos filtros para el mismo trabajo.
+ *
+ * ⚠️ El chat en vivo de la web (`WEB`) NO se une a correo: ahí sí hay
+ * alguien esperando delante de la pantalla, y mezclarlo con el buzón es
+ * la forma de dejarlo sin contestar.
+ */
+export function normalizarCanal(canal: string | null | undefined): string {
+  const c = (canal ?? "").toUpperCase().trim();
+  if (c === "WORDPRESS_FORM" || c === "WORDPRESS" || c === "FORMULARIO") return "EMAIL";
+  if (c === "MAIL" || c === "CORREO") return "EMAIL";
+  return c || "WEB";
+}
 
 export const PREFS_POR_DEFECTO: PrefsNexus = {
   sonido: true,
   volumen: 0.5,
+  tema: "claro",
   colores: {
     WHATSAPP: "#25D366",
     WEB: "#0891b2",
@@ -38,7 +102,8 @@ export const PREFS_POR_DEFECTO: PrefsNexus = {
     // El canal de WordPress y el de correo se muestran como uno solo: al
     // que atiende le da igual si el formulario llegó por la web o por el
     // buzón, lo que necesita saber es que hay que contestar por escrito.
-    EMAIL: "Correo",
+    // El formulario de WordPress entra aquí: ver `normalizarCanal`.
+    EMAIL: "Correo y web",
     INSTAGRAM: "Instagram",
     FACEBOOK: "Facebook",
     INTERNO: "Equipo",
@@ -58,6 +123,7 @@ export function leerPrefs(): PrefsNexus {
       volumen: typeof p.volumen === "number" ? Math.min(1, Math.max(0, p.volumen)) : PREFS_POR_DEFECTO.volumen,
       colores: { ...PREFS_POR_DEFECTO.colores, ...(p.colores ?? {}) },
       etiquetas: { ...PREFS_POR_DEFECTO.etiquetas, ...(p.etiquetas ?? {}) },
+      tema: TEMA_POR_CLAVE[p.tema ?? ""] ? p.tema! : PREFS_POR_DEFECTO.tema,
     };
   } catch {
     return PREFS_POR_DEFECTO;
@@ -69,10 +135,10 @@ export function guardarPrefs(p: PrefsNexus) {
 }
 
 export const colorCanal = (canal: string, prefs = leerPrefs()) =>
-  prefs.colores[canal] ?? "#6b7280";
+  prefs.colores[normalizarCanal(canal)] ?? "#6b7280";
 
 export const etiquetaCanal = (canal: string, prefs = leerPrefs()) =>
-  prefs.etiquetas[canal] ?? canal;
+  prefs.etiquetas[normalizarCanal(canal)] ?? normalizarCanal(canal);
 
 // ─────────────────────────────────────────────
 // El sonido

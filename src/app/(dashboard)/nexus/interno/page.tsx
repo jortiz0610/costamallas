@@ -21,7 +21,11 @@ import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import { timeAgoCO } from "@/lib/timezone";
 import { useBrand } from "@/contexts/BrandContext";
-import { sonarMensaje } from "@/lib/nexus-preferencias";
+import { sonarMensaje, leerPrefs, temaDe, PREFS_POR_DEFECTO, type PrefsNexus } from "@/lib/nexus-preferencias";
+import { Adjuntar, type Adjunto } from "@/components/nexus/Adjuntar";
+import { ContenidoMensaje } from "@/components/nexus/ContenidoMensaje";
+import { MenuComandos } from "@/components/nexus/MenuComandos";
+import { leerEntrada, sugerir, type Comando } from "@/lib/nexus/comandos";
 
 interface Companero { id: string; nombre: string; email: string; rol: string }
 interface ChatItem {
@@ -121,8 +125,11 @@ function NuevoChat({ companeros, onAbrir, onClose }: {
   );
 }
 
-function Conversacion({ chat, miId, onVolver }: { chat: ChatItem; miId: string; onVolver: () => void }) {
+function Conversacion({ chat, miId, onVolver, prefs }: {
+  chat: ChatItem; miId: string; onVolver: () => void; prefs: PrefsNexus;
+}) {
   const qc = useQueryClient();
+  const tema = temaDe(prefs);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
@@ -161,9 +168,56 @@ function Conversacion({ chat, miId, onVolver }: { chat: ChatItem; miId: string; 
     finRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [mensajes.length]);
 
+  // ── Comandos ──
+  // Aquí solo tienen sentido los que no son de clientes: no hay a quién
+  // mandarle una plantilla ni a quién guardar en el CRM.
+  const entrada = leerEntrada(texto);
+  const [menuAbierto, setMenuAbierto] = useState(true);
+  const comandosVisibles = entrada.esComando && menuAbierto && !entrada.argumento
+    ? sugerir(entrada.nombre, false)
+    : [];
+  useEffect(() => { setMenuAbierto(true); }, [entrada.esComando, entrada.nombre]);
+
+  const ejecutar = (c: Comando) => {
+    setMenuAbierto(false);
+    setTexto(c.argumento ? `/${c.nombre} ` : "");
+    if (c.nombre === "ia") toast("Mallita solo redacta en el chat con clientes.", { icon: "🤖" });
+  };
+
+  const mandarAdjunto = async (a: Adjunto) => {
+    await enviarTexto(a.url, a.tipo);
+  };
+
+  const enviarTexto = async (contenido: string, tipo = "texto") => {
+    try {
+      const res = await fetch(`/api/nexus/interno/${chat.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contenido, tipo }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) { toast.error(json.error ?? "No se pudo enviar"); return false; }
+      if (!vistos.current.has(json.data.id)) {
+        vistos.current.add(json.data.id);
+        setMensajes(prev => [...prev, json.data]);
+      }
+      qc.invalidateQueries({ queryKey: ["chats-internos"] });
+      return true;
+    } catch { toast.error("Error de conexión"); return false; }
+  };
+
   const enviar = async () => {
     const contenido = texto.trim();
     if (!contenido || enviando) return;
+
+    // Un comando no se manda como mensaje.
+    const e = leerEntrada(contenido);
+    if (e.esComando) {
+      const c = sugerir(e.nombre, false).find(x => x.nombre === e.nombre);
+      if (!c) return toast.error(`No existe el comando /${e.nombre}`);
+      ejecutar(c);
+      return;
+    }
     setEnviando(true);
     // Se limpia la caja ANTES de que responda el servidor: si se espera,
     // escribir seguido se siente lento aunque tarde 200 ms.
@@ -208,7 +262,7 @@ function Conversacion({ chat, miId, onVolver }: { chat: ChatItem; miId: string; 
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-1.5 page-bg">
+      <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-1.5" style={{ backgroundColor: tema.fondo }}>
         {mensajes.length === 0 && (
           <p className="text-center text-[12px] text-muted py-8">
             Todavía no se han escrito. Empieza tú.
@@ -222,16 +276,18 @@ function Conversacion({ chat, miId, onVolver }: { chat: ChatItem; miId: string; 
               <div
                 className={cn(
                   "max-w-[85%] sm:max-w-[70%] px-3 py-2 rounded-2xl",
-                  mio ? "rounded-br-sm text-white" : "rounded-bl-sm surface border divider",
+                  mio ? "rounded-br-sm text-white" : "rounded-bl-sm border divider",
                 )}
-                style={mio ? { backgroundColor: NEXUS_COLOR } : {}}
+                style={mio
+                  ? { backgroundColor: tema.mia }
+                  : { backgroundColor: tema.suya, color: tema.textoSuya }}
               >
                 {!mio && chat.tipo === "GRUPO" && !mismoAutor && (
                   <p className="text-[10.5px] font-bold mb-0.5" style={{ color: colorDe(m.autor.nombre) }}>
                     {m.autor.nombre}
                   </p>
                 )}
-                <p className="text-[13px] whitespace-pre-wrap break-words">{m.contenido}</p>
+                <ContenidoMensaje contenido={m.contenido} tipo={m.tipo} claro={mio} />
                 <p className={cn("text-[9.5px] mt-0.5", mio ? "text-white/70 text-right" : "text-muted")}>
                   {timeAgoCO(m.createdAt)}
                 </p>
@@ -242,23 +298,29 @@ function Conversacion({ chat, miId, onVolver }: { chat: ChatItem; miId: string; 
         <div ref={finRef} />
       </div>
 
-      <div className="flex items-end gap-2 px-3 py-2.5 border-t divider surface flex-shrink-0">
+      <div className="relative flex items-end gap-1.5 sm:gap-2 px-3 py-2.5 border-t divider surface flex-shrink-0">
+        {comandosVisibles.length > 0 && (
+          <MenuComandos comandos={comandosVisibles} onElegir={ejecutar} onCerrar={() => setMenuAbierto(false)} />
+        )}
+        <Adjuntar onAdjunto={mandarAdjunto} deshabilitado={enviando} />
         <textarea
           value={texto}
           onChange={e => setTexto(e.target.value)}
           onKeyDown={e => {
+            // Con el menú de comandos abierto, Enter lo elige él.
+            if (comandosVisibles.length > 0) return;
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); }
           }}
           rows={1}
-          className="input resize-none py-2 text-sm max-h-28"
-          placeholder="Escribe un mensaje…"
+          className="input resize-none py-2 text-sm max-h-28 flex-1 min-w-0"
+          placeholder="Escribe un mensaje… (/ para atajos)"
         />
         <button
           onClick={enviar}
           disabled={!texto.trim() || enviando}
           aria-label="Enviar"
           className="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0 disabled:opacity-40"
-          style={{ backgroundColor: NEXUS_COLOR }}
+          style={{ backgroundColor: tema.mia }}
         >
           {enviando ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
         </button>
@@ -272,6 +334,10 @@ function InternoContent() {
   const [activo, setActivo] = useState<string | null>(null);
   const [nuevo, setNuevo] = useState(false);
   const [busqueda, setBusqueda] = useState("");
+  // El mismo fondo que eligió para el inbox: dos chats en el mismo
+  // portal con dos aspectos distintos se ven como dos aplicaciones.
+  const [prefs, setPrefs] = useState<PrefsNexus>(PREFS_POR_DEFECTO);
+  useEffect(() => { setPrefs(leerPrefs()); }, []);
 
   const { data, isLoading } = useQuery<{
     chats: ChatItem[]; companeros: Companero[]; sinLeerTotal: number;
@@ -370,7 +436,7 @@ function InternoContent() {
 
         <div className={cn("flex-1 overflow-hidden", chatActivo ? "flex" : "hidden lg:flex")}>
           {chatActivo && yo ? (
-            <Conversacion chat={chatActivo} miId={yo.id} onVolver={() => setActivo(null)} />
+            <Conversacion chat={chatActivo} miId={yo.id} onVolver={() => setActivo(null)} prefs={prefs} />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 page-bg p-8 text-center">
               <MessagesSquare size={30} className="text-muted" />

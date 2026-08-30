@@ -16,7 +16,7 @@
 import { useState } from "react";
 import { SlidersHorizontal, X, Check, Volume2, VolumeX } from "lucide-react";
 import {
-  leerPrefs, guardarPrefs, CANALES_CONOCIDOS,
+  leerPrefs, guardarPrefs, CANALES_CONOCIDOS, TEMAS,
   type PrefsNexus,
 } from "@/lib/nexus-preferencias";
 
@@ -51,7 +51,7 @@ export function BotonFiltros({
   onPrefs: (p: PrefsNexus) => void;
 }) {
   const [abierto, setAbierto] = useState(false);
-  const [pestana, setPestana] = useState<"filtros" | "etiquetas">("filtros");
+  const [pestana, setPestana] = useState<"filtros" | "etiquetas" | "aspecto">("filtros");
 
   // "Abiertas" es el valor de arranque, así que no cuenta como filtro
   // puesto: si contara, el botón saldría siempre en 1 y dejaría de
@@ -87,9 +87,9 @@ export function BotonFiltros({
           >
             <div className="card-header flex-shrink-0">
               <div className="flex gap-1 rounded-xl p-0.5" style={{ backgroundColor: "var(--surface-3)" }}>
-                {([["filtros", "Filtros"], ["etiquetas", "Mis etiquetas"]] as const).map(([k, l]) => (
+                {([["filtros", "Filtros"], ["etiquetas", "Etiquetas"], ["aspecto", "Aspecto"]] as const).map(([k, l]) => (
                   <button key={k} onClick={() => setPestana(k)}
-                    className="px-3 py-1.5 rounded-lg text-[11.5px] font-bold transition-all"
+                    className="px-2.5 py-1.5 rounded-lg text-[11.5px] font-bold transition-all"
                     style={pestana === k ? { backgroundColor: "#7c3aed", color: "white" } : { color: "var(--text-muted)" }}>
                     {l}
                   </button>
@@ -101,7 +101,72 @@ export function BotonFiltros({
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-5">
-              {pestana === "filtros" ? (
+              {pestana === "aspecto" ? (
+                <>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">
+                      Fondo del chat
+                    </p>
+                    <p className="text-[11px] text-gray-500 dark:text-slate-400 mb-3 leading-relaxed">
+                      Es tuyo y solo se ve en tu pantalla. Los tres están pensados para que
+                      el texto se lea bien; no hay ninguno donde se pierda.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {TEMAS.map(t => {
+                        const activo = prefs.tema === t.v;
+                        return (
+                          <button
+                            key={t.v}
+                            onClick={() => actualizar({ tema: t.v })}
+                            className="rounded-xl overflow-hidden border-2 transition-all text-left"
+                            style={{ borderColor: activo ? "#7c3aed" : "transparent" }}
+                          >
+                            {/* Una miniatura del chat de verdad: dos
+                                burbujas sobre su fondo. Un cuadrado de
+                                color no dice cómo se va a ver. */}
+                            <span className="block p-2.5 space-y-1.5" style={{ backgroundColor: t.fondo }}>
+                              <span className="block w-[70%] h-4 rounded-lg rounded-bl-sm" style={{ backgroundColor: t.suya }} />
+                              <span className="block w-[55%] h-4 rounded-lg rounded-br-sm ml-auto" style={{ backgroundColor: t.mia }} />
+                            </span>
+                            <span className="flex items-center justify-between px-2.5 py-1.5 surface">
+                              <span className="text-[11.5px] font-semibold text-gray-800 dark:text-gray-100">{t.l}</span>
+                              {activo && <Check size={13} className="text-violet-600" />}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-gray-100 dark:border-slate-700">
+                    <button
+                      onClick={() => actualizar({ sonido: !prefs.sonido })}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors hover:bg-gray-50 dark:hover:bg-slate-800/50 text-left"
+                    >
+                      {prefs.sonido
+                        ? <Volume2 size={16} className="text-violet-500 flex-shrink-0" />
+                        : <VolumeX size={16} className="text-gray-400 flex-shrink-0" />}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12.5px] font-semibold text-gray-800 dark:text-gray-100">
+                          Sonido al entrar un mensaje
+                        </p>
+                        <p className="text-[10.5px] text-gray-400">
+                          {prefs.sonido ? "Encendido" : "Apagado"} · solo suena lo que escriben otros
+                        </p>
+                      </div>
+                      <span
+                        className="w-9 h-5 rounded-full flex-shrink-0 transition-colors relative"
+                        style={{ backgroundColor: prefs.sonido ? "#7c3aed" : "var(--surface-3)" }}
+                      >
+                        <span
+                          className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all"
+                          style={{ left: prefs.sonido ? 18 : 2 }}
+                        />
+                      </span>
+                    </button>
+                  </div>
+                </>
+              ) : pestana === "filtros" ? (
                 <>
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Estado</p>
@@ -190,34 +255,6 @@ export function BotonFiltros({
                       </div>
                     </div>
                   ))}
-
-                  <div className="pt-3 border-t border-gray-100 dark:border-slate-700">
-                    <button
-                      onClick={() => actualizar({ sonido: !prefs.sonido })}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors hover:bg-gray-50 dark:hover:bg-slate-800/50 text-left"
-                    >
-                      {prefs.sonido
-                        ? <Volume2 size={16} className="text-violet-500 flex-shrink-0" />
-                        : <VolumeX size={16} className="text-gray-400 flex-shrink-0" />}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[12.5px] font-semibold text-gray-800 dark:text-gray-100">
-                          Sonido al entrar un mensaje
-                        </p>
-                        <p className="text-[10.5px] text-gray-400">
-                          {prefs.sonido ? "Encendido" : "Apagado"} · solo suena lo que escriben otros
-                        </p>
-                      </div>
-                      <span
-                        className="w-9 h-5 rounded-full flex-shrink-0 transition-colors relative"
-                        style={{ backgroundColor: prefs.sonido ? "#7c3aed" : "var(--surface-3)" }}
-                      >
-                        <span
-                          className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all"
-                          style={{ left: prefs.sonido ? 18 : 2 }}
-                        />
-                      </span>
-                    </button>
-                  </div>
                 </>
               )}
             </div>
