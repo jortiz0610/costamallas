@@ -6,7 +6,6 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import type { JWTPayload, Rol } from "@/types";
-import { COOKIE_ROL_PRUEBA, esRolProbable } from "@/lib/rol-prueba";
 
 const COOKIE_NAME = "cm_token";
 const COOKIE_NAME_REFRESH = "cm_refresh";
@@ -116,29 +115,24 @@ export function getTokenFromRequest(req: NextRequest): string | null {
 }
 
 /**
- * El usuario de la petición, con el rol de prueba aplicado si lo hay.
+ * El usuario de la petición. Su rol es el suyo y punto.
  *
- * ⚠️ La regla que sostiene toda la función "ver el portal como…": la
- * cookie SOLO se respeta cuando el token real dice SUPERADMIN. Por sí
- * sola no da ningún permiso — si la pone cualquier otro usuario, se
- * ignora. Sin esta comprobación esto sería un ascenso a ADMIN al alcance
- * de quien sepa abrir las herramientas del navegador.
+ * Aquí vivía "ver el portal como…": una cookie que le cambiaba el rol al
+ * superadministrador para que pudiera mirar el portal con otros ojos.
+ * Se quitó el 29-ago. Funcionaba, pero el precio era alto para lo que
+ * daba: una sesión cuyo rol dependía de una cookie, un bloqueo de
+ * escrituras en el middleware para todo el portal, y el fallo probable
+ * —dejarse el modo puesto y creer que el portal está roto— pegado a la
+ * sesión de quien más permisos tiene.
  *
- * Las escrituras las bloquea el middleware, no esta función: aquí solo
- * se decide QUÉ ve, no qué puede hacer.
+ * Lo reemplaza una PREVISUALIZACIÓN en Usuarios y Roles: se ve el menú
+ * que le queda a esa persona sin cambiarle el rol a nadie y sin tocar la
+ * sesión. Es lo que se quería mirar, sin nada de lo que costaba.
  */
 export async function getUserFromRequest(req: NextRequest): Promise<JWTPayload | null> {
   const token = getTokenFromRequest(req);
   if (!token) return null;
-  const user = await verifyAccessToken(token);
-  if (!user) return null;
-
-  if (user.rol !== "SUPERADMIN") return user;
-
-  const prueba = req.cookies.get(COOKIE_ROL_PRUEBA)?.value;
-  if (!esRolProbable(prueba)) return user;
-
-  return { ...user, rol: prueba, rolReal: user.rol, rolPrueba: true };
+  return await verifyAccessToken(token);
 }
 
 // ── Guards de roles ────────────────────────────

@@ -268,7 +268,7 @@ function PanelVisita({ trabajo, onGuardado }: { trabajo: Trabajo; onGuardado: ()
           disabled={guardando}
           className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5 disabled:opacity-50"
           style={{ backgroundColor: "#059669" }}
-          title="Marca la visita como hecha y le avisa al vendedor para que cotice en firme"
+          title="Marca la visita como hecha y avisa a quien vende para que cotice en firme"
         >
           <Send size={13} /> Entregar al vendedor
         </button>

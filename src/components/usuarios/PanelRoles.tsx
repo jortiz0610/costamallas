@@ -18,11 +18,9 @@ import { PERMISOS, PERMISOS_POR_ROL, type ModuloClave } from "@/lib/permisos";
 
 const ROLES_MOSTRADOS = [
   { v: "ADMIN", l: "Administrador", d: "Todo menos las conexiones externas y el SEO con IA." },
+  { v: "MARKETING", l: "Marketing", d: "Campañas, atribución y retorno. Ve el embudo y los clientes; no toca ofertas." },
   { v: "VENDEDOR", l: "Vendedor", d: "Su ciclo comercial completo, más lo del ERP que necesita para vender." },
-  { v: "PRODUCCION", l: "Producción", d: "Trabajos, instalaciones y catálogo. Sin plata ni configuración." },
-  { v: "BODEGA", l: "Bodega", d: "Solo el ERP: catálogo, stock y compras." },
-  { v: "USUARIO", l: "Usuario", d: "Acceso básico a catálogo y CRM." },
-  { v: "SOLO_LECTURA", l: "Solo lectura", d: "Ve las pantallas; no puede hacer nada en ellas." },
+  { v: "PRODUCCION", l: "Producción", d: "Fabricación, trabajos e instalaciones. En Nexus, solo el chat del equipo." },
 ];
 
 const COLOR_MODULO: Record<ModuloClave, string> = {

@@ -61,13 +61,13 @@ function PanelProducto({ producto, onVolver }: { producto: ProductoConImagenes; 
   const [dragOver, setDragOver] = useState(false);
   const [dragImgId, setDragImgId] = useState<string | null>(null);
   const [copiada, setCopiada] = useState<string | null>(null);
-  const [aNexus, setANexus] = useState<string | null>(null);
+  const [aNexus, setANexus] = useState<{ contenido: string; tipo: "texto" | "imagen" } | null>(null);
 
-  const copiarUrl = async (url: string) => {
+  const copiarUrl = async (url: string, etiqueta = "Enlace") => {
     try {
       await navigator.clipboard.writeText(url);
       setCopiada(url);
-      toast.success("Enlace copiado");
+      toast.success(`${etiqueta} copiado`);
       setTimeout(() => setCopiada(null), 1800);
     } catch { toast.error("El navegador no dejó copiar"); }
   };
@@ -150,10 +150,31 @@ function PanelProducto({ producto, onVolver }: { producto: ProductoConImagenes; 
           </div>
         </div>
         <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={e => upload(e.target.files)} />
+        {/* Todas las fotos de golpe. Mandar una por una un producto con
+            cinco vistas es lo que hacía que nadie mandara ninguna. */}
+        {imagenes.length > 1 && (
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              onClick={() => copiarUrl(imagenes.map(i => i.urlImagen).join("\n"), `${imagenes.length} enlaces`)}
+              className="btn-secondary btn-sm"
+              title="Copiar el enlace de todas las fotos, uno por línea"
+            >
+              <Copy size={12} /> <span className="hidden sm:inline">Copiar todas</span>
+            </button>
+            <button
+              onClick={() => setANexus({ contenido: imagenes.map(i => i.urlImagen).join("\n"), tipo: "texto" })}
+              className="btn-secondary btn-sm"
+              title="Mandar todas las fotos a un chat"
+            >
+              <Send size={12} /> <span className="hidden sm:inline">Mandar todas</span>
+            </button>
+          </div>
+        )}
         {puedeSubir && (
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
-            className="px-4 py-2 rounded-xl text-sm font-semibold text-white flex items-center gap-2 disabled:opacity-50 flex-shrink-0" style={{ backgroundColor: brand.brandColor }}>
-            {uploading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Subir imágenes
+            className="px-3 sm:px-4 py-2 rounded-xl text-sm font-semibold text-white flex items-center gap-2 disabled:opacity-50 flex-shrink-0" style={{ backgroundColor: brand.brandColor }}>
+            {uploading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+            <span className="hidden sm:inline">Subir imágenes</span>
           </button>
         )}
       </div>
@@ -206,7 +227,7 @@ function PanelProducto({ producto, onVolver }: { producto: ProductoConImagenes; 
                     <button onClick={() => copiarUrl(img.urlImagen)} className="w-9 h-9 rounded-xl bg-white/90 text-gray-700 flex items-center justify-center" title="Copiar el enlace de la foto">
                       {copiada === img.urlImagen ? <Check size={15} /> : <Copy size={15} />}
                     </button>
-                    <button onClick={() => setANexus(img.urlImagen)} className="w-9 h-9 rounded-xl bg-violet-500 text-white flex items-center justify-center" title="Mandarla a un chat de Nexus">
+                    <button onClick={() => setANexus({ contenido: img.urlImagen, tipo: "imagen" })} className="w-9 h-9 rounded-xl bg-violet-500 text-white flex items-center justify-center" title="Mandarla a un chat de Nexus">
                       <Send size={15} />
                     </button>
                     {puedeSubir && !img.esPrincipal && (
@@ -238,9 +259,9 @@ function PanelProducto({ producto, onVolver }: { producto: ProductoConImagenes; 
 
       {aNexus && (
         <EnviarANexus
-          contenido={aNexus}
-          tipo="imagen"
-          titulo="Mandar la foto a un chat"
+          contenido={aNexus.contenido}
+          tipo={aNexus.tipo}
+          titulo={aNexus.tipo === "imagen" ? "Mandar la foto a un chat" : "Mandar las fotos a un chat"}
           onClose={() => setANexus(null)}
         />
       )}

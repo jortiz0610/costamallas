@@ -17,6 +17,11 @@ import { timeAgoCO } from "@/lib/timezone";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import { CostoIA } from "@/components/ia/CostoIA";
+import { BotonFiltros } from "@/components/nexus/FiltrosInbox";
+import {
+  leerPrefs, guardarPrefs, sonarMensaje,
+  type PrefsNexus, PREFS_POR_DEFECTO,
+} from "@/lib/nexus-preferencias";
 
 // ── Tipos ────────────────────────────────────────────────────────
 
@@ -81,21 +86,26 @@ function PrioridadDot({ prioridad }: { prioridad: string }) {
 
 // ── Panel de conversaciones (izq) ────────────────────────────────
 
-function ConversacionItem({ conv, activa, onClick, nombreAsignado }: {
+function ConversacionItem({ conv, activa, onClick, nombreAsignado, prefs }: {
   conv: Conversacion; activa: boolean; onClick: () => void; nombreAsignado?: string;
+  prefs: PrefsNexus;
 }) {
   const { brand } = useBrand();
   const ultimo = conv.mensajes[0];
-  const meta = CANAL_META[conv.canal];
+  // El color y el nombre del canal salen de lo que configuró ESTA
+  // persona, no de una tabla fija: es lo que le permite distinguir de un
+  // vistazo un WhatsApp de un correo sin leer la etiqueta.
+  const color = prefs.colores[conv.canal] ?? "#6b7280";
+  const etiqueta = prefs.etiquetas[conv.canal] ?? conv.canal;
   return (
     <div onClick={onClick}
       className={cn("flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors border-b",
         activa ? "border-l-2" : "border-l-2 border-l-transparent hover:bg-slate-50 dark:hover:bg-slate-900/40",
         "border-b-slate-50 dark:border-b-slate-800/50")}
       style={activa ? { borderLeftColor: brand.brandColor, backgroundColor: brand.brandColor + "08" } : {}}>
-      {/* Avatar */}
+      {/* Avatar, del color del canal */}
       <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-white"
-        style={{ backgroundColor: meta?.color ?? "#6366f1" }}>
+        style={{ backgroundColor: color }}>
         {conv.remitente.charAt(0).toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
@@ -129,7 +139,10 @@ function ConversacionItem({ conv, activa, onClick, nombreAsignado }: {
         )}
 
         <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-          <CanalBadge canal={conv.canal} />
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+            style={{ backgroundColor: color + "1f", color }}>
+            {etiqueta}
+          </span>
           {conv.cliente && (
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600">
               Ya es cliente
@@ -148,13 +161,14 @@ function ConversacionItem({ conv, activa, onClick, nombreAsignado }: {
 
 function ChatView({ conv, onMarcarResuelta, onVolver }: { conv: Conversacion; onMarcarResuelta: () => void; onVolver: () => void }) {
   const { brand } = useBrand();
-  const { user } = useAuth();
+  const { user, puedeVer } = useAuth();
   const qc = useQueryClient();
   const [texto, setTexto] = useState("");
   const [sugiriendo, setSugiriendo] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const admin = esAdmin(user?.rol);
+  const puedeIA = puedeVer("nexus.ia");
   const puedeTransferir = admin || conv.asignadoId === user?.id;
   const { data: usuarios = [] } = useQuery<UsuarioLista[]>({
     queryKey: ["usuarios-lista"],
@@ -184,8 +198,27 @@ function ChatView({ conv, onMarcarResuelta, onVolver }: { conv: Conversacion; on
   const { data: mensajes = [], isLoading } = useQuery<NexusMensaje[]>({
     queryKey: ["nexus-mensajes", conv.id],
     queryFn: async () => (await (await fetch(`/api/nexus/mensajes?conversacionId=${conv.id}`)).json()).data ?? [],
-    refetchInterval: 10_000,
+    // Cada 3 s, no cada 10: un cliente esperando por WhatsApp nota la
+    // diferencia entre contestar al momento y contestar diez segundos
+    // tarde. Solo corre con la pestaña delante.
+    refetchInterval: 3_000,
+    refetchIntervalInBackground: false,
   });
+
+  // Sonido cuando entra algo que no escribimos nosotros. La primera
+  // carga NO suena: abrir una conversación con veinte mensajes viejos y
+  // que pite es la forma más rápida de que alguien apague el sonido.
+  const vistosRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (!mensajes.length) return;
+    if (vistosRef.current === null) {
+      vistosRef.current = new Set(mensajes.map(m => m.id));
+      return;
+    }
+    const nuevos = mensajes.filter(m => !vistosRef.current!.has(m.id));
+    nuevos.forEach(m => vistosRef.current!.add(m.id));
+    if (nuevos.some(m => m.origen === "contacto")) sonarMensaje();
+  }, [mensajes]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [mensajes.length]);
 
@@ -353,15 +386,20 @@ function ChatView({ conv, onMarcarResuelta, onVolver }: { conv: Conversacion; on
         <div className="flex items-center gap-2 px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
           {/* El costo va flotando sobre el botón: la barra de respuesta no
               tiene sitio para una etiqueta más sin apretarlo todo. */}
-          <div className="relative flex-shrink-0">
-            <button onClick={sugerirIA} disabled={sugiriendo} title="Sugerir respuesta con IA"
-              className="w-10 h-10 rounded-xl flex items-center justify-center border divider text-muted hover:surface-2 transition-all disabled:opacity-50">
-              {sugiriendo ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} style={{ color: brand.brandColor }} />}
-            </button>
-            <span className="absolute -top-2 left-1/2 -translate-x-1/2">
-              <CostoIA tarea="nexus" />
-            </span>
-          </div>
+          {/* El asistente cuesta dinero cada vez que se usa, así que va
+              detrás de `nexus.ia`: el administrador lo activa persona por
+              persona desde Usuarios y Roles. */}
+          {puedeIA && (
+            <div className="relative flex-shrink-0">
+              <button onClick={sugerirIA} disabled={sugiriendo} title="Sugerir respuesta con IA"
+                className="w-10 h-10 rounded-xl flex items-center justify-center border divider text-muted hover:surface-2 transition-all disabled:opacity-50">
+                {sugiriendo ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} style={{ color: brand.brandColor }} />}
+              </button>
+              <span className="absolute -top-2 left-1/2 -translate-x-1/2">
+                <CostoIA tarea="nexus" />
+              </span>
+            </div>
+          )}
           <input
             value={texto}
             onChange={e => setTexto(e.target.value)}
@@ -453,6 +491,13 @@ function NexusContent() {
   const [filtroCanal, setFiltroCanal] = useState("");
   const [showLineas, setShowLineas] = useState(false);
 
+  // Los gustos de esta persona: colores, etiquetas y sonido. Se leen del
+  // navegador después de montar, no durante: en el servidor no hay
+  // localStorage y leerlo ahí rompería el render.
+  const [prefs, setPrefs] = useState<PrefsNexus>(PREFS_POR_DEFECTO);
+  useEffect(() => { setPrefs(leerPrefs()); }, []);
+  const guardar = (p: PrefsNexus) => { guardarPrefs(p); setPrefs(p); };
+
   const { data: result, isLoading, refetch } = useQuery({
     queryKey: ["nexus-conversaciones", filtroEstado, filtroCanal],
     queryFn: async () => {
@@ -461,7 +506,11 @@ function NexusContent() {
       if (filtroCanal) params.set("canal", filtroCanal);
       return (await (await fetch(`/api/nexus/conversaciones?${params}`)).json());
     },
-    refetchInterval: 15_000,
+    // Cada 5 s, no cada 15: una conversación de WhatsApp que tarda un
+    // cuarto de minuto en aparecer se siente rota. La consulta es
+    // barata y solo corre con la pestaña delante.
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: false,
   });
 
   // Para mostrar de quién es cada conversación sin pedirle al servidor
@@ -536,48 +585,26 @@ function NexusContent() {
           )}
           style={{ borderRight: "1px solid var(--border)" }}
         >
-          {/* Búsqueda + filtros */}
-          <div className="px-3 py-3 space-y-3" style={{ borderBottom: "1px solid var(--border)" }}>
-            <div className="relative">
+          {/* Buscador y UN botón de filtrar.
+              Antes había aquí tres botones de estado y una fila de chips
+              de canal: media pantalla del teléfono gastada en controles
+              que se tocan una vez al día, justo encima de la lista, que
+              es lo que se mira todo el rato. Ahora los filtros están
+              detrás del botón —con un contador de cuántos hay puestos— y
+              lo que diferencia una conversación de otra en la lista es su
+              etiqueta de color. */}
+          <div className="px-3 py-2.5 flex items-center gap-2" style={{ borderBottom: "1px solid var(--border)" }}>
+            <div className="relative flex-1 min-w-0">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
               <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
-                className="input pl-9 py-1.5 text-xs" placeholder="Buscar conversación…" />
+                className="input pl-9 py-1.5 text-xs" placeholder="Buscar…" />
             </div>
-
-            {/* Filtro estado — segmentado amigable (#9) */}
-            <div className="flex gap-1 p-1 rounded-xl surface-2">
-              {ESTADOS_CONV.map(e => {
-                const Icon = e.Icon; const active = filtroEstado === e.v;
-                return (
-                  <button key={e.v} onClick={() => setFiltroEstado(e.v)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-bold transition-all"
-                    style={active ? { backgroundColor: e.c, color: "white", boxShadow: `0 2px 6px ${e.c}40` } : { color: "var(--text-muted)" }}>
-                    <Icon size={12} /> {e.l}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Filtro canal. Se ENVUELVE en vez de deslizarse: unos
-                chips que se salen por la derecha esconden justamente el
-                canal que uno busca. */}
-            <div className="flex flex-wrap gap-1">
-              <button onClick={() => setFiltroCanal("")}
-                className="flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all"
-                style={!filtroCanal ? { backgroundColor: brand.brandColor, color: "white" } : { backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>
-                Todos
-              </button>
-              {CANALES.map(([key, meta]) => {
-                const Icon = meta.Icon;
-                return (
-                  <button key={key} onClick={() => setFiltroCanal(filtroCanal === key ? "" : key)}
-                    className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all"
-                    style={filtroCanal === key ? { backgroundColor: meta.color, color: "white" } : { backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>
-                    <Icon size={10} /> {meta.label}
-                  </button>
-                );
-              })}
-            </div>
+            <BotonFiltros
+              filtros={{ estado: filtroEstado, canal: filtroCanal }}
+              onCambiar={f => { setFiltroEstado(f.estado); setFiltroCanal(f.canal); }}
+              prefs={prefs}
+              onPrefs={guardar}
+            />
           </div>
 
           {/* Lista */}
@@ -594,6 +621,7 @@ function NexusContent() {
               filtradas.map(c => (
                 <ConversacionItem key={c.id} conv={c} activa={convActiva?.id === c.id}
                   nombreAsignado={usuariosBandeja.find(u => u.id === c.asignadoId)?.nombre}
+                  prefs={prefs}
                   onClick={() => setConvActiva(c)} />
               ))
             )}

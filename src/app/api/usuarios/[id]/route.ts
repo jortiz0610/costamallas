@@ -11,7 +11,7 @@ type Params = { params: Promise<{ id: string }> };
 
 const updateSchema = z.object({
   nombre: z.string().min(2).optional(),
-  rol: z.enum(["SUPERADMIN","ADMIN","USUARIO","VENDEDOR","PRODUCCION","BODEGA","SOLO_LECTURA"]).optional(),
+  rol: z.enum(["SUPERADMIN","ADMIN","MARKETING","VENDEDOR","PRODUCCION"]).optional(),
   activo: z.boolean().optional(),
   password: z.string().min(8).optional(),
   telefono: z.string().optional(),

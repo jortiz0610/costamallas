@@ -17,6 +17,8 @@ import {
   X, Loader2, RotateCcw, ShieldCheck, Eye, MousePointerClick, HelpCircle,
 } from "lucide-react";
 import type { Permiso, ModuloClave } from "@/lib/permisos";
+import { VistaPreviaMenu } from "@/components/usuarios/VistaPreviaMenu";
+import { Ayuda } from "@/components/ui/Ayuda";
 
 interface Props {
   usuario: { id: string; nombre: string; email: string; rol: string };
@@ -134,6 +136,14 @@ export function ModalPermisos({ usuario, onClose, onSaved }: Props) {
 
   const totalExcepciones = (data?.catalogo ?? []).filter(p => esExcepcion(p.clave)).length;
 
+  // Lo que vería AHORA MISMO con lo marcado en pantalla, incluidos los
+  // cambios sin guardar. Es lo que antes obligaba a ponerse su rol.
+  const permisosEnPantalla = useMemo(
+    () => new Set((data?.catalogo ?? []).filter(p => valorDe(p.clave)).map(p => p.clave)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, cambios],
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <div
@@ -146,6 +156,11 @@ export function ModalPermisos({ usuario, onClose, onSaved }: Props) {
             <h2 className="text-[13px] font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
               <ShieldCheck size={15} className="text-gray-400" />
               Permisos de {usuario.nombre}
+              <Ayuda titulo="Cómo funciona">
+                El punto de partida es lo que trae el rol <strong>{usuario.rol}</strong>. Lo que
+                cambies aquí es una excepción solo para esta persona: queda en ámbar y se puede
+                deshacer. Si el rol gana pantallas nuevas, esta persona también las recibe.
+              </Ayuda>
             </h2>
             <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-0.5">
               Rol {usuario.rol}
@@ -175,11 +190,9 @@ export function ModalPermisos({ usuario, onClose, onSaved }: Props) {
         ) : (
           <>
             <div className="flex-1 overflow-y-auto p-5 space-y-6">
-              <p className="text-[11px] text-gray-500 dark:text-slate-400 leading-relaxed">
-                El punto de partida es lo que trae el rol <strong>{usuario.rol}</strong>. Lo que cambies aquí
-                es una excepción <em>solo para esta persona</em>: queda marcada en ámbar y se puede deshacer.
-                Si el rol gana pantallas nuevas más adelante, esta persona también las recibe.
-              </p>
+              {/* Arriba del todo: qué ve esta persona con lo que hay
+                  marcado. Es la pregunta que uno viene a responder. */}
+              <VistaPreviaMenu permisos={permisosEnPantalla} nombre={usuario.nombre.split(" ")[0]} />
 
               {modulos.map(({ modulo, permisos }) => (
                 <div key={modulo}>

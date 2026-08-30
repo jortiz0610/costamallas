@@ -2,15 +2,11 @@
 // COSTAMALLAS ERP — Tipos globales TypeScript
 // ============================================================
 
-export type Rol =
-  | "SUPERADMIN"
-  | "ADMIN"
-  | "USUARIO"
-  | "VENDEDOR"
-  | "PRODUCCION"
-  | "BODEGA"
-  | "SOLO_LECTURA"
-  | "CLIENTE";
+// La lista viva está en `lib/permisos.ts` (con cuáles son asignables y
+// cuáles quedaron retirados). Aquí se reexporta para no tener el mismo
+// tipo escrito en dos sitios, que fue como se desincronizó antes.
+import type { Rol } from "@/lib/permisos";
+export type { Rol };
 
 export type TipoProducto = "SIMPLE" | "VARIABLE" | "AGRUPADO" | "EXTERNO";
 
@@ -64,28 +60,15 @@ export interface UsuarioDTO {
   /// el navegador no puede calcularlos solo porque las excepciones
   /// viven en la base de datos.
   permisos?: string[];
-  /// Solo con el modo prueba activo: el rol de verdad de la sesión.
-  rolReal?: Rol;
-  rolPrueba?: boolean;
 }
 
 export interface JWTPayload {
   sub: string;
   email: string;
   nombre: string;
-  /** El rol con el que se está navegando. En modo prueba NO es el del
-   *  token: es el que el superadministrador se puso encima. */
   rol: Rol;
   iat?: number;
   exp?: number;
-
-  // ── "Ver el portal como…" ──
-  // Estos dos NO viajan en el token: los agrega getUserFromRequest al
-  // leer la cookie. Así probarse un rol no obliga a reemitir la sesión.
-  /** El rol de verdad. Solo aparece con el modo prueba activo. */
-  rolReal?: Rol;
-  /** true = está viendo el portal como otro rol, y NADA se guarda. */
-  rolPrueba?: boolean;
 }
 
 // ── Producto ──────────────────────────────────

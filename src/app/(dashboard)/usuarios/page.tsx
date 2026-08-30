@@ -84,18 +84,33 @@ function Modal2FA({ usuario, onClose, onSaved }: { usuario: Usuario; onClose: ()
   );
 }
 
+/**
+ * Los roles que se pueden asignar hoy.
+ *
+ * Bodega, Usuario y Solo lectura se retiraron el 29-ago: ya no se
+ * ofrecen. Los de abajo (RETIRADOS) siguen existiendo solo para poder
+ * PINTAR a quien todavía los tiene puesto — hay dos personas en Solo
+ * lectura — mientras gerencia decide a qué rol pasarlas.
+ */
 const ROLES = [
   { v: "SUPERADMIN",   l: "SuperAdmin",   color: "#0f172a", bg: "#f1f5f9",  desc: "Acceso total al sistema" },
-  { v: "ADMIN",        l: "Admin",        color: "#1e40af", bg: "#dbeafe",  desc: "Todo excepto gestión de usuarios" },
-  { v: "VENDEDOR",     l: "Vendedor",     color: "#92400e", bg: "#fef3c7",  desc: "CRM, cotizaciones, pedidos" },
-  { v: "PRODUCCION",   l: "Producción",   color: "#1d4ed8", bg: "#dbeafe",  desc: "Ver y gestionar producción" },
-  { v: "BODEGA",       l: "Bodega",       color: "#065f46", bg: "#d1fae5",  desc: "Stock y despachos" },
-  { v: "USUARIO",      l: "Usuario",      color: "#374151", bg: "#f3f4f6",  desc: "Acceso general limitado" },
-  { v: "SOLO_LECTURA", l: "Solo lectura", color: "#6b7280", bg: "#f9fafb",  desc: "Solo visualización" },
+  { v: "ADMIN",        l: "Admin",        color: "#1e40af", bg: "#dbeafe",  desc: "Todo menos conexiones externas y SEO con IA" },
+  { v: "MARKETING",    l: "Marketing",    color: "#9d174d", bg: "#fce7f3",  desc: "Campañas, atribución y retorno" },
+  { v: "VENDEDOR",     l: "Vendedor",     color: "#92400e", bg: "#fef3c7",  desc: "Su ciclo comercial completo" },
+  { v: "PRODUCCION",   l: "Producción",   color: "#1d4ed8", bg: "#dbeafe",  desc: "Fabricación, trabajos e instalaciones" },
 ];
 
+const ROLES_RETIRADOS_UI = [
+  { v: "BODEGA",       l: "Bodega (retirado)",       color: "#065f46", bg: "#d1fae5",  desc: "Ya no se asigna" },
+  { v: "USUARIO",      l: "Usuario (retirado)",      color: "#374151", bg: "#f3f4f6",  desc: "Ya no se asigna" },
+  { v: "SOLO_LECTURA", l: "Solo lectura (retirado)", color: "#6b7280", bg: "#f9fafb",  desc: "Ya no se asigna" },
+];
+
+/** Para pintar: incluye los retirados. Para ELEGIR se usa `ROLES`. */
+const TODOS_LOS_ROLES = [...ROLES, ...ROLES_RETIRADOS_UI];
+
 function RolBadge({ rol }: { rol: string }) {
-  const r = ROLES.find(r => r.v === rol);
+  const r = TODOS_LOS_ROLES.find(r => r.v === rol);
   return (
     <span className="text-[11px] font-bold px-2.5 py-1 rounded-full"
       style={{ backgroundColor: r?.bg ?? "#f3f4f6", color: r?.color ?? "#6b7280" }}>
@@ -145,7 +160,7 @@ function ModalUsuario({ usuario, onClose, onSaved }: {
     finally { setSaving(false); }
   };
 
-  const rolActual = ROLES.find(r => r.v === form.rol);
+  const rolActual = TODOS_LOS_ROLES.find(r => r.v === form.rol);
 
   return (
     <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -357,7 +372,7 @@ function UsuariosContent() {
                 <p className="text-xs text-gray-400">Cargando...</p>
               </div>
             ) : usuarios.map(u => {
-              const rolMeta = ROLES.find(r => r.v === u.rol);
+              const rolMeta = TODOS_LOS_ROLES.find(r => r.v === u.rol);
               const protegido = u.rol === "SUPERADMIN" && !soySuper; // admin no edita superadmin
               return (
                 <div key={u.id} className={`flex items-center gap-4 px-5 py-4 hover:bg-gray-50 dark:hover:bg-slate-800/40 transition-colors ${!u.activo ? "opacity-40" : ""}`}>

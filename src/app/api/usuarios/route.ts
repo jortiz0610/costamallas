@@ -11,7 +11,7 @@ const createSchema = z.object({
   nombre: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(8, "Mínimo 8 caracteres"),
-  rol: z.enum(["SUPERADMIN","ADMIN","USUARIO","VENDEDOR","PRODUCCION","BODEGA","SOLO_LECTURA"]),
+  rol: z.enum(["SUPERADMIN","ADMIN","MARKETING","VENDEDOR","PRODUCCION"]),
   activo: z.boolean().default(true),
   // Sale en la cotización y es el número del botón de WhatsApp que ve el
   // cliente en la oferta.

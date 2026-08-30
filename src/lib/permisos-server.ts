@@ -34,20 +34,8 @@ export async function excepcionesDe(usuarioId: string): Promise<ExcepcionesPermi
   return Object.fromEntries(filas.map(f => [f.clave, f.permitido]));
 }
 
-/**
- * Lo que esta persona puede, de verdad.
- *
- * `rolPrueba` (el superadministrador viéndose como otro rol) usa SOLO el
- * juego por defecto del rol: las excepciones son ajustes personales de
- * otra gente, y mezclarlas mostraría un portal que no le corresponde a
- * nadie.
- */
-export async function permisosDe(
-  usuarioId: string,
-  rol: string,
-  rolPrueba = false,
-): Promise<Set<string>> {
-  if (rolPrueba) return permisosEfectivos(rol);
+/** Lo que esta persona puede, de verdad: su rol más sus excepciones. */
+export async function permisosDe(usuarioId: string, rol: string): Promise<Set<string>> {
   return permisosEfectivos(rol, await excepcionesDe(usuarioId));
 }
 
@@ -58,7 +46,6 @@ export function usuarioDeCabeceras(req: NextRequest | Request) {
     id: h.get("x-user-id") ?? "",
     email: h.get("x-user-email") ?? "",
     rol: h.get("x-user-rol") ?? "",
-    rolPrueba: h.get("x-rol-prueba") === "1",
   };
 }
 
@@ -69,7 +56,7 @@ export async function peticionPuede(
 ): Promise<boolean> {
   const u = usuarioDeCabeceras(req);
   if (!u.id || !u.rol) return false;
-  return (await permisosDe(u.id, u.rol, u.rolPrueba)).has(clave);
+  return (await permisosDe(u.id, u.rol)).has(clave);
 }
 
 /**

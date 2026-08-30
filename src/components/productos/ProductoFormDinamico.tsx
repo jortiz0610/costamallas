@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, createContext, useContext } from "react";
 import { GrupoBloques } from "./Bloques";
 import { ProgresoProducto, calcularPasos } from "./ProgresoProducto";
 import { Save, Loader2, Plus, Trash2, Check, X, Star, Upload, ImageIcon, Sparkles, FileText, Tag as TagIcon } from "lucide-react";
@@ -10,9 +10,33 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
+import { ParaElCliente } from "@/components/productos/ParaElCliente";
 
 type FD = Record<string, unknown>;
 interface Props { initialData?: FD; productoId?: string; modo: "crear" | "editar"; }
+
+/**
+ * Modo consulta.
+ *
+ * Quien no tiene `erp.productos.editar` ve la ficha COMPLETA —era lo que
+ * pedía el equipo comercial: el catálogo entero, no un resumen— pero con
+ * los campos apagados. La excepción es el STOCK, que sí puede corregir
+ * cuando entra o sale material.
+ *
+ * Va por contexto y no por prop porque los campos están repartidos en
+ * cuarenta sitios del formulario, incluidas las fichas técnicas por
+ * categoría: pasarlo a mano garantizaba olvidarse de alguno, y un campo
+ * olvidado aquí es un campo editable que no debería serlo.
+ *
+ * ⚠️ Esto es presentación. Lo que de verdad impide guardar es la lista
+ * blanca de campos de `api/productos/[id]`.
+ */
+const SoloLectura = createContext(false);
+
+/** Envuelve un trozo que SÍ se puede tocar aunque el resto esté apagado. */
+function Editable({ children }: { children: React.ReactNode }) {
+  return <SoloLectura.Provider value={false}>{children}</SoloLectura.Provider>;
+}
 
 // ─── Categorías con ficha técnica ────────────────────────────
 const CATS = [
@@ -69,11 +93,12 @@ function SInput({ label, value, onChange, placeholder, type = "text", step, hint
   label: string; value: string; onChange: (v: string) => void; placeholder?: string;
   type?: string; step?: string; hint?: string; mono?: boolean;
 }) {
+  const bloqueado = useContext(SoloLectura);
   return (
     <FieldWrap label={label} hint={hint}>
       <input type={type} step={step} value={value} onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        className={`input ${mono ? "font-mono text-[13px]" : ""}`} />
+        placeholder={placeholder} disabled={bloqueado}
+        className={`input ${mono ? "font-mono text-[13px]" : ""} ${bloqueado ? "opacity-70 cursor-default" : ""}`} />
     </FieldWrap>
   );
 }
@@ -81,9 +106,11 @@ function SInput({ label, value, onChange, placeholder, type = "text", step, hint
 function SSelect({ label, value, onChange, opts, hint }: {
   label: string; value: string; onChange: (v: string) => void; opts: [string, string][]; hint?: string;
 }) {
+  const bloqueado = useContext(SoloLectura);
   return (
     <FieldWrap label={label} hint={hint}>
-      <select className="input" value={value} onChange={e => onChange(e.target.value)}>
+      <select className={`input ${bloqueado ? "opacity-70 cursor-default" : ""}`} value={value}
+        onChange={e => onChange(e.target.value)} disabled={bloqueado}>
         <option value="">— Seleccionar</option>
         {opts.map(([k, v]) => <option key={k} value={k}>{v}</option>)}
       </select>
@@ -94,11 +121,12 @@ function SSelect({ label, value, onChange, opts, hint }: {
 function STextarea({ label, value, onChange, rows = 3, placeholder }: {
   label: string; value: string; onChange: (v: string) => void; rows?: number; placeholder?: string;
 }) {
+  const bloqueado = useContext(SoloLectura);
   return (
     <FieldWrap label={label}>
       <textarea rows={rows} value={value} onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="input resize-none" />
+        placeholder={placeholder} disabled={bloqueado}
+        className={`input resize-none ${bloqueado ? "opacity-70 cursor-default" : ""}`} />
     </FieldWrap>
   );
 }
@@ -106,9 +134,10 @@ function STextarea({ label, value, onChange, rows = 3, placeholder }: {
 function SToggle({ label, desc, checked, onChange }: {
   label: string; desc?: string; checked: boolean; onChange: (v: boolean) => void;
 }) {
+  const bloqueado = useContext(SoloLectura);
   return (
-    <button type="button" onClick={() => onChange(!checked)}
-      className="flex items-center gap-3 w-full text-left py-2 group">
+    <button type="button" onClick={() => !bloqueado && onChange(!checked)} disabled={bloqueado}
+      className={`flex items-center gap-3 w-full text-left py-2 group ${bloqueado ? "opacity-70 cursor-default" : ""}`}>
       <div className={`w-10 h-5 rounded-full transition-colors duration-200 flex-shrink-0 relative ${checked ? "bg-[#FFCC00]" : "bg-gray-200"}`}>
         <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${checked ? "translate-x-5" : "translate-x-0.5"}`} />
       </div>
@@ -1113,7 +1142,7 @@ const TABS = [
   { id: "seo",         label: "SEO" },
   { id: "ia",          label: "Asistente IA" },
 ] as const;
-type TabId = typeof TABS[number]["id"] | "ficha";
+type TabId = typeof TABS[number]["id"] | "ficha" | "cliente";
 
 interface AcfImagen { id: string; productoId: string; urlImagen: string; altText: string | null; esPrincipal: boolean; posicion: number; }
 
@@ -1256,7 +1285,12 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
   // las ve; si tenía una abierta, cae de vuelta en "Producto".
   const { puedeVer } = useAuth();
   const puedeIA = puedeVer("erp.productos.ia");
-  const tabsVisibles = puedeIA ? TABS : TABS.filter(t => t.id !== "seo" && t.id !== "ia");
+  const puedeEditar = puedeVer("erp.productos.editar");
+
+  const TABS_MAS_CLIENTE = [...TABS, { id: "cliente", label: "Para el cliente" } as const];
+  const tabsVisibles = puedeIA
+    ? TABS_MAS_CLIENTE
+    : TABS_MAS_CLIENTE.filter(t => t.id !== "seo" && t.id !== "ia");
   const tabActual: TabId = !puedeIA && ["seo", "ia"].includes(tab) ? "producto" : tab;
 
   // Solo el conteo, para la guía de completitud. Comparte queryKey con
@@ -1354,14 +1388,21 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
             </button>
           )}
         </div>
-        <button onClick={save} disabled={saving} className="btn-primary btn-sm ml-4 flex-shrink-0">
-          {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
-          {modo === "crear" ? "Crear producto" : "Guardar cambios"}
-        </button>
+        {/* Sin permiso de editar solo se guarda el stock, y eso tiene su
+            propio botón en la pestaña "Para el cliente". */}
+        {puedeEditar && (
+          <button onClick={save} disabled={saving} className="btn-primary btn-sm ml-4 flex-shrink-0">
+            {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+            {modo === "crear" ? "Crear producto" : "Guardar cambios"}
+          </button>
+        )}
       </div>
 
-      {/* ── Contenido de cada pestaña ── */}
-      <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+      {/* ── Contenido de cada pestaña ──
+          Todo el formulario va dentro del contexto de solo lectura: el
+          vendedor ve el catálogo COMPLETO, con los campos apagados. */}
+      <SoloLectura.Provider value={!puedeEditar}>
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50">
 
         {/* Guía de completitud. Se esconde sola cuando el producto ya
             existe y tiene todo lo obligatorio. */}
@@ -1417,7 +1458,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
                 { id: "servicios", titulo: "Servicios adicionales", contenido: (<>
                 <SToggle label="Fabricación a Medida" desc="Se puede fabricar según especificaciones del cliente" checked={Boolean(form.acfFabricacionMedida)} onChange={v => set("acfFabricacionMedida", v)} />
                 <SToggle label="Instalación Disponible" desc="Costamallas ofrece servicio de instalación para este producto" checked={Boolean(form.acfInstalacion)} onChange={v => set("acfInstalacion", v)} />
-                <SToggle label="No admite descuento" desc="Margen mínimo: el asesor no puede rebajarlo línea por línea. Sí entra en el descuento global de la oferta." checked={Boolean(form.sinDescuento)} onChange={v => set("sinDescuento", v)} />
+                <SToggle label="No admite descuento" desc="Margen mínimo: no se puede rebajar línea por línea. Sí entra en el descuento global de la oferta." checked={Boolean(form.sinDescuento)} onChange={v => set("sinDescuento", v)} />
                 </>) },
               ]}
             />
@@ -1573,7 +1614,23 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
           <AsistenteProducto productoId={productoId} form={form as Record<string, unknown>} set={set} />
         )}
 
+        {/* PESTAÑA: PARA EL CLIENTE
+            Lo que se hace de verdad con un producto abierto cuando hay
+            alguien esperando en el chat: mandárselo. Y corregir las
+            existencias, que es lo único que puede tocar quien no edita
+            el catálogo. */}
+        {tabActual === "cliente" && (
+          <Editable>
+            <ParaElCliente
+              productoId={productoId}
+              form={form as Record<string, unknown>}
+              puedeEditar={puedeEditar}
+            />
+          </Editable>
+        )}
+
       </div>
+      </SoloLectura.Provider>
     </div>
   );
 }

@@ -56,7 +56,7 @@ interface Seguimiento {
 
 const TITULOS: Record<number, string> = {
   1: "Confirmar que le llegó",
-  2: "Llamada del asesor",
+  2: "Tu llamada",
   3: "Aviso de vencimiento",
 };
 

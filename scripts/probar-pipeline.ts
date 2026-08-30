@@ -42,8 +42,12 @@ async function main() {
     ETAPAS.map(e => e.v).join(","));
   comprobar("todas dicen qué significan", ETAPAS.every(e => e.descripcion.length > 10));
   comprobar("todas dicen quién actúa", ETAPAS.every(e => e.actua.length > 0));
-  comprobar("la única donde actúa el vendedor es 'Para llamar'",
-    ETAPAS.filter(e => e.actua === "El vendedor").map(e => e.v).join(",") === "PARA_LLAMAR");
+  // Los textos pasaron a SEGUNDA persona el 29-ago: quien los lee es el
+  // vendedor, así que dicen "Tú", no "El vendedor".
+  comprobar("la única donde le toca a quien vende es 'Para llamar'",
+    ETAPAS.filter(e => e.actua === "Tú").map(e => e.v).join(",") === "PARA_LLAMAR");
+  comprobar("ninguna etapa habla del vendedor en tercera persona",
+    ETAPAS.every(e => !/el vendedor|al vendedor|del vendedor/i.test(e.descripcion + e.actua)));
   comprobar("solo 'Vencidas' nace plegada",
     ETAPAS.filter(e => e.ocultaPorDefecto).map(e => e.v).join(",") === "VENCIDAS");
   comprobar("el índice por clave cubre las siete",

@@ -7,7 +7,7 @@ import {
   ShoppingCart, Wrench, Kanban, ChevronDown, ShieldCheck, BarChart2,
   MessageSquare, Truck, CheckSquare, MessageSquareText, Zap,
   Megaphone, Target, TrendingUp, Radio, Receipt, PieChart, Star, Timer,
-  Sparkles, HardHat, PanelLeftClose, PanelLeftOpen,
+  Sparkles, HardHat, PanelLeftClose, PanelLeftOpen, MessagesSquare,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -71,6 +71,7 @@ const CRM_ITEMS = [
 
 const NEXUS_ITEMS = [
   { href: "/nexus", label: "Inbox", icon: MessageSquare, alertKey: "nexus", perm: "nexus.inbox" },
+  { href: "/nexus/interno", label: "Chat del equipo", icon: MessagesSquare, alertKey: "interno", perm: "nexus.interno" },
   { href: "/nexus/plantillas", label: "Plantillas", icon: MessageSquareText, perm: "nexus.plantillas" },
   { href: "/nexus/flujos", label: "Flujos & Automatización", icon: Zap, perm: "nexus.flujos" },
   { href: "/nexus/tiempos", label: "Tiempo de respuesta", icon: Timer, perm: "nexus.tiempos" },
@@ -114,6 +115,8 @@ interface SidebarProps {
   nexusSinLeer?: number;
   /** Visitas técnicas y documentos SG-SST esperando al coordinador. */
   trabajosPendientes?: number;
+  /** Mensajes sin leer del chat del equipo. */
+  internoSinLeer?: number;
 }
 
 export function Sidebar({
@@ -122,6 +125,7 @@ export function Sidebar({
   crmPendientes = 0,
   nexusSinLeer = 0,
   trabajosPendientes = 0,
+  internoSinLeer = 0,
 }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout, permisos } = useAuth();
@@ -150,6 +154,7 @@ export function Sidebar({
     errores: erroresPendientes,
     nexus: nexusSinLeer,
     trabajos: trabajosPendientes,
+    interno: internoSinLeer,
   };
 
   const navItems =

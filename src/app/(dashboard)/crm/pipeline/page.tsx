@@ -22,6 +22,7 @@ import {
 import Link from "next/link";
 import { formatCOP, formatDate, cn } from "@/lib/utils";
 import toast from "react-hot-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { PipelineComercial } from "@/components/crm/PipelineComercial";
 
 const CRM_COLOR = "#BA7517";
@@ -69,7 +70,20 @@ const av = (n: string) => AV[n.charCodeAt(0) % AV.length];
 const diasDesde = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
 
 function PipelineContent() {
-  const [vista, setVista] = useState<"comercial" | "produccion">("comercial");
+  // Quién ve cuál. Un vendedor no ve el tablero de PRODUCCIÓN: no le
+  // dice nada del negocio que está cerrando, y encima invita a mover
+  // tarjetas de un proceso que no controla. Producción, al revés, no ve
+  // el comercial. Los dos permisos son configurables persona a persona,
+  // así que si un vendedor necesita mirar fabricación se le activa.
+  const { puedeVer } = useAuth();
+  const verComercial = puedeVer("crm.pipeline");
+  const verProduccion = puedeVer("crm.pipeline_produccion");
+  const [vista, setVista] = useState<"comercial" | "produccion">(
+    verComercial ? "comercial" : "produccion",
+  );
+  const vistaActual = vista === "produccion" && !verProduccion ? "comercial"
+    : vista === "comercial" && !verComercial ? "produccion"
+    : vista;
   const qc = useQueryClient();
   const [refrescando, setRefrescando] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -133,28 +147,32 @@ function PipelineContent() {
 
   return (
     <>
-      <Topbar title="Pipeline" actions={
+      <Topbar title={verComercial ? "Pipeline" : "Pipeline de producción"} actions={
         <div className="flex items-center gap-2">
           {/* Dos tableros distintos y los dos hacen falta: el COMERCIAL
               sigue la oferta hasta que se cierra, y el de PRODUCCION
               sigue el pedido hasta que se entrega. Meterlos en uno solo
               obligaria a una tarjeta a estar en dos columnas. */}
-          <div className="flex rounded-xl p-0.5 gap-0.5" style={{ backgroundColor: "var(--surface-3)" }}>
-            {([["comercial", "Comercial"], ["produccion", "Produccion"]] as const).map(([k, l]) => (
-              <button key={k} onClick={() => setVista(k)}
-                className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
-                style={vista === k ? { backgroundColor: CRM_COLOR, color: "white" } : { color: "var(--text-muted)" }}>
-                {l}
-              </button>
-            ))}
-          </div>
+          {/* El selector solo aparece si de verdad hay dos tableros que
+              elegir. Con uno solo es un botón que no hace nada. */}
+          {verComercial && verProduccion && (
+            <div className="flex rounded-xl p-0.5 gap-0.5" style={{ backgroundColor: "var(--surface-3)" }}>
+              {([["comercial", "Comercial"], ["produccion", "Producción"]] as const).map(([k, l]) => (
+                <button key={k} onClick={() => setVista(k)}
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                  style={vistaActual === k ? { backgroundColor: CRM_COLOR, color: "white" } : { color: "var(--text-muted)" }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          )}
           <button onClick={refrescar} className="btn-secondary btn-sm">
             <RefreshCw size={13} className={refrescando ? "animate-spin" : ""} /> Actualizar
           </button>
         </div>
       } />
 
-      {vista === "comercial" ? (
+      {vistaActual === "comercial" ? (
         <div className="flex-1 overflow-y-auto page-bg p-5">
           <PipelineComercial />
         </div>

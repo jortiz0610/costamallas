@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { RolPrueba } from "@/components/layout/RolPrueba";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageCircle, X, Bell, AlertTriangle, CheckCircle, Info, Package } from "lucide-react";
 import type { NotificacionDTO } from "@/types";
@@ -10,6 +9,7 @@ import { Sembli } from "@/components/layout/Sembli";
 import { PWA } from "@/components/layout/PWA";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { GuardiaRuta } from "@/components/layout/GuardiaRuta";
+import { useFlotantesEstorban } from "@/components/layout/BotonesFlotantes";
 import { useAuth } from "@/hooks/useAuth";
 import { modulosVisibles } from "@/lib/permisos";
 import { useBrand } from "@/contexts/BrandContext";
@@ -91,10 +91,12 @@ function NotifToastManager() {
 
 function SupportButton() {
   const [open, setOpen] = useState(false);
+  // En un chat, este botón caía justo sobre el de enviar.
+  const estorba = useFlotantesEstorban();
   return (
     <>
       <button onClick={() => setOpen(true)}
-        className="fixed bottom-[84px] lg:bottom-7 right-5 lg:right-24 z-40 w-11 h-11 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 surface border divider"
+        className={`${estorba ? "hidden lg:flex" : "flex"} fixed bottom-[84px] lg:bottom-7 right-5 lg:right-24 z-40 w-11 h-11 rounded-full shadow-lg items-center justify-center transition-all hover:scale-110 surface border divider`}
         title="Soporte">
         <MessageCircle size={18} style={{ color: "var(--brand-color)" }} />
       </button>
@@ -172,6 +174,20 @@ function ShellInner({ children }: { children: React.ReactNode }) {
     refetchInterval: 30_000,
   });
 
+  // El chat del equipo. Si la persona no tiene el permiso, el endpoint
+  // devuelve 403 y aquí se traduce a cero: no hace falta preguntarle a
+  // los permisos antes, y así el badge no parpadea en la primera carga.
+  const { data: internoData } = useQuery({
+    queryKey: ["nexus-interno-noleidas"],
+    queryFn: async () => {
+      const res = await fetch("/api/nexus/interno");
+      if (!res.ok) return { sinLeerTotal: 0 };
+      return (await res.json()).data ?? { sinLeerTotal: 0 };
+    },
+    refetchInterval: 20_000,
+    retry: false,
+  });
+
   return (
     <div className="flex h-screen overflow-hidden page-bg">
       <ModuloDeArranque />
@@ -183,13 +199,10 @@ function ShellInner({ children }: { children: React.ReactNode }) {
           stockCriticos={data?.stock?.criticos ?? 0}
           erroresPendientes={data?.woocommerce?.erroresPendientes ?? 0}
           nexusSinLeer={nexusData?.noLeidas ?? 0}
+          internoSinLeer={internoData?.sinLeerTotal ?? 0}
         />
       </div>
       <main className="flex-1 flex flex-col overflow-hidden pb-16 lg:pb-0">
-        {/* Va arriba de todo y ocupa el ancho completo: el fallo probable
-            de "ver como…" no es que no funcione, es olvidarse el modo
-            puesto y creer que el portal está roto. */}
-        <RolPrueba />
         <GuardiaRuta>{children}</GuardiaRuta>
       </main>
       <MobileNav />

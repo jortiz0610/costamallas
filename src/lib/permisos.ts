@@ -20,12 +20,30 @@
 export type Rol =
   | "SUPERADMIN"
   | "ADMIN"
-  | "USUARIO"
+  | "MARKETING"
   | "VENDEDOR"
   | "PRODUCCION"
+  | "CLIENTE" // login del cliente final: solo su propia información
+  // ── Retirados (29-ago) ──
+  // Siguen en el tipo y en el enum de la base porque HAY GENTE con ellos
+  // puestos: quitarlos del enum sería DDL destructivo sobre la única base
+  // que existe, y borrarlos del código dejaría a esas personas sin
+  // permisos de un día para otro. No se ofrecen al crear un usuario y no
+  // salen en el panel de roles; quien ya los tiene sigue viendo lo mismo
+  // que veía. Ver PENDIENTES §17.
+  | "USUARIO"
   | "BODEGA"
-  | "SOLO_LECTURA"
-  | "CLIENTE"; // login del cliente final: solo su propia información
+  | "SOLO_LECTURA";
+
+/** Los roles que se pueden asignar hoy. El orden es el del organigrama. */
+export const ROLES_ASIGNABLES: Rol[] = [
+  "SUPERADMIN", "ADMIN", "MARKETING", "VENDEDOR", "PRODUCCION",
+];
+
+/** Los que ya no se asignan pero siguen funcionando para quien los tiene. */
+export const ROLES_RETIRADOS: Rol[] = ["USUARIO", "BODEGA", "SOLO_LECTURA"];
+
+export const esRolRetirado = (rol?: string) => ROLES_RETIRADOS.includes(rol as Rol);
 
 export const esSuperadmin = (rol?: string) => rol === "SUPERADMIN";
 export const esAdmin = (rol?: string) => rol === "ADMIN" || rol === "SUPERADMIN";
@@ -103,7 +121,8 @@ export const PERMISOS: Permiso[] = [
   { clave: "crm.clientes", modulo: "CRM", tipo: "vista", label: "Clientes", ayuda: "Fichas de clientes y empresas." },
   { clave: "crm.cotizaciones", modulo: "CRM", tipo: "vista", label: "Cotizaciones", ayuda: "Crear, editar y enviar ofertas." },
   { clave: "crm.pedidos", modulo: "CRM", tipo: "vista", label: "Pedidos", ayuda: "Los pedidos en curso." },
-  { clave: "crm.pipeline", modulo: "CRM", tipo: "vista", label: "Pipeline", ayuda: "El embudo operativo, cotización por cotización." },
+  { clave: "crm.pipeline", modulo: "CRM", tipo: "vista", label: "Pipeline comercial", ayuda: "Tus ofertas, etapa por etapa: enviada, para llamar, por vencer." },
+  { clave: "crm.pipeline_produccion", modulo: "CRM", tipo: "vista", label: "Pipeline de producción", ayuda: "El tablero de pedidos en fabricación. Normalmente no le sirve a quien vende, pero se puede activar." },
   { clave: "crm.instalaciones", modulo: "CRM", tipo: "vista", label: "Instalaciones", ayuda: "Calendario y seguimiento de las visitas." },
   { clave: "crm.trabajos", modulo: "CRM", tipo: "vista", label: "Trabajos de producción", ayuda: "La bandeja del coordinador: visitas técnicas solicitadas y documentos SG-SST." },
   { clave: "crm.embudo", modulo: "CRM", tipo: "vista", label: "Embudo", ayuda: "El análisis comercial agregado, con las cifras de todo el equipo." },
@@ -113,7 +132,9 @@ export const PERMISOS: Permiso[] = [
   { clave: "crm.cotizaciones.prueba", modulo: "CRM", tipo: "accion", label: "Cotizaciones de prueba", ayuda: "Crear ofertas marcadas como prueba, que no gastan consecutivo ni entran en informes." },
 
   // ── NEXUS ──
-  { clave: "nexus.inbox", modulo: "NEXUS", tipo: "vista", label: "Inbox", ayuda: "La bandeja de conversaciones." },
+  { clave: "nexus.inbox", modulo: "NEXUS", tipo: "vista", label: "Inbox", ayuda: "La bandeja de conversaciones con clientes." },
+  { clave: "nexus.interno", modulo: "NEXUS", tipo: "vista", label: "Chat interno", ayuda: "Hablar con el equipo dentro del portal. No lo ve ningún cliente." },
+  { clave: "nexus.ia", modulo: "NEXUS", tipo: "accion", label: "Asistente IA en el chat", ayuda: "Pedirle ayuda a la IA para redactar una respuesta. Cada uso cuesta dinero, así que se activa persona por persona." },
   { clave: "nexus.plantillas", modulo: "NEXUS", tipo: "vista", label: "Plantillas", ayuda: "Los textos preescritos de respuesta." },
   { clave: "nexus.flujos", modulo: "NEXUS", tipo: "vista", label: "Flujos y automatización", ayuda: "Las reglas que responden solas." },
   { clave: "nexus.tiempos", modulo: "NEXUS", tipo: "vista", label: "Tiempo de respuesta", ayuda: "El informe de cuánto se tarda el equipo en contestar." },
@@ -147,19 +168,47 @@ export const TODAS_LAS_CLAVES = PERMISOS.map(p => p.clave);
 const VENDEDOR_POR_DEFECTO = [
   // ERP: lo que necesita para vender, y nada de la trastienda.
   "erp.dashboard", "erp.productos", "erp.imagenes", "erp.stock",
-  // CRM: todo su ciclo comercial. Sin embudo (son las cifras del equipo)
-  // ni postventa (es de administración).
+  // CRM: todo su ciclo comercial. Sin embudo (son las cifras del equipo),
+  // sin postventa (es de administración) y sin el pipeline de PRODUCCIÓN:
+  // el tablero de fabricación no le dice nada a quien vende, y encima
+  // invita a mover tarjetas de un proceso que no controla. Si en algún
+  // momento hace falta, se le activa a esa persona sin tocar el rol.
   "crm.resumen", "crm.clientes", "crm.cotizaciones", "crm.pedidos",
   "crm.pipeline", "crm.instalaciones",
-  // Nexus: la bandeja y punto.
-  "nexus.inbox",
+  // Nexus: la bandeja de clientes y el chat con el equipo. El
+  // asistente de IA viene ENCENDIDO porque ya lo estaba usando; el
+  // administrador puede apagarlo persona por persona si se dispara el
+  // gasto.
+  "nexus.inbox", "nexus.interno", "nexus.ia",
 ];
 
 const PRODUCCION_POR_DEFECTO = [
-  "erp.dashboard", "erp.productos", "erp.imagenes", "erp.stock", "erp.catalogos",
-  "crm.resumen", "crm.pedidos", "crm.pipeline", "crm.instalaciones", "crm.trabajos",
+  // ERP: exactamente lo mismo que el vendedor. Consulta el catálogo y
+  // corrige existencias cuando entra o sale material; nada más.
+  "erp.dashboard", "erp.productos", "erp.imagenes", "erp.stock",
+  // CRM: solo lo suyo — el tablero de fabricación, sus trabajos y las
+  // instalaciones. No ve clientes, ni cotizaciones, ni el pipeline
+  // comercial: no son su trabajo y contienen precios y márgenes.
+  "crm.pipeline_produccion", "crm.trabajos", "crm.instalaciones",
+  // Ve las obras de TODO el equipo: un trabajo no "es suyo" por
+  // vendedorId, así que sin esto la bandeja del coordinador sale vacía.
   "crm.ver_todo",
-  "nexus.inbox",
+  // Nexus: SOLO el chat interno. La bandeja de clientes es del área
+  // comercial; producción habla con el equipo, no con el cliente.
+  "nexus.interno",
+];
+
+/**
+ * Marketing.
+ *
+ * Vive de las cifras: sus campañas, de dónde llegó cada lead y qué se
+ * cerró. Necesita el embudo y la lista de clientes para segmentar, pero
+ * no toca ofertas ni pedidos.
+ */
+const MARKETING_POR_DEFECTO = [
+  "mkt.dashboard", "mkt.campanas", "mkt.atribucion", "mkt.retorno", "mkt.reportes",
+  "crm.embudo", "crm.clientes", "crm.ver_todo",
+  "nexus.interno",
 ];
 
 const BODEGA_POR_DEFECTO = [
@@ -192,12 +241,16 @@ const SOLO_LECTURA_POR_DEFECTO = PERMISOS
 export const PERMISOS_POR_ROL: Record<string, string[]> = {
   SUPERADMIN: TODAS_LAS_CLAVES,
   ADMIN: ADMIN_POR_DEFECTO,
+  MARKETING: MARKETING_POR_DEFECTO,
   VENDEDOR: VENDEDOR_POR_DEFECTO,
   PRODUCCION: PRODUCCION_POR_DEFECTO,
+  CLIENTE: [], // no entra al portal interno
+
+  // Retirados: se conservan tal cual estaban para no cambiarle el portal
+  // de un día para otro a quien los tenga puestos.
   BODEGA: BODEGA_POR_DEFECTO,
   USUARIO: USUARIO_POR_DEFECTO,
   SOLO_LECTURA: SOLO_LECTURA_POR_DEFECTO,
-  CLIENTE: [], // no entra al portal interno
 };
 
 // ─────────────────────────────────────────────
@@ -317,7 +370,11 @@ export const RUTAS_PROTEGIDAS: Record<string, string> = {
   "/crm/cotizaciones": "crm.cotizaciones",
   "/crm/cotizador": "crm.cotizaciones",
   "/crm/pedidos": "crm.pedidos",
-  "/crm/pipeline": "crm.pipeline",
+  // Una sola pantalla con dos pestañas: el comercial y el de
+  // producción. Basta con tener UNA de las dos para entrar; qué pestaña
+  // se ve lo decide la pantalla.
+  "/crm/pipeline": "crm.pipeline|crm.pipeline_produccion",
+  "/nexus/interno": "nexus.interno",
   "/crm/instalaciones": "crm.instalaciones",
   "/crm/trabajos": "crm.trabajos",
   "/crm/embudo": "crm.embudo",
@@ -339,6 +396,17 @@ export const RUTAS_PROTEGIDAS: Record<string, string> = {
   "/sistema/seguridad": "sistema.seguridad",
   "/configuracion": "sistema.configuracion",
 };
+
+/**
+ * ¿Estos permisos cumplen lo que pide una ruta?
+ *
+ * Una ruta puede pedir varios separados por `|`: basta con tener uno.
+ * Es para las pantallas que agrupan dos cosas en pestañas.
+ */
+export function cumplePermisoDeRuta(permisos: Set<string> | string[], exigido: string): boolean {
+  const set = permisos instanceof Set ? permisos : new Set(permisos);
+  return exigido.split("|").some(c => set.has(c.trim()));
+}
 
 /** Qué permiso hace falta para esta URL, o `null` si no exige ninguno. */
 export function permisoDeRuta(pathname: string): string | null {

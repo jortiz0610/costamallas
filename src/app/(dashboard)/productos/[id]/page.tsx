@@ -8,7 +8,6 @@ import { Trash2, ArrowLeft, Loader2, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import ProductoFormDinamico from "@/components/productos/ProductoFormDinamico";
-import { FichaVendedor } from "@/components/productos/FichaVendedor";
 import { useAuth } from "@/hooks/useAuth";
 
 async function fetchProducto(id: string) {
@@ -74,9 +73,7 @@ function ProductoDetallePage() {
           </div>
         }
       />
-      {puedeEditar
-        ? <ProductoFormDinamico modo="editar" productoId={id} initialData={producto} />
-        : <FichaVendedor productoId={id} producto={producto} />}
+      <ProductoFormDinamico modo="editar" productoId={id} initialData={producto} />
     </>
   );
 }

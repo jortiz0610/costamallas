@@ -44,6 +44,8 @@ model Usuario {
   nexusMensajes     NexusMensaje[]
   tareas            Tarea[]
   permisos          PermisoUsuario[]
+  chatsInternos     ChatInternoMiembro[]
+  mensajesInternos  ChatInternoMensaje[]
 
   @@index([email])
   @@index([clienteId])
@@ -80,12 +82,90 @@ model PermisoUsuario {
 enum Rol {
   SUPERADMIN
   ADMIN
-  USUARIO
+  MARKETING
   VENDEDOR
   PRODUCCION
+  CLIENTE // login del cliente final: solo su propia información
+
+  // Retirados el 29-ago. NO se borran del enum: quitar un valor de un
+  // enum de Postgres es DDL destructivo y falla si alguien lo tiene
+  // puesto — y hay dos personas activas en SOLO_LECTURA. Dejan de
+  // ofrecerse en el portal (lib/permisos.ts) y quien los tenga sigue
+  // viendo lo mismo. Ver PENDIENTES §17.
+  USUARIO
   BODEGA
   SOLO_LECTURA
-  CLIENTE // login del cliente final: solo su propia información
+}
+
+// ─────────────────────────────────────────────
+// CHAT INTERNO
+// ─────────────────────────────────────────────
+
+/// Hablar con el equipo dentro del portal.
+///
+/// Tablas propias y no una conexión más de Nexus: una conversación de
+/// Nexus tiene remitente, canal, cliente y un tiempo de respuesta
+/// comprometido. Un chat entre dos compañeros no tiene nada de eso, y
+/// meterlo ahí ensuciaría el informe de tiempos con conversaciones que
+/// no son de ningún cliente.
+model ChatInterno {
+  id     String  @id @default(cuid())
+  /// DIRECTO (dos personas) o GRUPO.
+  tipo   String  @default("DIRECTO")
+  /// Solo los grupos llevan nombre: un chat directo se nombra con la
+  /// otra persona, y eso depende de quién lo esté mirando.
+  nombre String?
+
+  creadoPorId String?
+
+  /// Se sella con cada mensaje para poder ordenar la lista sin mirar
+  /// dentro de cada chat.
+  ultimoMensajeEn DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  miembros ChatInternoMiembro[]
+  mensajes ChatInternoMensaje[]
+
+  @@index([ultimoMensajeEn])
+  @@map("chat_interno")
+}
+
+model ChatInternoMiembro {
+  id        String      @id @default(cuid())
+  chatId    String
+  chat      ChatInterno @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  usuarioId String
+  usuario   Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  /// Hasta dónde leyó ESTA persona. Es lo que decide el contador de sin
+  /// leer, y por eso va por miembro y no por chat.
+  ultimaLecturaEn DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([chatId, usuarioId])
+  @@index([usuarioId])
+  @@map("chat_interno_miembros")
+}
+
+model ChatInternoMensaje {
+  id        String      @id @default(cuid())
+  chatId    String
+  chat      ChatInterno @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  autorId   String
+  autor     Usuario     @relation(fields: [autorId], references: [id], onDelete: Cascade)
+
+  contenido  String  @db.Text
+  /// texto · imagen · archivo · audio
+  tipo       String  @default("texto")
+  adjuntoUrl String?
+
+  createdAt DateTime @default(now())
+
+  @@index([chatId, createdAt])
+  @@map("chat_interno_mensajes")
 }
 
 // ─────────────────────────────────────────────

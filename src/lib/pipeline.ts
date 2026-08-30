@@ -57,8 +57,8 @@ export const ETAPAS: MetaEtapa[] = [
   },
   {
     v: "PARA_LLAMAR", l: "Para llamar",
-    descripcion: "Le toca al vendedor. Márcala cuando hayas llamado.",
-    actua: "El vendedor", color: "#b45309", bg: "#fef3c7",
+    descripcion: "Te toca a ti. Márcala cuando hayas llamado.",
+    actua: "Tú", color: "#b45309", bg: "#fef3c7",
   },
   {
     v: "POR_VENCER", l: "Por vencer",

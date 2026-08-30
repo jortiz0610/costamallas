@@ -18,7 +18,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { permisoDeRuta, PERMISOS_POR_CLAVE } from "@/lib/permisos";
+import { permisoDeRuta, cumplePermisoDeRuta, PERMISOS_POR_CLAVE } from "@/lib/permisos";
 
 export function GuardiaRuta({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -29,9 +29,10 @@ export function GuardiaRuta({ children }: { children: React.ReactNode }) {
   // Sin sesión resuelta todavía no se decide nada: negar aquí pintaría un
   // "no tienes acceso" durante medio segundo en cada carga.
   if (!clave || isLoading || !user) return <>{children}</>;
-  if (permisos.has(clave)) return <>{children}</>;
+  if (cumplePermisoDeRuta(permisos, clave)) return <>{children}</>;
 
-  const meta = PERMISOS_POR_CLAVE[clave];
+  // Con varios permisos posibles se explica el primero: es el principal.
+  const meta = PERMISOS_POR_CLAVE[clave.split("|")[0]];
 
   return (
     <div className="flex-1 flex items-center justify-center p-8 page-bg">

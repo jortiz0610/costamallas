@@ -366,6 +366,38 @@ sin tocar código. Mientras tanto siguen saliendo con
 frente al cliente, no una avería.
 
 ---
+## 17. Dos personas en un rol que ya no existe ⚠️ nuevo
+
+**Qué pasó:** se retiraron los roles **Bodega**, **Usuario** y
+**Solo lectura**, y se creó **Marketing**. Dos personas activas estaban en
+Solo lectura:
+
+| Persona | Correo |
+|---------|--------|
+| RUBEN GONZALEZ | rubengenio@gmail.com |
+| Rodrigo Mejia | Rmejia77@gmail.com |
+
+**Qué se hizo mientras tanto:** nada que les cambie el portal. Su rol
+sigue existiendo por dentro y **siguen viendo exactamente lo mismo que
+veían**: todas las pantallas, sin poder tocar nada. Lo único que cambió es
+que ese rol ya no se ofrece al crear un usuario nuevo.
+
+No se les movió de rol por decisión propia: cualquier rol de los que
+quedan les daría permiso de ESCRIBIR, y eso es un cambio de acceso a dos
+personas concretas que no me corresponde decidir.
+
+**Qué necesito:** a qué rol pasan cada uno.
+
+| Si son… | Rol |
+|---------|-----|
+| Socios o directivos que solo consultan | **Administrador**, y se le quitan a mano las pantallas que no deban ver |
+| Alguien de mercadeo | **Marketing** |
+| Comerciales | **Vendedor** |
+
+Con el rol nuevo puesto, el botón de permisos de su fila permite quitarles
+cualquier pantalla puntual sin tocar el rol de los demás.
+
+---
 ## Lo que está bloqueado esperando otra cosa (no es pregunta de gerencia)
 
 | Qué | Qué falta |

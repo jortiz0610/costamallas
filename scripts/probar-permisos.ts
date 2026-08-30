@@ -149,8 +149,11 @@ async function main() {
 
   console.log("\n═══ 4. Las rutas ═══\n");
 
-  comprobar("toda ruta protegida apunta a una clave que existe",
-    Object.values(RUTAS_PROTEGIDAS).every(c => PERMISOS_POR_CLAVE[c]));
+  // Una ruta puede admitir VARIOS permisos separados por "|" (basta con
+  // tener uno): es el caso del pipeline, que es una pantalla con dos
+  // pestañas. Hay que comprobar cada parte, no la cadena entera.
+  comprobar("toda ruta protegida apunta a claves que existen",
+    Object.values(RUTAS_PROTEGIDAS).every(c => c.split("|").every(k => PERMISOS_POR_CLAVE[k.trim()])));
   comprobar("gana la coincidencia más larga: /facturacion/cartera → cartera",
     permisoDeRuta("/facturacion/cartera") === "erp.cartera");
   comprobar("/facturacion → facturación", permisoDeRuta("/facturacion") === "erp.facturacion");

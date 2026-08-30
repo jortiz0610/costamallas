@@ -31,6 +31,7 @@ import toast from "react-hot-toast";
 import Link from "next/link";
 import { CIUDADES, DEPARTAMENTOS, departamentoDeCiudad } from "@/lib/colombia";
 import { ESTADO_POR_CLAVE } from "@/lib/estados-cliente";
+import { Ayuda } from "@/components/ui/Ayuda";
 
 const CRM_COLOR = "#BA7517";
 
@@ -152,8 +153,14 @@ export default function NuevoClientePage() {
             <h1 className="text-[17px] font-bold text-gray-800 dark:text-gray-100 text-center">
               ¿Qué vas a registrar?
             </h1>
-            <p className="text-[12.5px] text-gray-400 text-center mt-1 mb-7">
+            <p className="text-[12.5px] text-gray-400 text-center mt-1 mb-7 flex items-center justify-center gap-1.5">
               Los dos formularios son distintos: no se pide lo mismo.
+              <Ayuda titulo="El estado no se elige">
+                Todo registro nuevo entra como <strong>{ESTADO_POR_CLAVE.PROSPECTO.l}</strong> y
+                sube solo: a <strong>{ESTADO_POR_CLAVE.INTERESADO.l}</strong> cuando pide una
+                cotización y a <strong>{ESTADO_POR_CLAVE.CLIENTE_ACTIVO.l}</strong> cuando
+                aprueba una.
+              </Ayuda>
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -184,15 +191,7 @@ export default function NuevoClientePage() {
               ))}
             </div>
 
-            <div className="flex items-start gap-2.5 mt-6 px-4 py-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-[11.5px] text-blue-800 dark:text-blue-300">
-              <Info size={14} className="flex-shrink-0 mt-0.5" />
-              <p>
-                Ya no se elige el estado a mano. Todo registro nuevo entra como{" "}
-                <strong>{ESTADO_POR_CLAVE.PROSPECTO.l}</strong> y va subiendo solo:
-                a <strong>{ESTADO_POR_CLAVE.INTERESADO.l}</strong> cuando pide una cotización
-                y a <strong>{ESTADO_POR_CLAVE.CLIENTE_ACTIVO.l}</strong> cuando aprueba una.
-              </p>
-            </div>
+
           </div>
         </div>
       </>
@@ -301,7 +300,7 @@ export default function NuevoClientePage() {
 
           <div className="flex items-center justify-between gap-3 pt-1">
             <p className="text-[11px] text-gray-400">
-              Entra como <strong>{ESTADO_POR_CLAVE.PROSPECTO.l}</strong>. El estado se calcula solo.
+              Entra como <strong>{ESTADO_POR_CLAVE.PROSPECTO.l}</strong>.
             </p>
             <button
               onClick={save}

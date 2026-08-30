@@ -27,17 +27,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Usuario no encontrado" }, { status: 404 });
   }
 
-  // `user.rol` —no `usuario.rol`— porque en modo prueba el rol con el que
-  // se navega es el de la cookie, no el de la fila.
-  const permisos = await permisosDe(usuario.id, user.rol, Boolean(user.rolPrueba));
+  const permisos = await permisosDe(usuario.id, user.rol);
 
   return NextResponse.json({
     success: true,
     data: {
       ...usuario,
-      rol: user.rol,
-      rolReal: user.rolReal ?? usuario.rol,
-      rolPrueba: Boolean(user.rolPrueba),
       permisos: [...permisos],
     },
   });

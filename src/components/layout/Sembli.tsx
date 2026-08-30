@@ -16,6 +16,7 @@ import { usePathname } from "next/navigation";
 import { Sparkles, X, Send, Loader2, Wrench, ShieldCheck, RotateCcw } from "lucide-react";
 import { useBrand } from "@/contexts/BrandContext";
 import { cn } from "@/lib/utils";
+import { usaRedactor } from "@/components/layout/BotonesFlotantes";
 
 type Turno = { rol: "user" | "assistant"; texto: string; herramientas?: string[] };
 
@@ -58,6 +59,8 @@ function formatear(texto: string) {
 export function Sembli() {
   const { brand } = useBrand();
   const pathname = usePathname();
+  // En un chat, este botón caía justo sobre el de enviar.
+  const estorba = usaRedactor(pathname);
   const [abierto, setAbierto] = useState(false);
   const [turnos, setTurnos] = useState<Turno[]>([{ rol: "assistant", texto: SALUDO }]);
   const [entrada, setEntrada] = useState("");
@@ -153,7 +156,7 @@ export function Sembli() {
       {/* Botón flotante */}
       <button
         onClick={() => setAbierto((v) => !v)}
-        className="fixed bottom-20 lg:bottom-6 right-4 sm:right-5 lg:right-6 z-40 w-14 h-14 rounded-2xl shadow-lg flex items-center justify-center transition-transform active:scale-95 hover:scale-105"
+        className={`${estorba ? "hidden lg:flex" : "flex"} fixed bottom-20 lg:bottom-6 right-4 sm:right-5 lg:right-6 z-40 w-14 h-14 rounded-2xl shadow-lg items-center justify-center transition-transform active:scale-95 hover:scale-105`}
         style={{ background: `linear-gradient(135deg, ${brand.brandColor}, ${brand.brandColor}bb)` }}
         aria-label={abierto ? "Cerrar Sembli" : "Abrir Sembli"}
       >
