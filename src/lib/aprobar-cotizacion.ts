@@ -16,6 +16,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { siguienteNumeroSeguro } from "@/lib/consecutivos";
+import { siguienteNumeroPruebaPedido } from "@/lib/cotizaciones-prueba";
 import { avisarInstalacionNueva } from "@/lib/instalaciones";
 import { recalcularCliente } from "@/lib/estados-cliente-server";
 
@@ -51,7 +52,13 @@ export async function crearPedidoDeAprobacion(
 
   // Consecutivo atómico compartido: aquí también estaba el `count + 1`
   // que repetía número si se borraba un pedido.
-  const numero = await siguienteNumeroSeguro("PED");
+  //
+  // Los de capacitación tienen contador propio. Antes tomaban un número
+  // del consecutivo real de PED, y eso no se ve hasta que en la
+  // contabilidad falta un pedido y nadie sabe por qué.
+  const numero = cotizacion.esPrueba
+    ? await siguienteNumeroPruebaPedido()
+    : await siguienteNumeroSeguro("PED");
   const pedido = await prisma.pedido.create({
     data: {
       numero,

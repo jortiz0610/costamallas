@@ -30,6 +30,9 @@ export async function GET(req: NextRequest) {
   const cotizaciones = await prisma.cotizacion.findMany({
     where: {
       ...suyas,
+      // Sin esto, la cotización de capacitación se creaba, se enviaba…
+      // y desaparecía del pipeline. No había dónde arrastrarla al
+      // siguiente estado, que es justo lo que se quiere enseñar.
       ...(conPruebas ? {} : SIN_PRUEBAS),
       // Los borradores y las rechazadas no pintan nada en el tablero.
       estado: { in: ["ENVIADA", "VENCIDA", "APROBADA"] },

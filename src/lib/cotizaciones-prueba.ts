@@ -1,31 +1,43 @@
 // ============================================================
-// Cotizaciones de PRUEBA.
+// Modo CAPACITACIÓN.
 //
-// Sirven para que alguien pueda ensayar el flujo completo —crear, enviar,
-// aprobar, ver el pipeline— sin ensuciar el negocio. Hasta ahora la única
-// forma de probar era crear una oferta de verdad, que quemaba un número
-// del consecutivo real y aparecía en el embudo como plata en juego.
+// La idea: marcar UN cliente como cliente de prueba y poder hacerle
+// absolutamente todo —cotizar, enviar, aprobar, agendar una visita,
+// convertir en pedido, instalar, firmar el acta, facturar— igual que a
+// uno real, para enseñarle el portal a alguien sin ensuciar el negocio.
 //
-// Tres reglas, y las tres importan:
+// Antes esto era una casilla en la cotización, y por eso se moría ahí: el
+// pedido nacía marcado, pero el pipeline y la lista de pedidos escondían
+// lo de prueba, así que **no había dónde seguir el proceso**. Quien
+// intentaba capacitar llegaba a "cotización enviada" y se quedaba mirando
+// una pantalla que ya no mostraba su ensayo.
 //
-//   1. **Numeración aparte.** `PRUEBA-001`, con su propio contador. El
+// Cuatro reglas, y las cuatro importan:
+//
+//   1. **La marca empieza en el cliente y se hereda hacia abajo.** Todo
+//      lo que cuelgue de un cliente de capacitación nace marcado. Nadie
+//      tiene que acordarse de tildar nada en cada paso.
+//   2. **Numeración aparte.** `PRUEBA-001` para ofertas y
+//      `PRUEBA-PED-001` para pedidos, cada uno con su contador. El
 //      consecutivo de COT viene de SIIGO (va por el 12075) y quemar
 //      números ahí para ensayar es exactamente lo que no se quiere.
-//   2. **Fuera de todo lo que cuenta.** Informes, embudo, pipeline y
-//      dashboard filtran `esPrueba: false`. Una prueba que aparece en la
-//      cifra de ventas es peor que no poder probar.
-//   3. **La marca se hereda.** El pedido que nace de una cotización de
-//      prueba es una prueba. Si no, el ensayo se cuela por la puerta de
-//      atrás en cuanto alguien aprueba.
+//   3. **Fuera de todo lo que cuenta.** Informes, embudo y dashboard
+//      filtran `esPrueba: false`. Una prueba en la cifra de ventas es
+//      peor que no poder probar. Pero el pipeline y los pedidos **sí las
+//      muestran** cuando se pide, porque ahí es donde se capacita.
+//   4. **Se borra todo de una.** Un cliente de capacitación y su rastro
+//      entero se van juntos cuando la formación termina.
 //
-// Quién las crea: quien tenga `crm.cotizaciones.prueba`, que por defecto
-// es solo el superadministrador.
+// Quién marca un cliente como de capacitación: quien tenga
+// `crm.cotizaciones.prueba`. Trabajar CON él no pide permiso: si el
+// cliente ya está marcado, cualquiera puede practicar sobre él.
 // ============================================================
 
 import { prisma } from "@/lib/prisma";
 
-/** El contador propio. No se toca el de COT. */
+/** Los contadores propios. No se toca ni el de COT ni el de PED. */
 const CLAVE_CONTADOR = "consecutivo_prueba";
+const CLAVE_CONTADOR_PED = "consecutivo_prueba_ped";
 export const PREFIJO_PRUEBA = "PRUEBA";
 const DIGITOS = 3;
 
@@ -52,10 +64,35 @@ export function esNumeroDePrueba(numero: string): boolean {
  * tabla: las pruebas empiezan en 1 aunque haya 12.075 cotizaciones reales.
  */
 export async function siguienteNumeroPrueba(): Promise<string> {
+  return contar(CLAVE_CONTADOR, PREFIJO_PRUEBA);
+}
+
+/**
+ * Siguiente número de PEDIDO de prueba.
+ *
+ * Antes, aprobar una cotización de ensayo llamaba a `siguienteNumeroSeguro("PED")`
+ * y quemaba un número del consecutivo real. Nadie lo notaba hasta que
+ * faltaba un PED en la contabilidad.
+ */
+export async function siguienteNumeroPruebaPedido(): Promise<string> {
+  return contar(CLAVE_CONTADOR_PED, `${PREFIJO_PRUEBA}-PED`);
+}
+
+/** ¿Este cliente es de capacitación? Lo consultan los que crean documentos. */
+export async function clienteEsDePrueba(clienteId: string | null | undefined): Promise<boolean> {
+  if (!clienteId) return false;
+  const c = await prisma.cliente.findUnique({
+    where: { id: clienteId },
+    select: { esPrueba: true },
+  });
+  return c?.esPrueba === true;
+}
+
+async function contar(clave: string, prefijo: string): Promise<string> {
   await prisma.$executeRaw`
     INSERT INTO configuracion (id, clave, valor, encrypted, descripcion, "updatedAt")
-    VALUES (gen_random_uuid()::text, ${CLAVE_CONTADOR}, '0', false,
-            'Contador de cotizaciones de prueba (numeracion aparte)', NOW())
+    VALUES (gen_random_uuid()::text, ${clave}, '0', false,
+            'Contador de documentos de prueba (numeracion aparte)', NOW())
     ON CONFLICT (clave) DO NOTHING
   `;
 
@@ -63,23 +100,26 @@ export async function siguienteNumeroPrueba(): Promise<string> {
     UPDATE configuracion
        SET valor = ((valor)::bigint + 1)::text,
            "updatedAt" = NOW()
-     WHERE clave = ${CLAVE_CONTADOR}
+     WHERE clave = ${clave}
        AND valor ~ '^[0-9]+$'
     RETURNING valor
   `;
 
   if (!filas.length) {
     throw new Error(
-      `El contador de pruebas ("${CLAVE_CONTADOR}") tiene un valor inválido. Corrígelo en Configuración.`,
+      `El contador de pruebas ("${clave}") tiene un valor inválido. Corrígelo en Configuración.`,
     );
   }
 
-  return `${PREFIJO_PRUEBA}-${String(filas[0].valor).padStart(DIGITOS, "0")}`;
+  return `${prefijo}-${String(filas[0].valor).padStart(DIGITOS, "0")}`;
 }
 
 export interface ResumenBorradoPruebas {
+  clientes: number;
   cotizaciones: number;
   pedidos: number;
+  instalaciones: number;
+  facturas: number;
   numeros: string[];
 }
 
@@ -93,11 +133,29 @@ export interface ResumenBorradoPruebas {
  * con una cotización real: un pedido de mentira no es una venta que haya
  * que conservar.
  */
-export async function borrarPruebas(opciones?: { dry?: boolean }): Promise<ResumenBorradoPruebas> {
+export async function borrarPruebas(opciones?: {
+  dry?: boolean;
+  /** Limitar a un solo cliente de capacitación, en vez de a todos. */
+  clienteId?: string;
+  /** Borrar también la ficha del cliente, no solo su rastro. */
+  incluirCliente?: boolean;
+}): Promise<ResumenBorradoPruebas> {
   const dry = opciones?.dry ?? false;
+  const soloEste = opciones?.clienteId ? { clienteId: opciones.clienteId } : {};
+
+  const clientes = await prisma.cliente.findMany({
+    where: { esPrueba: true, ...(opciones?.clienteId ? { id: opciones.clienteId } : {}) },
+    select: { id: true, nombre: true },
+  });
+  const idsCliente = clientes.map(c => c.id);
+
+  // Todo lo del cliente de capacitación cuenta, esté marcado o no: si
+  // algo se creó antes de que el cliente se marcara, sigue siendo parte
+  // del ensayo y tiene que irse con él.
+  const deEsosClientes = idsCliente.length ? [{ clienteId: { in: idsCliente } }] : [];
 
   const cotizaciones = await prisma.cotizacion.findMany({
-    where: { esPrueba: true },
+    where: { OR: [{ esPrueba: true, ...soloEste }, ...deEsosClientes] },
     select: { id: true, numero: true, pedidos: { select: { id: true } } },
   });
 
@@ -105,24 +163,48 @@ export async function borrarPruebas(opciones?: { dry?: boolean }): Promise<Resum
   // Y los pedidos marcados como prueba que ya no tienen cotización (por
   // ejemplo si la oferta se borró antes).
   const sueltos = await prisma.pedido.findMany({
-    where: { esPrueba: true, id: { notIn: pedidosDeCotizacion.length ? pedidosDeCotizacion : ["-"] } },
+    where: {
+      OR: [{ esPrueba: true, ...soloEste }, ...deEsosClientes],
+      id: { notIn: pedidosDeCotizacion.length ? pedidosDeCotizacion : ["-"] },
+    },
     select: { id: true },
   });
-  const pedidos = [...pedidosDeCotizacion, ...sueltos.map(p => p.id)];
+  const pedidos = [...new Set([...pedidosDeCotizacion, ...sueltos.map(p => p.id)])];
 
-  if (!dry && (cotizaciones.length || pedidos.length)) {
-    // Los pedidos primero: si se borrara la cotización antes, su
-    // `cotizacionId` quedaría en null (SetNull) y se perdería el vínculo
-    // que permite encontrarlos.
+  // Las instalaciones cuelgan del pedido con onDelete: Cascade, así que
+  // se van solas. Se cuentan igual para poder decir cuántas.
+  const instalaciones = pedidos.length
+    ? await prisma.instalacion.count({ where: { pedidoId: { in: pedidos } } })
+    : 0;
+
+  const facturas = await prisma.factura.findMany({
+    where: { OR: [{ esPrueba: true, ...soloEste }, ...deEsosClientes] },
+    select: { id: true },
+  });
+
+  if (!dry) {
+    // Orden: primero lo que apunta hacia arriba.
+    //
+    // Las facturas van antes que el cliente porque la relación es
+    // onDelete: Restrict — con una factura viva, borrar el cliente falla.
+    if (facturas.length) await prisma.factura.deleteMany({ where: { id: { in: facturas.map(f => f.id) } } });
+    // Los pedidos antes que las cotizaciones: al revés, el `cotizacionId`
+    // quedaría en null (SetNull) y se perdería el vínculo para hallarlos.
     if (pedidos.length) await prisma.pedido.deleteMany({ where: { id: { in: pedidos } } });
     if (cotizaciones.length) {
       await prisma.cotizacion.deleteMany({ where: { id: { in: cotizaciones.map(c => c.id) } } });
     }
+    if (opciones?.incluirCliente && idsCliente.length) {
+      await prisma.cliente.deleteMany({ where: { id: { in: idsCliente } } });
+    }
   }
 
   return {
+    clientes: idsCliente.length,
     cotizaciones: cotizaciones.length,
     pedidos: pedidos.length,
+    instalaciones,
+    facturas: facturas.length,
     numeros: cotizaciones.map(c => c.numero),
   };
 }

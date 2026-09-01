@@ -6,6 +6,7 @@ import { getUserFromRequest } from "@/lib/auth";
 import { siguienteNumeroSeguro } from "@/lib/consecutivos";
 import { recalcularCliente } from "@/lib/estados-cliente-server";
 import { filtroPorVendedor } from "@/lib/alcance-crm";
+import { clienteEsDePrueba } from "@/lib/cotizaciones-prueba";
 import { conFotoDelCatalogo, type ItemGuardable } from "@/lib/cotizacion-imagenes";
 import { siguienteNumeroPrueba } from "@/lib/cotizaciones-prueba";
 import { peticionPuede } from "@/lib/permisos-server";
@@ -56,8 +57,13 @@ export async function POST(req: NextRequest) {
   // El permiso lo tiene por defecto solo el superadministrador. Se
   // comprueba en el servidor y no se confía en la casilla del navegador:
   // una prueba que se cuela como oferta real acaba en el embudo.
-  const quierePrueba = body.esPrueba === true;
-  const esPrueba = quierePrueba && (await peticionPuede(req, "crm.cotizaciones.prueba"));
+  // Si el cliente es de capacitación, la oferta nace marcada y no hace
+  // falta permiso: trabajar sobre un cliente que YA está marcado es
+  // justamente para lo que se marcó. El permiso solo hace falta para
+  // marcar a mano una oferta de un cliente real.
+  const clienteDePrueba = await clienteEsDePrueba(body.clienteId);
+  const quierePrueba = body.esPrueba === true && !clienteDePrueba;
+  const esPrueba = clienteDePrueba || (quierePrueba && (await peticionPuede(req, "crm.cotizaciones.prueba")));
   if (quierePrueba && !esPrueba) {
     return NextResponse.json(
       { success: false, error: "No tienes permiso para crear cotizaciones de prueba." },

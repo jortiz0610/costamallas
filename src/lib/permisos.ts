@@ -129,7 +129,7 @@ export const PERMISOS: Permiso[] = [
   { clave: "crm.postventa", modulo: "CRM", tipo: "vista", label: "Postventa", ayuda: "Encuesta de satisfacción y políticas públicas." },
   // Acciones del CRM
   { clave: "crm.ver_todo", modulo: "CRM", tipo: "accion", label: "Ver el CRM de todo el equipo", ayuda: "Sin esto, la persona solo ve sus propios clientes, cotizaciones y pedidos." },
-  { clave: "crm.cotizaciones.prueba", modulo: "CRM", tipo: "accion", label: "Cotizaciones de prueba", ayuda: "Crear ofertas marcadas como prueba, que no gastan consecutivo ni entran en informes." },
+  { clave: "crm.cotizaciones.prueba", modulo: "CRM", tipo: "accion", label: "Modo capacitación", ayuda: "Marcar un cliente como de capacitación. Todo lo que se le haga —cotizar, aprobar, instalar, facturar— funciona igual que con uno real, pero no gasta consecutivo ni entra en informes." },
 
   // ── NEXUS ──
   { clave: "nexus.inbox", modulo: "NEXUS", tipo: "vista", label: "Inbox", ayuda: "La bandeja de conversaciones con clientes." },

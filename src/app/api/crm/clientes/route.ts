@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { filtroClientes } from "@/lib/alcance-crm";
+import { peticionPuede } from "@/lib/permisos-server";
 
 export async function GET(req: NextRequest) {
   const user = await getUserFromRequest(req);
@@ -49,11 +50,24 @@ export async function POST(req: NextRequest) {
 
   if (!nombre?.trim()) return NextResponse.json({ success: false, error: "Nombre requerido" }, { status: 400 });
 
+  // Cliente de capacitación. Se comprueba el permiso en el SERVIDOR: la
+  // casilla de la pantalla se puede quitar con el inspector, y un cliente
+  // marcado sin querer deja de contar en los informes sin que nadie lo
+  // note.
+  const quierePrueba = body.esPrueba === true;
+  const esPrueba = quierePrueba && (await peticionPuede(req, "crm.cotizaciones.prueba"));
+  if (quierePrueba && !esPrueba) {
+    return NextResponse.json(
+      { success: false, error: "No tienes permiso para crear clientes de capacitación." },
+      { status: 403 },
+    );
+  }
+
   const cliente = await prisma.cliente.create({
     data: {
       nombre, empresa, cargo, email, telefono, whatsapp, ciudad, departamento,
       direccion, nit, cedula, paginaWeb,
-      tipo: tipo ?? "persona", notas,
+      tipo: tipo ?? "persona", notas, esPrueba,
       estado: estado ?? "PROSPECTO",
       vendedorId: user.sub,
     },

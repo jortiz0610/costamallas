@@ -5,6 +5,7 @@ import { siguienteNumeroSeguro } from "@/lib/consecutivos";
 import { avisarInstalacionNueva } from "@/lib/instalaciones";
 import { filtroPorVendedor } from "@/lib/alcance-crm";
 import { SIN_PRUEBAS } from "@/lib/cotizaciones-prueba";
+import { clienteEsDePrueba, siguienteNumeroPruebaPedido } from "@/lib/cotizaciones-prueba";
 
 const ESTADOS_PEDIDO = ["NUEVO","CONFIRMADO","EN_PRODUCCION","LISTO","DESPACHADO","ENTREGADO","INSTALADO","CANCELADO"];
 
@@ -80,18 +81,22 @@ export async function POST(req: NextRequest) {
     return { productoId: (item.productoId as string) ?? null, descripcion: item.descripcion as string, cantidad: Number(item.cantidad), precioUnitario: Number(item.precioUnitario), subtotal: sub, unidad: (item.unidad as string) ?? null, orden: i };
   });
 
-  const numero = await siguienteNumeroSeguro("PED");
+  // Un pedido creado a mano para un cliente de capacitación también es
+  // capacitación, aunque no venga de una cotización. Y con contador
+  // propio: un ensayo no puede quemar un número del consecutivo real.
+  const esPrueba = await clienteEsDePrueba(clienteId);
+  const numero = esPrueba ? await siguienteNumeroPruebaPedido() : await siguienteNumeroSeguro("PED");
 
   const pedido = await prisma.pedido.create({
     data: {
       numero, cotizacionId: cotizacionId ?? null, clienteId, vendedorId: user.sub,
-      estado: "NUEVO", tieneInstalacion: tieneInstalacion ?? false,
+      estado: "NUEVO", tieneInstalacion: tieneInstalacion ?? false, esPrueba,
       // Lo creó un asesor desde el CRM (o nació de una cotización).
       origen: cotizacionId ? "COTIZACION" : "MANUAL",
       fechaEntrega: fechaEntrega ? new Date(fechaEntrega) : null,
       direccionEntrega, notas, total,
       items: { create: itemsData },
-      ...(tieneInstalacion ? { instalacion: { create: { estado: "PENDIENTE", direccion: direccionEntrega } } } : {}),
+      ...(tieneInstalacion ? { instalacion: { create: { estado: "PENDIENTE", direccion: direccionEntrega, esPrueba } } } : {}),
     },
     include: { items: true, cliente: { select: { nombre: true } }, instalacion: true },
   });

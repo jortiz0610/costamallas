@@ -16,6 +16,7 @@
 import { Suspense, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
+import { InterruptorCapacitacion, AvisoCapacitacion, useModoCapacitacion } from "@/components/crm/ModoCapacitacion";
 import {
   Loader2, RefreshCw, TrendingUp, Package, X, Wrench, User, Calendar, AlertTriangle, Filter,
 } from "lucide-react";
@@ -93,9 +94,13 @@ function PipelineContent() {
   const [fOrigen, setFOrigen] = useState("");
   const [fDias, setFDias] = useState("");
 
+  // El parámetro va en la clave de la consulta: si no, al encender la
+  // capacitación se reusaría la respuesta anterior y la pantalla no
+  // cambiaría hasta que caducara la caché.
+  const { activo: capacitando, parametro } = useModoCapacitacion();
   const { data: pedidos = [], isLoading, refetch } = useQuery<Pedido[]>({
-    queryKey: ["pedidos-pipeline"],
-    queryFn: async () => (await (await fetch("/api/crm/pedidos")).json()).data ?? [],
+    queryKey: ["pedidos-pipeline", capacitando],
+    queryFn: async () => (await (await fetch(`/api/crm/pedidos${parametro}`)).json()).data ?? [],
     refetchInterval: 60_000,
   });
 
@@ -149,6 +154,7 @@ function PipelineContent() {
     <>
       <Topbar title={verComercial ? "Pipeline" : "Pipeline de producción"} actions={
         <div className="flex items-center gap-2">
+          <InterruptorCapacitacion puede={puedeVer("crm.cotizaciones.prueba")} />
           {/* Dos tableros distintos y los dos hacen falta: el COMERCIAL
               sigue la oferta hasta que se cierra, y el de PRODUCCION
               sigue el pedido hasta que se entrega. Meterlos en uno solo

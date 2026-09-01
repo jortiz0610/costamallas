@@ -181,8 +181,7 @@ Son 2 minutos:
 |-----------|----------|
 | "Recipient phone number not in allowed list" | Estás en modo prueba. Añade tu número en API Setup → *Para* → *Administrar lista* |
 | El envío falla a las 24 h | La ventana se cerró. Fuera de ella solo van plantillas aprobadas |
-| El webhook no verifica | El token de verificación no es idéntico en los dos lados |
-| El webhook devuelve 403 | El token de verificación no es idéntico en los dos lados |
+| El webhook no verifica, o devuelve 403 | El token de verificación no es idéntico en los dos lados |
 | "Display name not approved" | El nombre para mostrar no pasó la revisión. Ponlo más sobrio |
 
 ---

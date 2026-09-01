@@ -23,9 +23,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Topbar } from "@/components/layout/Topbar";
+import { useAuth } from "@/hooks/useAuth";
 import {
   ArrowLeft, Check, Loader2, User, Building2, Phone, Mail,
-  MapPin, FileText, IdCard, Globe, Briefcase, Info, MessageCircle,
+  MapPin, FileText, IdCard, Globe, Briefcase, Info, MessageCircle, GraduationCap,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Link from "next/link";
@@ -82,7 +83,12 @@ export default function NuevoClientePage() {
   const router = useRouter();
   const [tipo, setTipo] = useState<Tipo>(null);
   const [form, setForm] = useState<FormData>(VACIO);
+  const { puedeVer } = useAuth();
   const [saving, setSaving] = useState(false);
+  // Cliente de CAPACITACIÓN. Con él se puede recorrer el proceso entero
+  // —cotizar, aprobar, agendar, instalar, firmar, facturar— sin que nada
+  // de eso entre en los informes ni gaste consecutivo.
+  const [esPrueba, setEsPrueba] = useState(false);
 
   const upd = (k: keyof FormData, v: string) => setForm(p => ({ ...p, [k]: v }));
 
@@ -130,6 +136,7 @@ export default function NuevoClientePage() {
           // El estado NO se elige: nace prospecto y sube solo cuando pide
           // una cotización y cuando aprueba.
           estado: "PROSPECTO",
+          esPrueba,
         }),
       });
       const json = await res.json();
@@ -139,6 +146,34 @@ export default function NuevoClientePage() {
     } catch { toast.error("Error de conexión"); }
     finally { setSaving(false); }
   };
+
+  /**
+   * La casilla de capacitación.
+   *
+   * Va abajo del todo y con explicación, no arriba y suelta: quien
+   * registra un cliente de verdad no debe tropezarse con ella, y quien
+   * va a capacitar tiene que entender qué implica antes de marcarla.
+   */
+  const casillaCapacitacion = puedeVer("crm.cotizaciones.prueba") ? (
+    <label className="flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all"
+      style={esPrueba
+        ? { borderColor: "#7c3aed", backgroundColor: "#7c3aed12" }
+        : { borderColor: "var(--divider)" }}>
+      <input type="checkbox" checked={esPrueba} onChange={e => setEsPrueba(e.target.checked)}
+        className="mt-0.5 w-4 h-4 flex-shrink-0" style={{ accentColor: "#7c3aed" }} />
+      <span className="min-w-0">
+        <span className="flex items-center gap-1.5 text-[13.5px] font-bold text-soft">
+          <GraduationCap size={14} style={{ color: "#7c3aed" }} /> Cliente de capacitación
+        </span>
+        <span className="block text-[12px] text-muted mt-1 leading-relaxed">
+          Sirve para enseñar el portal. A este cliente se le puede cotizar, aprobar, agendar
+          la visita, instalar, firmar el acta y facturar igual que a uno real — pero nada de eso
+          cuenta en los informes ni gasta un número del consecutivo. Cuando termine la
+          formación se borra todo de una vez.
+        </span>
+      </span>
+    </label>
+  ) : null;
 
   // ── Paso 0: qué se va a registrar ──
   if (!tipo) {
@@ -297,6 +332,8 @@ export default function NuevoClientePage() {
                 placeholder="Cómo llegó, qué está buscando, condiciones acordadas…" />
             </Campo>
           </Seccion>
+
+          {casillaCapacitacion}
 
           <div className="flex items-center justify-between gap-3 pt-1">
             <p className="text-[11px] text-gray-400">

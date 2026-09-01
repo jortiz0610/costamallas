@@ -217,6 +217,13 @@ model Cliente {
   @@index([vendedorId])
   @@index([activo])
   @@index([estado])
+  /// Cliente de CAPACITACIÓN. Todo lo que cuelgue de él —cotizaciones,
+  /// pedidos, visitas, instalaciones, facturas— nace marcado y recorre el
+  /// proceso completo, sin entrar en informes ni quemar consecutivos.
+  esPrueba Boolean @default(false)
+
+  @@index([esPrueba])
+
   @@map("clientes")
 }
 
@@ -266,6 +273,11 @@ model Factura {
   @@index([estado])
   @@index([estadoDian])
   @@index([pedidoId])
+  /// Heredado del cliente o del pedido.
+  esPrueba Boolean @default(false)
+
+  @@index([esPrueba])
+
   @@map("facturas")
 }
 
@@ -866,6 +878,11 @@ model Instalacion {
 
   @@index([estado])
   @@index([tecnicoId])
+  /// Heredado del pedido. Ver lib/cotizaciones-prueba.ts
+  esPrueba Boolean @default(false)
+
+  @@index([esPrueba])
+
   @@map("instalaciones")
 }
 
