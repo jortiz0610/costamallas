@@ -451,7 +451,8 @@ const CANALES_DEF = [
     value: "whatsapp", label: "WhatsApp Business", Icon: Smartphone, color: "#25d366", ready: true,
     desc: "Conecta tu número de WhatsApp Business para chatear desde Nexus.",
     campos: [
-      { k: "phoneId", l: "Phone Number ID", ph: "Ej: 123456789012345" },
+      { k: "phoneNumberId", l: "Phone Number ID", ph: "Ej: 123456789012345" },
+      { k: "verifyToken", l: "Verify token (lo inventas tú)", ph: "costamallas-2026-XYZ" },
       { k: "token", l: "Token de acceso (Meta)", ph: "EAAG...", secret: true },
     ],
     guia: [

@@ -2,10 +2,8 @@
 
 > Para Jose. Escrito el **1 de septiembre de 2026**.
 >
-> Se puede avanzar **hoy mismo** hasta el paso 6. El paso 7 (el webhook)
-> necesita un arreglo de código que está en curso; te aviso cuando esté.
-> Aun así **empieza ya**, porque el paso 1 es el que más se demora y no
-> depende de nosotros.
+> **Los 7 pasos se pueden hacer ya.** El webhook quedó arreglado el 1-sep.
+> Empieza por el paso 1: es el que más se demora y no depende de nosotros.
 
 ---
 
@@ -140,24 +138,17 @@ El token se guarda **cifrado** en la base. Yo no lo veo ni lo necesito.
 
 ---
 
-## Paso 7 — El webhook ⏸️ espera a que te avise
+## Paso 7 — El webhook ✅ ya está listo
 
-Aquí es donde Meta le avisa al portal que llegó un mensaje. Es lo que
-falta de mi lado.
+Aquí es donde Meta le avisa al portal que llegó un mensaje.
 
-**Qué encontré:** el portal recibe el webhook, pero espera un formato
-plano (`from`, `body`) y **Meta manda uno anidado**
-(`entry[].changes[].value.messages[]`). Tal como está hoy, Meta diría que
-la conexión funciona y **cada mensaje entraría vacío**: sin teléfono, sin
-texto y sin nombre. Estaría peor que no conectado, porque parecería que
-sí.
+> **Arreglado el 1-sep.** El portal esperaba un formato plano y Meta
+> manda uno anidado: cada mensaje habría entrado vacío. Ahora entiende el
+> formato real, incluidos los audios, fotos, documentos y ubicaciones, y
+> no confunde un acuse de entrega con un mensaje. Y el token de
+> verificación ahora sí se exige: antes aceptaba cualquiera.
 
-También hay un desajuste de nombres: la verificación busca
-`verify_token` y la pantalla guarda `verifyToken`, así que hoy el
-portal **acepta cualquier token de verificación**. Lo estoy arreglando en
-la misma tanda.
-
-Cuando te avise, esto es lo que harás (2 minutos):
+Son 2 minutos:
 
 1. En la app de Meta: **WhatsApp → Configuración → Webhooks** → *Editar*.
 2. **URL de devolución de llamada:**
@@ -191,7 +182,7 @@ Cuando te avise, esto es lo que harás (2 minutos):
 | "Recipient phone number not in allowed list" | Estás en modo prueba. Añade tu número en API Setup → *Para* → *Administrar lista* |
 | El envío falla a las 24 h | La ventana se cerró. Fuera de ella solo van plantillas aprobadas |
 | El webhook no verifica | El token de verificación no es idéntico en los dos lados |
-| Los mensajes llegan vacíos | Es lo del paso 7. Espera el arreglo |
+| El webhook devuelve 403 | El token de verificación no es idéntico en los dos lados |
 | "Display name not approved" | El nombre para mostrar no pasó la revisión. Ponlo más sobrio |
 
 ---
@@ -202,4 +193,4 @@ Cuando te avise, esto es lo que harás (2 minutos):
 2. **Hoy también:** pasos 2, 3 y 4 con el número de prueba de Meta.
 3. **Cuando tengas el número real:** paso 5 (token permanente) y paso 6
    (cargarlo en el portal).
-4. **Paso 7:** cuando te avise que el webhook está listo.
+4. **Paso 7:** cuando tengas la app lista. El webhook ya está de mi lado.
