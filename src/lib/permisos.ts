@@ -387,6 +387,7 @@ export const RUTAS_PROTEGIDAS: Record<string, string> = {
   "/crm/trabajos": "crm.trabajos",
   "/crm/embudo": "crm.embudo",
   "/postventa": "crm.postventa",
+  "/postventa/resultados": "crm.postventa",
 
   "/nexus": "nexus.inbox",
   "/nexus/plantillas": "nexus.plantillas",

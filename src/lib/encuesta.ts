@@ -189,3 +189,61 @@ export async function resumenEncuestas(desde?: Date): Promise<ResumenEncuestas> 
     },
   };
 }
+
+export interface RespuestaListada {
+  id: string;
+  cliente: string | null;
+  pedido: string | null;
+  vendedor: string | null;
+  nps: number | null;
+  /** promotor · pasivo · detractor. Null si no contestó el NPS. */
+  grupo: "promotor" | "pasivo" | "detractor" | null;
+  destacaria: string | null;
+  recomendaciones: string | null;
+  respondidaEn: Date | null;
+  enviadaEn: Date | null;
+}
+
+/**
+ * Las respuestas, de la más reciente a la más vieja.
+ *
+ * Devuelve también las que nadie contestó todavía: son la mitad de la
+ * historia. Una tasa de respuesta del 20 % con un NPS de 80 no significa
+ * que el 80 % esté encantado, significa que contestaron los contentos.
+ */
+export async function ultimasRespuestas(limite = 100): Promise<RespuestaListada[]> {
+  const filas = await prisma.encuestaSatisfaccion.findMany({
+    orderBy: [{ respondidaEn: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
+    take: limite,
+    select: {
+      id: true, recomendaria: true, destacaria: true, recomendaciones: true,
+      respondidaEn: true, enviadaEn: true, vendedorId: true,
+      cliente: { select: { nombre: true, empresa: true } },
+      instalacion: { select: { pedido: { select: { numero: true } } } },
+    },
+  });
+
+  // `vendedorId` se guarda suelto, sin relación, para que reasignarle el
+  // cliente a otro asesor no reescriba la historia. El nombre se busca
+  // aparte, de una sola vez.
+  const ids = [...new Set(filas.map(f => f.vendedorId).filter((v): v is string => Boolean(v)))];
+  const vendedores = ids.length
+    ? await prisma.usuario.findMany({ where: { id: { in: ids } }, select: { id: true, nombre: true } })
+    : [];
+  const nombreDe = new Map(vendedores.map(v => [v.id, v.nombre]));
+
+  return filas.map(f => ({
+    id: f.id,
+    cliente: f.cliente?.empresa || f.cliente?.nombre || null,
+    pedido: f.instalacion?.pedido?.numero ?? null,
+    vendedor: f.vendedorId ? (nombreDe.get(f.vendedorId) ?? null) : null,
+    nps: f.recomendaria,
+    grupo: f.recomendaria === null
+      ? null
+      : f.recomendaria >= 9 ? "promotor" : f.recomendaria >= 7 ? "pasivo" : "detractor",
+    destacaria: f.destacaria,
+    recomendaciones: f.recomendaciones,
+    respondidaEn: f.respondidaEn,
+    enviadaEn: f.enviadaEn,
+  }));
+}

@@ -14,7 +14,7 @@
 import { Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
-import { Loader2, Printer, AlertTriangle, ExternalLink, FileText, Settings } from "lucide-react";
+import { Loader2, Printer, AlertTriangle, ExternalLink, FileText, Settings, BarChart3 } from "lucide-react";
 import Link from "next/link";
 import { useBrand } from "@/contexts/BrandContext";
 
@@ -36,6 +36,9 @@ function Contenido() {
     <>
       <Topbar title="Postventa" actions={
         <div className="flex items-center gap-2 no-print">
+          <Link href="/postventa/resultados" className="btn-secondary btn-sm">
+            <BarChart3 size={13} /> Resultados
+          </Link>
           <Link href="/politicas" target="_blank" className="btn-secondary btn-sm">
             <FileText size={13} /> Políticas
           </Link>
