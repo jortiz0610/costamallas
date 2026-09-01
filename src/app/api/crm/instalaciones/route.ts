@@ -19,7 +19,12 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    data: instalaciones.map(i => ({ ...i, pedido: { ...i.pedido, total: Number(i.pedido.total) } })),
+    // Una VISITA no tiene pedido: va antes de que exista. El total se
+    // convierte solo cuando hay algo que convertir.
+    data: instalaciones.map(i => ({
+      ...i,
+      pedido: i.pedido ? { ...i.pedido, total: Number(i.pedido.total) } : null,
+    })),
   });
 }
 

@@ -388,6 +388,8 @@ export const RUTAS_PROTEGIDAS: Record<string, string> = {
   "/crm/embudo": "crm.embudo",
   "/postventa": "crm.postventa",
   "/postventa/resultados": "crm.postventa",
+  // La pantalla de campo: la abre el de produccion desde el telefono.
+  "/campo": "crm.trabajos",
 
   "/nexus": "nexus.inbox",
   "/nexus/plantillas": "nexus.plantillas",

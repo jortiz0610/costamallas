@@ -224,6 +224,9 @@ model Cliente {
 
   @@index([esPrueba])
 
+  /// Visitas tecnicas pedidas para este cliente (ver Instalacion.tipo).
+  visitas Instalacion[]
+
   @@map("clientes")
 }
 
@@ -580,6 +583,9 @@ model Cotizacion {
   @@index([estado])
   @@index([aprobacionEstado])
   @@index([esPrueba])
+  /// La visita de la que nacio esta oferta, si hubo una.
+  visitas Instalacion[]
+
   @@map("cotizaciones")
 }
 
@@ -835,8 +841,32 @@ model ItemPedido {
 
 model Instalacion {
   id             String    @id @default(cuid())
-  pedidoId       String    @unique
-  pedido         Pedido    @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  /// VISITA · INSTALACION.
+  ///
+  /// Para el de producción son lo mismo —ir a una dirección, hacer algo,
+  /// anotarlo y que le firmen—, así que comparten tabla, pantalla y
+  /// firma. Lo que cambia es cuándo ocurren y qué se hace con el
+  /// resultado: la VISITA va ANTES de cotizar y de ella sale el formato
+  /// con el que el vendedor arma la oferta.
+  tipo           String    @default("INSTALACION")
+
+  /// Nulo en una VISITA: todavía no hay pedido, esa es la gracia.
+  pedidoId       String?   @unique
+  pedido         Pedido?   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  /// De quién es. En una instalación se puede sacar del pedido, pero en
+  /// una visita no hay de dónde, así que se guarda aquí siempre.
+  clienteId      String?
+  cliente        Cliente?  @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  /// El asesor que la pidió. Es a quien hay que avisarle cuando termine.
+  vendedorId     String?
+  /// La oferta que nació de esta visita. Cierra el círculo en los dos
+  /// sentidos: desde la cotización se ve qué se midió, y desde la visita
+  /// si ya se cotizó o quedó olvidada.
+  cotizacionId   String?
+  cotizacion     Cotizacion? @relation(fields: [cotizacionId], references: [id], onDelete: SetNull)
+
   tecnicoId      String?
   tecnico        Usuario?  @relation(fields: [tecnicoId], references: [id], onDelete: SetNull)
   estado         String    @default("PENDIENTE")
@@ -853,6 +883,32 @@ model Instalacion {
   /// Checklist de cierre: [{ texto, hecho }]. La obra no se marca como
   /// terminada con puntos sin cumplir.
   checklist Json @default("[]")
+
+  // ── El formato de la visita ──
+  //
+  // Texto libre a propósito: cada obra es distinta y un formulario
+  // rígido obliga a escribir "otro" en la mitad de los campos.
+  medidas          String? @db.Text
+  condicionesSitio String? @db.Text
+  /// Lo que el de producción recomienda desde el sitio:
+  /// [{ nombre, cantidad, unidad, nota }].
+  ///
+  /// SIN precios, y no por descuido: en campo no se negocia. Quien mide
+  /// dice qué hace falta; cuánto vale lo pone el asesor.
+  recomendados Json @default("[]")
+
+  // ── La firma del cliente ──
+  //
+  // El trazo va como PNG en base64, en la fila. Son unos pocos KB, y el
+  // disco privado todavía no existe: una firma en una URL adivinable es
+  // exactamente lo que no se puede hacer.
+  firmaImagen    String? @db.Text
+  firmaNombre    String?
+  firmaDocumento String?
+  firmadoEn      DateTime?
+
+  /// Sello del correo de cierre. Uno por trabajo, no uno por guardado.
+  avisoCierreEn  DateTime?
 
   // ── Acta de entrega ──
   actaFirmadaEn      DateTime?
@@ -876,13 +932,15 @@ model Instalacion {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([estado])
-  @@index([tecnicoId])
-  /// Heredado del pedido. Ver lib/cotizaciones-prueba.ts
+  /// Heredado del pedido o del cliente. Ver lib/cotizaciones-prueba.ts
   esPrueba Boolean @default(false)
 
+  @@index([estado])
+  @@index([tecnicoId])
   @@index([esPrueba])
-
+  @@index([tipo])
+  @@index([clienteId])
+  @@index([fechaAgendada])
   @@map("instalaciones")
 }
 

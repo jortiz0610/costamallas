@@ -289,7 +289,9 @@ async function main() {
     });
 
     comprobar("el acta trae datos", !!acta);
-    if (acta) {
+    // El acta que se prueba es de una INSTALACIÓN, así que siempre trae
+    // pedido. Una VISITA no, y por eso el tipo ahora lo admite nulo.
+    if (acta && acta.pedido) {
       const c = acta.pedido.cliente;
       const checklist = acta.checklist as { texto: string; hecho: boolean }[];
       const fotos = acta.fotos as { momento: string }[];

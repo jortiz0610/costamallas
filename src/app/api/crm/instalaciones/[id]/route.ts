@@ -36,7 +36,8 @@ export async function GET(req: NextRequest, { params }: P) {
     success: true,
     data: {
       ...inst,
-      pedido: {
+      // Nulo en una VISITA. La pantalla ya sabe distinguirlo por .
+      pedido: inst.pedido ? {
         ...inst.pedido,
         total: Number(inst.pedido.total),
         items: inst.pedido.items.map(i => ({
@@ -45,7 +46,7 @@ export async function GET(req: NextRequest, { params }: P) {
           precioUnitario: Number(i.precioUnitario),
           subtotal: Number(i.subtotal),
         })),
-      },
+      } : null,
     },
   });
 }
