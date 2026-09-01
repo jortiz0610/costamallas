@@ -149,17 +149,16 @@ export async function enviarEncuesta(instalacionId: string): Promise<ResultadoEn
     return { ok: false, error: `${inst.pedido.cliente.nombre} no tiene correo en el CRM.` };
   }
 
-  const cfg = await getConfigPostventa();
-  const enlace = cfg.urlResena?.trim();
-  if (!enlace) {
-    return {
-      ok: false,
-      destino,
-      error:
-        "Falta el enlace de reseñas de Google (Postventa). Sin destino, el correo llevaría a un botón roto, " +
-        "así que no se manda. La encuesta propia —NPS y los seis puntajes— todavía no está construida.",
-    };
+  // La encuesta es NUESTRA: NPS, los seis puntajes del formato de la
+  // empresa y las dos preguntas abiertas. Antes esto dependía del enlace
+  // de reseñas de Google, que además no recoge nada que se pueda
+  // promediar por asesor ni por mes.
+  const { prepararEncuesta } = await import("@/lib/encuesta");
+  const preparada = await prepararEncuesta(inst.id);
+  if (preparada.yaRespondida) {
+    return { ok: false, destino, error: "Este cliente ya contestó la encuesta de esta obra." };
   }
+  const enlace = preparada.url;
 
   const { armarCorreo } = await import("@/lib/correo-plantillas-server");
   const { enviarCorreo } = await import("@/lib/correo");

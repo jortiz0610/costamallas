@@ -93,6 +93,12 @@ export function Adjuntar({
   };
 
   const empezar = async () => {
+    // Sin HTTPS el navegador ni siquiera expone `mediaDevices`. Pasa al
+    // abrir el portal por IP en la red local, y el mensaje genérico
+    // manda a la gente a revisar el micrófono cuando el problema es otro.
+    if (!window.isSecureContext) {
+      return toast.error("Para grabar audio hay que entrar por https, no por http.", { duration: 8000 });
+    }
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
       return toast.error("Este navegador no deja grabar audio.");
     }
@@ -110,8 +116,18 @@ export function Adjuntar({
       grabadora.current = mr;
       setSegundos(0);
       setGrabando(true);
-    } catch {
-      toast.error("No diste permiso al micrófono, o no hay ninguno.");
+    } catch (e) {
+      // El navegador distingue entre "dijiste que no", "no hay
+      // micrófono" y "está prohibido por la página". Decir siempre lo
+      // primero manda a la gente a buscar un permiso que nunca se pidió.
+      const nombre = (e as { name?: string })?.name ?? "";
+      const mensaje =
+        nombre === "NotAllowedError"
+          ? "El navegador bloqueó el micrófono. Tócale al candado de la barra de direcciones y permítelo para este sitio."
+          : nombre === "NotFoundError"
+            ? "No se encontró ningún micrófono en este equipo."
+            : `No se pudo abrir el micrófono (${nombre || "motivo desconocido"}).`;
+      toast.error(mensaje, { duration: 9000 });
     }
   };
 

@@ -8,7 +8,7 @@ import {
   Globe, Smartphone, Instagram, CheckCheck,
   X, Mail, MessageSquareText,
   Inbox, PlugZap, Facebook, Sparkles, Loader2, StickyNote, ChevronLeft,
-  Archive, UserPlus,
+  Archive, UserPlus, Trash2, Check,
 } from "lucide-react";
 import Link from "next/link";
 import { useBrand } from "@/contexts/BrandContext";
@@ -92,9 +92,12 @@ function PrioridadDot({ prioridad }: { prioridad: string }) {
 
 // ── Panel de conversaciones (izq) ────────────────────────────────
 
-function ConversacionItem({ conv, activa, onClick, nombreAsignado, prefs }: {
+function ConversacionItem({ conv, activa, onClick, nombreAsignado, prefs, marcado, onMarcar }: {
   conv: Conversacion; activa: boolean; onClick: () => void; nombreAsignado?: string;
   prefs: PrefsNexus;
+  /** Marcado para borrar. `onMarcar` ausente = quien mira no puede borrar. */
+  marcado?: boolean;
+  onMarcar?: () => void;
 }) {
   const { brand } = useBrand();
   const ultimo = conv.mensajes[0];
@@ -110,11 +113,28 @@ function ConversacionItem({ conv, activa, onClick, nombreAsignado, prefs }: {
         activa ? "border-l-2" : "border-l-2 border-l-transparent hover:bg-slate-50 dark:hover:bg-slate-900/40",
         "border-b-slate-50 dark:border-b-slate-800/50")}
       style={activa ? { borderLeftColor: brand.brandColor, backgroundColor: brand.brandColor + "08" } : {}}>
-      {/* Avatar, del color del canal */}
-      <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-white"
-        style={{ backgroundColor: color }}>
-        {conv.remitente.charAt(0).toUpperCase()}
-      </div>
+      {/* La casilla ocupa el sitio del avatar y solo aparece al pasar el
+          cursor o cuando ya hay algo marcado: una bandeja llena de
+          casillas se lee peor, y borrar no es lo que se hace aquí a
+          diario. */}
+      {onMarcar ? (
+        <button
+          onClick={e => { e.stopPropagation(); onMarcar(); }}
+          aria-label={marcado ? "Quitar la marca" : "Marcar para borrar"}
+          className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-white transition-colors group/marca"
+          style={marcado ? { backgroundColor: "#dc2626" } : { backgroundColor: color }}
+        >
+          {marcado
+            ? <Check size={16} />
+            : <span className="group-hover/marca:hidden">{conv.remitente.charAt(0).toUpperCase()}</span>}
+          {!marcado && <Check size={16} className="hidden group-hover/marca:block" />}
+        </button>
+      ) : (
+        <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-white"
+          style={{ backgroundColor: color }}>
+          {conv.remitente.charAt(0).toUpperCase()}
+        </div>
+      )}
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <p className={cn("text-xs font-semibold truncate", conv.leida ? "text-slate-700 dark:text-slate-300" : "text-slate-900 dark:text-slate-100")}>
@@ -608,7 +628,7 @@ function AsignarLineas({ onClose }: { onClose: () => void }) {
 
 function NexusContent() {
   const { brand } = useBrand();
-  const { user } = useAuth();
+  const { user, puedeVer } = useAuth();
   const qc = useQueryClient();
   const [convActiva, setConvActiva] = useState<Conversacion | null>(null);
   const [busqueda, setBusqueda] = useState("");
@@ -671,6 +691,41 @@ function NexusContent() {
 
   const CANALES = Object.entries(CANAL_META);
 
+  // ── Borrar chats ──
+  // La bandeja se llena sola: el chat de la web abre una conversación por
+  // cada visita, y la mayoría no pasa de "¿hacen mallas para gatos?".
+  // Archivarlas de una en una no lo hace nadie, así que la bandeja deja
+  // de servir para lo que sirve.
+  const puedeBorrar = puedeVer("nexus.borrar");
+  const [marcados, setMarcados] = useState<Set<string>>(new Set());
+  const [borrando, setBorrando] = useState(false);
+
+  const alternarMarca = (id: string) =>
+    setMarcados(m => {
+      const n = new Set(m);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+
+  const borrar = async (cuerpo: Record<string, unknown>, aviso: string) => {
+    if (!confirm(aviso)) return;
+    setBorrando(true);
+    try {
+      const res = await fetch("/api/nexus/conversaciones/borrar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cuerpo),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) { toast.error(json.error ?? "No se pudo borrar"); return; }
+      toast.success(`${json.data.borradas} chat(s) borrados.`);
+      setMarcados(new Set());
+      setConvActiva(null);
+      refetch();
+    } catch { toast.error("Error de conexión"); }
+    finally { setBorrando(false); }
+  };
+
   return (
     <>
       <Topbar title="Nexus · Inbox" actions={
@@ -732,6 +787,30 @@ function NexusContent() {
             />
           </div>
 
+          {/* Con chats marcados, la cabecera de la lista cambia. */}
+          {puedeBorrar && marcados.size > 0 && (
+            <div className="flex items-center gap-2 px-3 py-2 flex-shrink-0"
+              style={{ backgroundColor: "#fee2e2", borderBottom: "1px solid var(--border)" }}>
+              <span className="text-[11.5px] font-semibold text-red-700 flex-1">
+                {marcados.size} marcado{marcados.size === 1 ? "" : "s"}
+              </span>
+              <button onClick={() => setMarcados(new Set())}
+                className="text-[11px] font-semibold text-red-700 hover:underline">
+                Quitar
+              </button>
+              <button
+                onClick={() => borrar(
+                  { ids: [...marcados] },
+                  `Se borran ${marcados.size} chat(s) con todos sus mensajes. No se puede deshacer. ¿Sigo?`,
+                )}
+                disabled={borrando}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-white bg-red-600 disabled:opacity-50">
+                {borrando ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                Borrar
+              </button>
+            </div>
+          )}
+
           {/* Lista */}
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (
@@ -747,10 +826,30 @@ function NexusContent() {
                 <ConversacionItem key={c.id} conv={c} activa={convActiva?.id === c.id}
                   nombreAsignado={usuariosBandeja.find(u => u.id === c.asignadoId)?.nombre}
                   prefs={prefs}
-                  onClick={() => setConvActiva(c)} />
+                  onClick={() => setConvActiva(c)}
+                  marcado={marcados.has(c.id)}
+                  onMarcar={puedeBorrar ? () => alternarMarca(c.id) : undefined} />
               ))
             )}
           </div>
+
+          {/* Vaciar lo que nunca llegó a nada. Al pie y en letra pequeña:
+              se usa de vez en cuando, no todos los días. */}
+          {puedeBorrar && filtradas.length > 0 && (
+            <button
+              onClick={() => borrar(
+                { sinCliente: true },
+                "Se borran TODOS los chats que nunca llegaron a cliente y que nadie contestó.\n\n" +
+                "Los que tienen ficha en el CRM y los que ya se respondieron se quedan.\n\nNo se puede deshacer. ¿Sigo?",
+              )}
+              disabled={borrando}
+              className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-[11px] text-muted hover:text-red-600 transition-colors flex-shrink-0 disabled:opacity-50"
+              style={{ borderTop: "1px solid var(--border)" }}
+            >
+              <Trash2 size={11} />
+              Borrar los chats que no llegaron a cliente
+            </button>
+          )}
         </div>
 
         {/* Centro: chat */}

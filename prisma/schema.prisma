@@ -212,6 +212,7 @@ model Cliente {
   facturas       Factura[]
   logins         Usuario[]           @relation("LoginDelCliente")
   conversaciones NexusConversacion[]
+  encuestas      EncuestaSatisfaccion[]
 
   @@index([vendedorId])
   @@index([activo])
@@ -847,6 +848,7 @@ model Instalacion {
   actaRecibidoPor    String?
   actaDocumento      String?
   actaObservaciones  String?   @db.Text
+  encuestas          EncuestaSatisfaccion[]
   /// Sello del CORREO al coordinador de proyectos. Evita escribirle dos
   /// veces por el mismo pedido. Solo se pone cuando el correo sale (o
   /// cuando no hay a quién escribirle): si el SMTP no está cargado se
@@ -865,6 +867,59 @@ model Instalacion {
   @@index([estado])
   @@index([tecnicoId])
   @@map("instalaciones")
+}
+
+/// Respuesta del cliente a la encuesta de satisfacción.
+///
+/// Los campos salen del "Formato Valoración de cliente" de la empresa:
+/// NPS, seis puntajes de 0 a 10, recompra y dos textos libres.
+///
+/// Tabla propia y no un JSON en `configuracion` porque esto se promedia,
+/// se filtra por asesor y se mira por mes. Un JSON que hay que parsear
+/// entero para sacar un promedio deja de servir a las cien respuestas.
+model EncuestaSatisfaccion {
+  id String @id @default(cuid())
+
+  /// Con qué obra tiene que ver. Nulo si la instalación se borró: la
+  /// respuesta sigue valiendo para el promedio.
+  instalacionId String?
+  instalacion   Instalacion? @relation(fields: [instalacionId], references: [id], onDelete: SetNull)
+  clienteId     String?
+  cliente       Cliente?     @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  /// De quién fue la venta. Se copia al crearla porque el cliente puede
+  /// cambiar de asesor después y eso falsearía el informe.
+  vendedorId    String?
+
+  /// El secreto del enlace del correo. Distinto del id para que nadie
+  /// conteste por otro cambiando un número.
+  token String @unique
+
+  /// NPS: "¿con qué probabilidad nos recomendaría?", de 0 a 10.
+  recomendaria Int?
+
+  // Los seis puntajes del formato, de 0 a 10.
+  calidad         Int?
+  precio          Int?
+  profesionalidad Int?
+  atencion        Int?
+  puntualidad     Int?
+  limpieza        Int?
+
+  recompra        Int?
+  destacaria      String? @db.Text
+  recomendaciones String? @db.Text
+
+  /// Las dos fechas separadas: sin ellas no se puede saber cuántas se
+  /// responden ni en cuánto tiempo.
+  enviadaEn    DateTime?
+  respondidaEn DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([instalacionId])
+  @@index([respondidaEn])
+  @@map("encuestas_satisfaccion")
 }
 
 model RefreshToken {

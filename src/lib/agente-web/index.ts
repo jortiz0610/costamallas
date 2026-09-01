@@ -101,18 +101,44 @@ async function conexionWeb(): Promise<string> {
  */
 async function conversacionDe(
   token: string | null,
-  visitante?: { nombre?: string; email?: string },
+  visitante?: { nombre?: string; email?: string; telefono?: string; deWordPress?: boolean },
 ) {
   if (token) {
     const c = await prisma.nexusConversacion.findUnique({
       where: { tokenWeb: token },
       select: { id: true, tokenWeb: true, costoUSD: true, estado: true, clienteId: true },
     });
-    if (c) return c;
+    // Se retoma SOLO si sigue abierta. Una conversación que el asesor ya
+    // archivó no debe revivir porque el visitante volvió a escribir: eso
+    // hacía reaparecer hilos cerrados al final de la bandeja, ordenados
+    // por una fecha que no correspondía a lo que se estaba hablando.
+    if (c && c.estado === "ABIERTA") return c;
   }
 
   const nombre = (visitante?.nombre ?? "").trim();
   const email = (visitante?.email ?? "").trim();
+  const telefono = (visitante?.telefono ?? "").trim();
+
+  // ¿Ya es cliente? Si el correo o el teléfono coinciden con una ficha
+  // del CRM, la conversación nace vinculada. Es lo que permite que el
+  // asesor vea de entrada "este ya compró tres veces" en vez de tratar a
+  // un cliente de años como si fuera un desconocido.
+  const cliente = (email || telefono)
+    ? await prisma.cliente.findFirst({
+        where: {
+          OR: [
+            ...(email ? [{ email: { equals: email, mode: "insensitive" as const } }] : []),
+            ...(telefono ? [{ telefono }, { whatsapp: telefono }] : []),
+          ],
+        },
+        select: { id: true, vendedorId: true },
+      })
+    : null;
+
+  const etiquetas = ["agente-web"];
+  if (nombre) etiquetas.push("identificado");
+  if (visitante?.deWordPress) etiquetas.push("sesion-web");
+  if (cliente) etiquetas.push("ya-es-cliente");
 
   const nuevo = randomBytes(24).toString("base64url");
   const c = await prisma.nexusConversacion.create({
@@ -123,9 +149,13 @@ async function conversacionDe(
       // anónima sigue siendo mejor que ninguna.
       remitente: nombre || "Visitante de la web",
       emailRemit: email || null,
+      telRemit: telefono || null,
       estado: "ABIERTA",
       tokenWeb: nuevo,
-      etiquetas: nombre ? ["agente-web", "identificado"] : ["agente-web"],
+      clienteId: cliente?.id ?? null,
+      // Si ya es cliente de alguien, su asesor la recibe directamente.
+      asignadoId: cliente?.vendedorId ?? null,
+      etiquetas,
     },
     select: { id: true, tokenWeb: true, costoUSD: true, estado: true, clienteId: true },
   });
@@ -135,8 +165,9 @@ async function conversacionDe(
 export async function responder(opciones: {
   mensaje: string;
   token: string | null;
-  /** Lo que el visitante puso en el registro previo del widget. */
-  visitante?: { nombre?: string; email?: string };
+  /** Lo que el visitante puso en el registro previo del widget, o lo
+   *  que venía de su sesión de WordPress. */
+  visitante?: { nombre?: string; email?: string; telefono?: string; deWordPress?: boolean };
 }): Promise<RespuestaAgente> {
   const cfg = await getConfigAgenteWeb();
   const marca = await getMarca();

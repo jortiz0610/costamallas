@@ -202,12 +202,15 @@ export async function revisarSalud(): Promise<Salud> {
   });
 
   // ── Encuesta ──
-  c.push(hay.has("postventa_url_resena")
-    ? { clave: "resena", titulo: "Enlace de reseñas de Google", nivel: "ok", detalle: "Cargado." }
+  // La encuesta ya NO depende de esto: es propia y vive en el dominio de
+  // cotizaciones. El enlace de Google se sigue queriendo para el QR
+  // impreso, pero su falta ya no impide medir la satisfacción.
+  c.push(hay.has("post_url_resena")
+    ? { clave: "resena", titulo: "Enlace de reseñas de Google", nivel: "ok", detalle: "Cargado. El QR impreso se puede generar." }
     : {
         clave: "resena", titulo: "Enlace de reseñas de Google", nivel: "apagado",
-        detalle: "Sin cargar.",
-        consecuencia: "La encuesta de satisfacción no genera el QR.",
+        detalle: "Sin cargar. La encuesta propia sí funciona sin esto.",
+        consecuencia: "No se genera el QR para imprimir.",
         arreglo: "Pegar el enlace corto del perfil de Google.",
         enlace: "/postventa",
       });

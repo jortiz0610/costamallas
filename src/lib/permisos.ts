@@ -135,6 +135,7 @@ export const PERMISOS: Permiso[] = [
   { clave: "nexus.inbox", modulo: "NEXUS", tipo: "vista", label: "Inbox", ayuda: "La bandeja de conversaciones con clientes." },
   { clave: "nexus.interno", modulo: "NEXUS", tipo: "vista", label: "Chat interno", ayuda: "Hablar con el equipo dentro del portal. No lo ve ningún cliente." },
   { clave: "nexus.ia", modulo: "NEXUS", tipo: "accion", label: "Asistente IA en el chat", ayuda: "Pedirle ayuda a la IA para redactar una respuesta. Cada uso cuesta dinero, así que se activa persona por persona." },
+  { clave: "nexus.borrar", modulo: "NEXUS", tipo: "accion", label: "Borrar chats", ayuda: "Borra conversaciones de la bandeja, incluidas las de la web que nunca llegaron a cliente. Borra de verdad: se lleva los mensajes." },
   { clave: "nexus.plantillas", modulo: "NEXUS", tipo: "vista", label: "Plantillas", ayuda: "Los textos preescritos de respuesta." },
   { clave: "nexus.flujos", modulo: "NEXUS", tipo: "vista", label: "Flujos y automatización", ayuda: "Las reglas que responden solas." },
   { clave: "nexus.tiempos", modulo: "NEXUS", tipo: "vista", label: "Tiempo de respuesta", ayuda: "El informe de cuánto se tarda el equipo en contestar." },
@@ -181,7 +182,9 @@ const VENDEDOR_POR_DEFECTO = [
   // asistente de IA viene ENCENDIDO porque ya lo estaba usando; el
   // administrador puede apagarlo persona por persona si se dispara el
   // gasto.
-  "nexus.inbox", "nexus.interno", "nexus.ia",
+  // Puede limpiar su bandeja: es quien la sufre cuando se llena de
+  // visitas de la web que preguntaron un precio y no volvieron.
+  "nexus.inbox", "nexus.interno", "nexus.ia", "nexus.borrar",
 ];
 
 const PRODUCCION_POR_DEFECTO = [

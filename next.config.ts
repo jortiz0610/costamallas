@@ -17,7 +17,19 @@ const nextConfig: NextConfig = {
         { key: "X-Frame-Options", value: "DENY" },
         { key: "X-Content-Type-Options", value: "nosniff" },
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-        { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        // `camera=(self)` y `microphone=(self)`, NO `()`.
+        //
+        // Con la lista vacía el navegador le prohíbe al propio portal
+        // usar la cámara y el micrófono, y `getUserMedia` falla ANTES de
+        // preguntar nada: no sale el diálogo de permiso, así que parece
+        // que el botón de grabar no hace nada. Es exactamente lo que
+        // pasaba con las notas de voz del chat.
+        //
+        // `self` deja que los use ESTE dominio y sigue bloqueándolos para
+        // cualquier iframe de terceros, que es de lo que protege esta
+        // cabecera. La geolocalización se queda cerrada: el portal no la
+        // usa para nada.
+        { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=()" },
         { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
         { key: "X-DNS-Prefetch-Control", value: "on" },
         {

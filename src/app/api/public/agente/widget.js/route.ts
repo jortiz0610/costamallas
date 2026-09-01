@@ -46,7 +46,15 @@ export async function GET(req: NextRequest) {
   window.__costamallasAgente = true;
 
   var NEGRO = "#11110f";
-  var LS = "costamallas_agente_token";
+  // El token va en sessionStorage y NO en localStorage: cada visita
+  // nueva abre una conversación nueva. Con localStorage, alguien que
+  // volvía tres semanas después seguía escribiendo dentro del mismo hilo
+  // —debajo de una consulta ya cerrada— y en la bandeja parecía que
+  // nunca pasaba nada nuevo.
+  var SS = "costamallas_agente_token";
+  // Los DATOS de la persona sí se recuerdan entre visitas: volver a
+  // pedirle el nombre a quien ya lo dio es la forma más rápida de que
+  // cierre el chat.
   var LSV = "costamallas_agente_visitante";
 
   var host = document.createElement("div");
@@ -157,9 +165,16 @@ export async function GET(req: NextRequest) {
   // de filas idénticas llamadas "Visitante de la web" y no había forma
   // de devolverle la llamada a nadie.
   //
-  // Se pide lo mínimo —nombre y correo— y la aceptación de la política
-  // de tratamiento de datos, que es obligatoria: son datos personales de
-  // alguien que todavía no es cliente.
+  // Se piden nombre, correo Y TELÉFONO. El teléfono no es un capricho:
+  // en este negocio casi todo se cierra llamando, y una consulta de
+  // cerramiento sin número obliga a contestar por correo y esperar.
+  //
+  // La aceptación de la política de datos es obligatoria: son datos
+  // personales de alguien que todavía no es cliente.
+  //
+  // Si la persona ya inició sesión en WordPress, el formulario NO
+  // aparece: sus datos vienen en window.COSTAMALLAS_USUARIO (ver la
+  // instrucción de instalación) y se entra directo al chat.
   var reg = document.createElement("div");
   reg.className = "g on";
   var regTitulo = document.createElement("h4");
@@ -167,7 +182,7 @@ export async function GET(req: NextRequest) {
   var regSub = document.createElement("p");
   regSub.className = "sub";
   regSub.textContent =
-    "Con su nombre y su correo podemos responderle aunque se cierre el chat, " +
+    "Con sus datos podemos responderle aunque se cierre el chat, " +
     "y su asesor sabe con quién está hablando.";
   reg.appendChild(regTitulo);
   reg.appendChild(regSub);
@@ -180,8 +195,13 @@ export async function GET(req: NextRequest) {
   var inpE = document.createElement("input");
   inpE.type = "email"; inpE.maxLength = 120; inpE.autocomplete = "email";
   inpE.placeholder = "maria@correo.com";
+  var lblT = document.createElement("label"); lblT.textContent = "Su celular";
+  var inpT = document.createElement("input");
+  inpT.type = "tel"; inpT.maxLength = 20; inpT.autocomplete = "tel";
+  inpT.placeholder = "300 000 0000";
   reg.appendChild(lblN); reg.appendChild(inpN);
   reg.appendChild(lblE); reg.appendChild(inpE);
+  reg.appendChild(lblT); reg.appendChild(inpT);
 
   var chk = document.createElement("label"); chk.className = "chk";
   var inpC = document.createElement("input"); inpC.type = "checkbox";
@@ -259,6 +279,14 @@ export async function GET(req: NextRequest) {
   var abierto = false, ocupado = false, saludado = false;
   var visitante = null;   // { nombre, email } una vez registrado
 
+  // Siete dígitos es el mínimo de un fijo nacional; diez, un celular.
+  // No se valida más: un formato estricto rechaza números escritos con
+  // indicativo, con guiones o con espacios, que es como los escribe todo
+  // el mundo.
+  function telefonoValido(v) {
+    return String(v || "").replace(/\D/g, "").length >= 7;
+  }
+
   function correoValido(v) {
     // Ojo: este archivo emite JavaScript desde un template literal de
     // TypeScript, así que las barras invertidas van DOBLES. Con una
@@ -268,7 +296,10 @@ export async function GET(req: NextRequest) {
   }
 
   function revisarRegistro() {
-    var listo = inpN.value.trim().length >= 2 && correoValido(inpE.value.trim()) && inpC.checked;
+    var listo = inpN.value.trim().length >= 2
+      && correoValido(inpE.value.trim())
+      && telefonoValido(inpT.value)
+      && inpC.checked;
     btnReg.disabled = !listo;
     return listo;
   }
@@ -280,10 +311,14 @@ export async function GET(req: NextRequest) {
     if (!revisarRegistro()) {
       errReg.textContent = !inpC.checked
         ? "Hace falta autorizar el tratamiento de datos para poder atenderle."
-        : "Revise el nombre y el correo.";
+        : "Revise el nombre, el correo y el celular.";
       return;
     }
-    visitante = { nombre: inpN.value.trim(), email: inpE.value.trim() };
+    visitante = {
+      nombre: inpN.value.trim(),
+      email: inpE.value.trim(),
+      telefono: inpT.value.trim(),
+    };
     guardarVisitante(visitante);
     mostrarChat();
   }
@@ -301,13 +336,40 @@ export async function GET(req: NextRequest) {
     setTimeout(function () { campo.focus(); }, 60);
   }
 
+  /**
+   * Si la persona inició sesión en WordPress, ya sabemos quién es.
+   *
+   * WordPress no deja leer la sesión desde un script de otro dominio, así
+   * que el propio sitio publica los datos en window.COSTAMALLAS_USUARIO
+   * cuando hay alguien dentro. El fragmento que hace eso está en
+   * Configuración → Agente web, listo para pegar en el functions.php.
+   *
+   * Si está, el formulario NO aparece: se entra directo al chat y en
+   * Nexus la conversación llega ya identificada.
+   */
+  function usuarioDeWordPress() {
+    var u = window.COSTAMALLAS_USUARIO;
+    if (!u || typeof u !== "object") return null;
+    var nombre = String(u.nombre || u.name || "").trim();
+    var email = String(u.email || "").trim();
+    if (nombre.length < 2 || !correoValido(email)) return null;
+    return {
+      nombre: nombre,
+      email: email,
+      telefono: String(u.telefono || u.phone || "").trim(),
+      // Se marca para que en la bandeja se sepa que viene identificado
+      // desde la web, no escrito a mano en un formulario.
+      wp: true,
+    };
+  }
+
   function alternar() {
     abierto = !abierto;
     panel.className = abierto ? "p on" : "p";
     if (abierto) {
-      // Quien ya se registró —o ya tiene una conversación abierta— no
-      // vuelve a llenar el formulario cada vez que abre el chat.
-      if (!visitante) visitante = leerVisitante();
+      // Orden: la sesión de WordPress manda sobre lo que se guardó antes,
+      // porque si hay alguien con sesión iniciada ESE es quien escribe.
+      if (!visitante) visitante = usuarioDeWordPress() || leerVisitante();
       if (visitante || token()) { mostrarChat(); }
       else { setTimeout(function () { inpN.focus(); }, 60); }
     }
@@ -315,8 +377,8 @@ export async function GET(req: NextRequest) {
   burbuja.addEventListener("click", alternar);
   cerrar.addEventListener("click", alternar);
 
-  function token() { try { return localStorage.getItem(LS); } catch (e) { return null; } }
-  function guardar(t) { try { localStorage.setItem(LS, t); } catch (e) {} }
+  function token() { try { return sessionStorage.getItem(SS); } catch (e) { return null; } }
+  function guardar(t) { try { sessionStorage.setItem(SS, t); } catch (e) {} }
   function leerVisitante() {
     try { return JSON.parse(localStorage.getItem(LSV) || "null"); } catch (e) { return null; }
   }
@@ -345,6 +407,8 @@ export async function GET(req: NextRequest) {
         // cuenta de si ya se mandaron.
         nombre: visitante ? visitante.nombre : "",
         email: visitante ? visitante.email : "",
+        telefono: visitante ? visitante.telefono : "",
+        deWordPress: !!(visitante && visitante.wp),
       }),
     })
       .then(function (r) { return r.json(); })

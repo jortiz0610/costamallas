@@ -20,6 +20,9 @@ import { rateLimit } from "@/lib/rate-limit";
 const PUBLIC_PATHS = [
   "/login", "/api/auth/login", "/cotizar", "/api/public",
   "/api/marketing/oauth", "/api/cron", "/api/mantenimiento", "/cotizacion", "/politicas",
+  // La encuesta la contesta el cliente, que no tiene cuenta. Se llega
+  // por un token largo del correo, no por un id adivinable.
+  "/encuesta",
 ];
 const API_RATE_LIMIT = 200;
 

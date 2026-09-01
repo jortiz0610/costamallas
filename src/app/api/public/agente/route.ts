@@ -106,7 +106,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const r = await responder({ mensaje, token, visitante: { nombre, email } });
+  const telefono = String(body.telefono ?? "").trim().slice(0, 20);
+  const deWordPress = body.deWordPress === true;
+
+  const r = await responder({
+    mensaje, token,
+    visitante: { nombre, email, telefono, deWordPress },
+  });
 
   return NextResponse.json(
     {
