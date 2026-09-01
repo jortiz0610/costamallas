@@ -167,7 +167,7 @@ export function TabAgenteWeb() {
         </div>
         <div>
           <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">WhatsApp para escalar</label>
-          <input className="input max-w-xs" placeholder="573001234567" value={f.whatsapp} onChange={ev => u("whatsapp", ev.target.value)} />
+          <input className="input max-w-xs" placeholder="573006078956" value={f.whatsapp} onChange={ev => u("whatsapp", ev.target.value)} />
           <p className="text-[11px] text-muted mt-1">
             Con indicativo del país y sin signos. Si está vacío, el chat no muestra el botón de WhatsApp —
             un botón que lleve a un número equivocado es peor que no tenerlo.
