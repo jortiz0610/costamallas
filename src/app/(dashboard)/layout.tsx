@@ -8,6 +8,7 @@ import type { NotificacionDTO } from "@/types";
 import { Sembli } from "@/components/layout/Sembli";
 import { PWA } from "@/components/layout/PWA";
 import { MobileNav } from "@/components/layout/MobileNav";
+import { LanzadorMovil } from "@/components/layout/LanzadorMovil";
 import { GuardiaRuta } from "@/components/layout/GuardiaRuta";
 import { useFlotantesEstorban } from "@/components/layout/BotonesFlotantes";
 import { useAuth } from "@/hooks/useAuth";
@@ -129,12 +130,13 @@ function SupportButton() {
 /**
  * Por dónde se entra al portal.
  *
- * En el TELÉFONO se abre en Nexus, para todo el mundo —vendedores y
- * administración por igual—: en el móvil lo que se hace es contestar,
- * no cargar catálogo. El resto de módulos siguen ahí, en el menú.
+ * En el TELÉFONO ya no se fuerza ningún módulo: la primera pantalla es
+ * el tablero de `LanzadorMovil`, donde la persona elige. Antes se abría
+ * directo en Nexus y quien entraba a mirar stock tenía que salirse.
  *
- * En escritorio no se fuerza nada: quien administra entra a trabajar en
- * el ERP y obligarlo a pasar por el inbox sería un clic de más cada día.
+ * Aquí solo queda el caso de quien NO tiene ERP: a esa persona el portal
+ * la dejaba en una pantalla a la que no puede entrar, así que se la
+ * manda al primer módulo que sí puede ver.
  *
  * Solo aplica la PRIMERA vez. En cuanto alguien cambia de módulo, su
  * elección se recuerda y esto no vuelve a opinar.
@@ -148,9 +150,7 @@ function ModuloDeArranque() {
     const visibles = modulosVisibles(permisos);
     if (visibles.length === 0) return;
 
-    const enMovil = window.matchMedia("(max-width: 1023px)").matches;
-    if (enMovil && visibles.includes("NEXUS")) setModoInicial("NEXUS");
-    else if (!visibles.includes("ERP")) setModoInicial(visibles[0] as never);
+    if (!visibles.includes("ERP")) setModoInicial(visibles[0] as never);
   }, [modoElegido, isLoading, permisos, setModoInicial]);
 
   return null;
@@ -206,6 +206,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
         <GuardiaRuta>{children}</GuardiaRuta>
       </main>
       <MobileNav />
+      <LanzadorMovil nexusSinLeer={nexusData?.noLeidas ?? 0} />
       <NotifToastManager />
       <SupportButton />
       <Sembli />

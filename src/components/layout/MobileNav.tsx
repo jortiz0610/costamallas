@@ -31,10 +31,10 @@ export function MobileNav() {
   // Antes esta barra los mostraba los cuatro siempre, así que en el
   // teléfono un vendedor veía "Mkt" y al tocarlo caía en una pantalla que
   // no le corresponde.
-  // Nexus va PRIMERO en el teléfono, y es donde se abre el portal en
-  // móvil (ver `ModuloDeArranque` en el layout): en el celular lo que se
-  // hace es contestar, no cargar catálogo. Los demás módulos siguen aquí
-  // al lado y en el menú de "Más" — no se le quita nada a nadie.
+  // Nexus va PRIMERO en el teléfono porque en el celular lo que más se
+  // hace es contestar. Pero ya no se entra ahí a la fuerza: la primera
+  // pantalla de la visita es el tablero de módulos (LanzadorMovil) y
+  // la persona elige. Los demás módulos siguen aquí al lado y en "Más".
   const visibles = modulosVisibles(permisos);
   const items = ([
     { key: "NEXUS" as const, ...MODULOS.NEXUS },

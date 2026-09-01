@@ -8,7 +8,7 @@ import {
   Globe, Smartphone, Instagram, CheckCheck,
   X, Mail, MessageSquareText,
   Inbox, PlugZap, Facebook, Sparkles, Loader2, StickyNote, ChevronLeft,
-  Archive, UserPlus, Trash2, Check,
+  Archive, UserPlus, Trash2, Check,
 } from "lucide-react";
 import Link from "next/link";
 import { useBrand } from "@/contexts/BrandContext";
@@ -691,6 +691,19 @@ function NexusContent() {
 
   const CANALES = Object.entries(CANAL_META);
 
+  // ¿Hay algún canal conectado? Sin esto, la bandeja vacía decía
+  // "conecta un canal" AUNQUE el chat de la web estuviera conectado y
+  // funcionando: el mensaje daba a entender que el portal no estaba
+  // recibiendo nada, cuando lo que pasaba era que no había ninguna
+  // conversación abierta en ese momento.
+  const { data: conexiones = [] } = useQuery<{ id: string; nombre: string; canal: string; activo: boolean }[]>({
+    queryKey: ["nexus-conexiones-estado"],
+    queryFn: async () => (await (await fetch("/api/nexus/conexiones")).json()).data ?? [],
+    staleTime: 300_000,
+  });
+  const conectados = conexiones.filter(c => c.activo);
+  const hayCanal = conectados.length > 0;
+
   // ── Borrar chats ──
   // La bandeja se llena sola: el chat de la web abre una conversación por
   // cada visita, y la mayoría no pasa de "¿hacen mallas para gatos?".
@@ -818,8 +831,16 @@ function NexusContent() {
             ) : filtradas.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full gap-3 p-8 text-center">
                 <Inbox size={28} className="text-muted" />
-                <p className="text-sm font-medium text-soft">Bandeja vacía</p>
-                <p className="text-xs text-muted">Los mensajes de tus canales conectados aparecerán aquí</p>
+                <p className="text-sm font-medium text-soft">
+                  {filtroEstado || filtroCanal ? "Nada con este filtro" : "Bandeja vacía"}
+                </p>
+                <p className="text-xs text-muted">
+                  {filtroEstado || filtroCanal
+                    ? "Prueba a quitar el filtro para ver el resto."
+                    : hayCanal
+                      ? `${conectados.map(c => c.nombre).join(", ")} está conectado. Aquí van a caer los mensajes.`
+                      : "Todavía no hay ningún canal conectado."}
+                </p>
               </div>
             ) : (
               filtradas.map(c => (
@@ -861,15 +882,30 @@ function NexusContent() {
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ backgroundColor: brand.brandColor + "18" }}>
                 <MessageSquare size={28} style={{ color: brand.brandColor }} />
               </div>
-              <div>
-                <p className="text-base font-semibold text-soft">Selecciona una conversación</p>
-                <p className="text-sm text-muted mt-1">O conecta un canal para empezar a recibir mensajes</p>
-              </div>
-              <Link href="/configuracion?tab=canales"
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
-                style={{ backgroundColor: brand.brandColor }}>
-                <PlugZap size={15} /> Conectar canal
-              </Link>
+              {hayCanal ? (
+                <div>
+                  <p className="text-base font-semibold text-soft">
+                    {filtradas.length ? "Elige una conversación" : "No hay conversaciones abiertas"}
+                  </p>
+                  <p className="text-sm text-muted mt-1 max-w-xs">
+                    {conectados.length === 1
+                      ? `${conectados[0].nombre} está conectado y escuchando.`
+                      : `${conectados.length} canales conectados y escuchando.`}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <p className="text-base font-semibold text-soft">Sin canales conectados</p>
+                    <p className="text-sm text-muted mt-1">Conecta uno para empezar a recibir mensajes.</p>
+                  </div>
+                  <Link href="/configuracion?tab=canales"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
+                    style={{ backgroundColor: brand.brandColor }}>
+                    <PlugZap size={15} /> Conectar canal
+                  </Link>
+                </>
+              )}
             </div>
           )}
         </div>
