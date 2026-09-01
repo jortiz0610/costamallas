@@ -13,6 +13,9 @@
 
 import { prisma } from "@/lib/prisma";
 import { decryptIfNeeded, encrypt } from "@/lib/encryption";
+import { enviarCorreo } from "@/lib/correo";
+import { envolverCorreo, PIE_EMAIL } from "@/lib/correo-layout";
+import { getMarca } from "@/lib/marca";
 
 export interface ResultadoEnvio {
   ok: boolean;
@@ -127,6 +130,49 @@ async function enviarWebhook(cfg: Config, destino: string, texto: string, canal:
 }
 
 /**
+ * El chat de la web se responde POR CORREO.
+ *
+ * Por qué, y no por el propio chat: la persona escribió, cerró la
+ * pestaña y se fue. No hay ninguna conexión abierta a la que devolverle
+ * nada. Antes esto caía en el envío por webhook genérico y el asesor se
+ * topaba con "El canal WEB no tiene URL de salida configurada" — un
+ * error de plomería, delante de un cliente que estaba esperando.
+ *
+ * Por eso el chat pide el correo antes de dejar escribir: no es para
+ * llenar una base de datos, es la única vía de vuelta que hay.
+ */
+async function enviarChatWeb(emailRemit: string | null, texto: string): Promise<ResultadoEnvio> {
+  const para = (emailRemit ?? "").trim();
+  if (!para) {
+    return {
+      ok: false,
+      error: "Esta conversación no tiene correo: entró antes de que el chat lo pidiera. Respóndale por WhatsApp o por teléfono.",
+    };
+  }
+
+  try {
+    const marca = await getMarca();
+    const { html, texto: plano } = envolverCorreo({
+      titulo: "Sobre su consulta",
+      cuerpo: texto,
+      marca,
+    });
+    const r = await enviarCorreo({
+      para,
+      asunto: `Su consulta en ${marca.companyName}`,
+      html,
+      texto: plano,
+      // Si el cliente le da a "Responder", la respuesta llega a ventas y
+      // no al buzón técnico que manda los correos.
+      responderA: PIE_EMAIL,
+    });
+    return { ok: true, refExterna: r.messageId };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+}
+
+/**
  * Envía un texto por el canal de la conversación.
  *
  * Nunca lanza excepción: devuelve el resultado para que quien llama lo
@@ -144,9 +190,13 @@ export async function enviarPorCanal(conversacionId: string, texto: string): Pro
   const cfg = leerConfig(conv.conexion.config);
   const destino = conv.telRemit ?? conv.emailRemit ?? "";
 
-  switch (conv.canal) {
+  // El canal se guarda "WEB" desde el agente y "whatsapp" desde el
+  // webhook de Meta. Se compara en minúsculas para no depender de eso.
+  switch (conv.canal.toLowerCase()) {
     case "whatsapp":
       return enviarWhatsApp(cfg, destino, texto);
+    case "web":
+      return enviarChatWeb(conv.emailRemit, texto);
     case "wordpress_form":
       // Un formulario web no es un canal de ida y vuelta: se responde por
       // correo. Decirlo claro es mejor que fingir que se envió.
@@ -201,6 +251,11 @@ export async function canalPuedeEnviar(conexionId: string): Promise<{ puede: boo
     if (!cfg.phoneNumberId || !cfg.token) {
       return { puede: false, motivo: "Falta el Phone Number ID o el token de WhatsApp." };
     }
+    return { puede: true };
+  }
+  if (conexion.canal.toLowerCase() === "web") {
+    // Puede, siempre que la conversación traiga correo. Eso se sabe
+    // conversación por conversación, no aquí; si falta, el envío lo dice.
     return { puede: true };
   }
   if (conexion.canal === "wordpress_form") {
