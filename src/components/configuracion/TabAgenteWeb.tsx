@@ -24,6 +24,34 @@ interface Estado {
   gastoHoyUSD: number; iaConfigurada: boolean; conversaciones: number; embed: string;
 }
 
+/**
+ * El fragmento que se pega en WordPress para que el chat reconozca a
+ * quien ya inicio sesion. Se muestra tal cual en pantalla con un boton
+ * de copiar: es codigo que va en OTRO sistema, y dictarlo por telefono
+ * o transcribirlo a mano es como se cuelan los errores.
+ */
+const PHP_WORDPRESS = [
+  "/**",
+  " * Costamallas: dice quien inicio sesion en la tienda.",
+  " *",
+  " * El chat vive en otro dominio y no puede leer la sesion de",
+  " * WordPress. Este fragmento publica los datos del usuario en la",
+  " * pagina; el chat los recoge y no le vuelve a pedir el nombre.",
+  " */",
+  "add_action( 'wp_footer', function () {",
+  "    if ( ! is_user_logged_in() ) { return; }",
+  "    $u = wp_get_current_user();",
+  "    $nombre = trim( $u->first_name . ' ' . $u->last_name );",
+  "    if ( $nombre === '' ) { $nombre = $u->display_name; }",
+  "    $tel = get_user_meta( $u->ID, 'billing_phone', true );",
+  "    echo '<script>window.COSTAMALLAS_USUARIO = ' . wp_json_encode( array(",
+  "        'nombre'   => $nombre,",
+  "        'email'    => $u->user_email,",
+  "        'telefono' => $tel ? $tel : '',",
+  "    ) ) . ';</script>';",
+  "}, 5 );",
+].join("\n");
+
 export function TabAgenteWeb() {
   const [f, setF] = useState<Cfg | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -248,6 +276,35 @@ export function TabAgenteWeb() {
         </div>
       </div>
 
+
+      {/* Reconocer al cliente que ya inició sesión */}
+      <div className="card p-5">
+        <p className="text-xs font-bold uppercase tracking-widest text-muted mb-1">
+          Para saber quién está escribiendo
+        </p>
+        <p className="text-[11px] text-muted mb-3 leading-relaxed">
+          Opcional, pero vale la pena. Sin esto, a todo el mundo se le piden nombre, correo y celular
+          antes de escribir — incluso a un cliente que acaba de iniciar sesión en la tienda. Con esto,
+          a quien ya entró con su cuenta el chat lo saluda por su nombre y la conversación llega a
+          Nexus ya identificada.
+          <br />
+          Va en <strong>functions.php</strong> del tema hijo, o en un fragmento del plugin
+          {" "}<em>Code Snippets</em> (más seguro: no se pierde al actualizar el tema).
+        </p>
+        <div className="flex gap-2 items-start">
+          <pre className="flex-1 text-[10.5px] font-mono p-3 rounded-xl surface-2 overflow-x-auto leading-relaxed">{PHP_WORDPRESS}</pre>
+          <button
+            onClick={() => { navigator.clipboard.writeText(PHP_WORDPRESS); toast.success("Copiado"); }}
+            className="btn-secondary btn-sm flex-shrink-0"
+          >
+            <Copy size={13} /> Copiar
+          </button>
+        </div>
+        <p className="text-[11px] text-muted mt-3 leading-relaxed">
+          El celular sale del campo de facturación de WooCommerce. Si el cliente nunca lo llenó,
+          llega vacío y el chat sigue funcionando igual.
+        </p>
+      </div>
       <button onClick={guardar} disabled={guardando} className="btn-primary w-full justify-center">
         {guardando ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Guardar
       </button>
