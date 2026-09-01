@@ -151,6 +151,7 @@ export const PERMISOS: Permiso[] = [
   // ── SISTEMA ──
   { clave: "sistema.usuarios", modulo: "SISTEMA", tipo: "vista", label: "Usuarios y roles", ayuda: "Altas, bajas y permisos del equipo." },
   { clave: "sistema.reportes", modulo: "SISTEMA", tipo: "vista", label: "Reportes y logs", ayuda: "La auditoría: quién hizo qué y cuándo." },
+  { clave: "sistema.salud", modulo: "SISTEMA", tipo: "vista", label: "Estado del sistema", ayuda: "De un vistazo: qué está conectado, qué está roto y qué deja de funcionar por ello." },
   { clave: "sistema.seguridad", modulo: "SISTEMA", tipo: "vista", label: "Seguridad", ayuda: "Sesiones, 2FA y dispositivos de confianza." },
   { clave: "sistema.configuracion", modulo: "SISTEMA", tipo: "vista", label: "Configuración", ayuda: "Todos los ajustes del portal." },
 ];
@@ -393,6 +394,7 @@ export const RUTAS_PROTEGIDAS: Record<string, string> = {
 
   "/usuarios": "sistema.usuarios",
   "/reportes": "sistema.reportes",
+  "/sistema/salud": "sistema.salud",
   "/sistema/seguridad": "sistema.seguridad",
   "/configuracion": "sistema.configuracion",
 };

@@ -40,6 +40,7 @@ import { correrSeguimientos } from "@/lib/seguimiento";
 import { marcarVencidos } from "@/lib/vencimientos";
 import { alertarSinRespuesta } from "@/lib/nexus/alertas";
 import { recalcularEstados } from "@/lib/estados-cliente-server";
+import { limpiar } from "@/lib/mantenimiento";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -80,6 +81,16 @@ async function handle(req: NextRequest) {
     // cotizaciones que acaban de vencer más arriba.
     const estadosCliente = await recalcularEstados({ dry });
 
+    // Higiene: tokens vencidos, notificaciones leídas viejas y logs de
+    // hace más de un año. Va al final y con su propio try: si la
+    // limpieza falla, lo demás ya se hizo y no tiene por qué perderse.
+    let limpieza;
+    try {
+      limpieza = await limpiar({ dry });
+    } catch (e) {
+      limpieza = { error: e instanceof Error ? e.message : String(e) };
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -89,6 +100,7 @@ async function handle(req: NextRequest) {
         seguimiento,
         tiemposNexus,
         estadosCliente,
+        limpieza,
       },
     });
   } catch (err) {
