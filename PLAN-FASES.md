@@ -87,6 +87,12 @@ entre el 1 y el 5 de agosto.
 - Plantillas de arranque, flujos editables y una pantalla de estado que dice,
   canal por canal, si "recibe y responde" o "solo recibe" y por qué.
 - **Tiempo de respuesta** — el compromiso de la hora, medido en horario hábil.
+- **El chat de la página, de ida y de vuelta** (1-sep). El visitante escribe
+  desde costamallas.com, el asesor le responde desde Nexus y la respuesta le
+  aparece en su propia ventana, con el nombre de quien contesta. Al cerrar la
+  conversación le llega la charla completa por correo.
+- **Chat interno del equipo** y bandeja con tres columnas en escritorio;
+  tablero de módulos en el teléfono.
 
 **Lo que falta y no depende del código:** la aprobación de Meta. Hasta entonces
 el envío por WhatsApp se registra como fallido con el motivo real; no se simula.
@@ -129,11 +135,13 @@ Cosas que no estaban en las 5 fases y salieron de la operación:
 
 Por orden de lo que más desbloquea:
 
-1. **Cargar el SMTP desde producción.** Hay cinco funciones construidas que no
-   mandan nada sin esto: seguimiento, envío de cotización, recordatorios de
-   cartera, órdenes de compra y aviso al coordinador.
-2. **Empezar a enviar cotizaciones desde el portal.** Mientras se manden por
-   fuera, el embudo, la tasa de cierre y el seguimiento no tienen datos.
+1. **Empezar a enviar cotizaciones desde el portal.** Mientras se manden por
+   fuera, el embudo, la tasa de cierre y el seguimiento no tienen datos. Es lo
+   que más desbloquea desde que el SMTP está cargado (28-ago) y el disparador
+   de 15 minutos corre en verde (1-sep).
+2. **Cerrar la primera obra con el enlace de reseñas cargado.** De ahí sale la
+   primera encuesta: la pantalla de resultados existe y hoy está vacía porque
+   no se ha mandado ninguna.
 3. **Crear los usuarios VENDEDOR reales** (hoy los asesores son administradores).
 4. Los datos de gerencia: plazos de pago, precios de instalación, enlace de
    reseñas, coordinador de obras → `PENDIENTES-GERENCIA.md`.

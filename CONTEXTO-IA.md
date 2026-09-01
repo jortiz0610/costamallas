@@ -5,7 +5,7 @@
 > cómo está construido, dónde está alojado y cómo se conecta con los servicios externos
 > (Vercel, Supabase, WooCommerce, FTP, IA, plataformas de Ads).
 >
-> **Última actualización:** 2026-08-29 · Commit de referencia: `c566d9c`
+> **Última actualización:** 2026-09-01 · Commit de referencia: `9a085fc`
 > _Mantén este archivo actualizado cuando cambie la arquitectura o las integraciones._
 >
 > **Antes de tocar nada, lee también:**
@@ -357,12 +357,16 @@ Páginas (bajo `(dashboard)` salvo indicación): inicio, `categorias`, `compras`
 `pedidos`, `instalaciones` [+ `[id]/acta`], `pipeline`, `tareas`), `errores`,
 `exportar`, `facturacion` (+ `nueva`, `[id]`, `cartera`, `sin-vencimiento`),
 `imagenes`, `importar`, `marketing` (+ `atribucion`, `campanas`, `reportes`, `retorno`),
-`nexus` (+ `flujos`, `plantillas`, `tiempos`), `postventa`, `productos` (+ `nuevo`, `[id]`, `seo`),
-`reportes`, `sistema/{seguridad,reportes}`, `stock`, `usuarios`, `woocommerce`.
+`nexus` (+ `flujos`, `plantillas`, `tiempos`, **`interno`** = chat del equipo),
+`postventa` (+ **`resultados`** = lo que contestan los clientes),
+`productos` (+ `nuevo`, `[id]`, `seo`),
+`reportes`, `sistema/{seguridad,reportes,`**`salud`**`,`**`ensayo`**`}`, `stock`, `usuarios`, `woocommerce`.
 `crm/cotizador` quedó como redirección al cotizador único.
 
-**Públicas:** `(auth)/login`, `cotizar`, `cotizacion/[token]`, `cotizacion/demo`
-y `politicas`.
+**Públicas:** `(auth)/login`, `cotizar`, `cotizacion/[token]`, `cotizacion/demo`,
+`politicas` y **`encuesta/[token]`** (la encuesta de satisfacción; vive en el
+mismo dominio que las cotizaciones porque es el enlace que el cliente ya conoce).
+Todas tienen que estar en `PUBLIC_PATHS` del middleware o el portal las manda al login.
 
 **Configuración** es una sola página con pestañas: Empresa · IA · Correo ·
 Cotización · **Seguimiento** · **Reglas comerciales** · **Postventa** ·
@@ -387,8 +391,11 @@ Endpoints API (`src/app/api/`):
 `marketing/{campanas,conexiones,leads,retorno,oauth/[plataforma],oauth/callback}` ·
 `nexus/{conexiones,conversaciones,mensajes,plantillas,flujos,estado,tiempos,webhook/[canal]}` ·
 `notificaciones` · `postventa/qr` · `productos` (+ `[id]`, `[id]/ficha`) ·
-`public/{lead,productos}` · **`public/agente`** (el agente de la web) y
-`public/agente/widget.js` (el chat que se pega en WordPress) ·
+`public/{lead,productos}` · **`public/agente`** (el agente de la web),
+`public/agente/widget.js` (el chat que se pega en WordPress) y
+**`public/agente/mensajes`** (el camino de vuelta: lo que el asesor responde) ·
+**`public/encuesta/[token]`** · **`encuestas/resumen`** (los resultados, `crm.postventa`) ·
+`nexus/{interno,conversaciones/borrar}` · `sistema/ensayo` ·
 `crm/cotizaciones/[id]/compartir` ·
 `reportes-error` · `sembli/chat` · `sistema/health` ·
 `stock` (+ `alertas`) · `usuarios` (+ `lista`, `[id]`, `[id]/2fa`) ·
@@ -582,14 +589,16 @@ lo dicen en pantalla con el motivo.
 | Recargo de instalación por ciudad | Que gerencia los cargue | Los 17 servicios ya están; sin recargo, la cuadrilla a Santa Marta cuesta lo mismo que instalar al lado |
 | Alerta de tiempo de respuesta | Nada — funciona | Pero avisa en la corrida DIARIA, no al minuto 61: Hobby no deja más de un cron al día |
 | SEO masivo | Nada — funciona | Genera a la cola de revisión; falta que alguien lance el primer lote y apruebe. **Solo SUPERADMIN** |
-| Agente web | Nada — funciona, probado contra producción | Nace APAGADO. Falta encenderlo, cargarle el WhatsApp de escalamiento y pegar el `<script>` en WordPress |
+| Agente web | Nada — **encendido y conectado** (1-sep) | El `<script>` está en costamallas.com, el WhatsApp de escalamiento cargado y el chat responde con precios del catálogo. Tarda 15-20 s por respuesta: consulta el catálogo de verdad |
 | QR de encuesta | El enlace de reseñas de Google | No se genera ningún QR (uno impreso que no funciona no se puede corregir) |
 | Facturación electrónica | Elegir proveedor (Factus/Siigo/Alegra) | Modo "manual": la factura se emite sin ir a la DIAN |
 | Marketplaces | Cuentas de vendedor | Pestañas de configuración vacías |
 | Documentos de SG-SST | Almacenamiento privado (llega con el VPS) | Se registra QUÉ documento entregó cada persona y cuándo; **el archivo NO se guarda** y la pantalla lo dice. Ver `lib/almacenamiento-documentos.ts` |
 | Botón del catálogo en los correos | Subir el PDF y pegar su dirección | El botón sencillamente no sale. Un enlace roto en un correo es peor que un botón que falta |
-| Disparador cada 15 min | El secreto `CRON_SECRET` en GitHub | El workflow existe y falla en rojo. La corrida diaria de Vercel sigue funcionando |
-| Nexus móvil (Fase 7) | Visto bueno de los mockups | Nada programado todavía; los mockups están hechos |
+| Disparador cada 15 min | Nada — **resuelto** (1-sep) | El secreto está puesto y la primera corrida salió verde |
+| Nexus móvil (Fase 7) | Nada — hecho | Inbox de tres columnas en escritorio, tablero de módulos en el teléfono |
+| Copia del chat de la web | Nada — funciona | Sale al **cerrar** la conversación, no en cada respuesta. Un chat que nadie cierra nunca manda la copia: ver PENDIENTES §18 |
+| Resultados de la encuesta | El enlace de reseñas y que se cierre la primera obra | La pantalla existe (`/postventa/resultados`); hoy hay **0 encuestas** en la base, así que muestra su estado vacío |
 | Plazos de pago reales | Confirmación de gerencia | Contado 0 / crédito 30 como valor de arranque |
 
 Detalle y preguntas concretas en **`PENDIENTES-GERENCIA.md`**.
@@ -759,12 +768,28 @@ Cómo se hace aquí:
 Se comprueba con el navegador a 360 px: `document.documentElement.scrollWidth`
 tiene que ser igual a `window.innerWidth`.
 
-### En el teléfono se entra por Nexus
+### En el teléfono se entra por un tablero de módulos
 
-Para **todos** los roles, no solo vendedores (`ModuloDeArranque` en el layout
-del portal). Solo la primera vez: en cuanto alguien cambia de módulo su
-elección se guarda en `localStorage` y el arranque no vuelve a opinar. En
-escritorio no se fuerza nada.
+`src/components/layout/LanzadorMovil.tsx`. La primera pantalla de la visita
+no es un módulo: son los módulos que esa persona puede abrir, con lo que
+tiene pendiente en cada uno.
+
+Antes se forzaba Nexus para todos los roles, y quien entraba a mirar
+existencias tenía que salirse de un módulo que no había pedido.
+
+Tres reglas, y las tres importan:
+
+1. **Solo en el teléfono** (`max-width: 1023px`). En escritorio el menú
+   lateral está siempre a la vista y una pantalla intermedia sobra.
+2. **Una vez por visita**, no una por página (`sessionStorage`).
+3. **Nunca encima de un enlace directo.** Solo sale en las raíces
+   (`/`, `/crm`, `/nexus`, `/marketing`). Si alguien llega desde un correo
+   a una cotización concreta, va a la cotización: interponer el tablero le
+   borraría el destino.
+
+`ModuloDeArranque` (en el layout) ya solo hace una cosa: mandar al primer
+módulo visible a quien NO tiene ERP, para que no caiga en una pantalla a la
+que no puede entrar.
 
 ### Build
 
@@ -869,6 +894,52 @@ esa lista **no la hace pública** — la ruta se autoriza sola.
 ---
 
 ## 13. Nexus: lo que hay que saber antes de tocarlo
+
+### El chat de la web: por dónde entra y por dónde sale
+
+Lo más fácil de romper de todo Nexus, porque son **tres piezas en dos
+dominios**.
+
+**Entra** por `POST /api/public/agente` desde costamallas.com. El CORS solo
+admite los dominios configurados en el agente, y compara la cadena exacta:
+`https://costamallas.com` y `https://www.costamallas.com` son orígenes
+distintos y los dos tienen que estar en la lista.
+
+**Sale** por `GET /api/public/agente/mensajes`, que el widget consulta cada
+7 segundos. La llave es el `tokenWeb` de la conversación —24 bytes
+aleatorios—, **nunca el id**: los cuid son adivinables.
+
+⚠️ **El sondeo NUNCA devuelve las notas internas.** Una nota es lo que un
+asesor le escribe a otro sobre ese cliente. Si alguien toca el filtro
+`origen` de esa consulta y deja entrar `"nota"`, el cliente lee lo que se
+dice de él. Es el peor error posible de este módulo.
+
+**El correo no es el canal, es el recibo.** `enviarPorCanal` para el canal
+`WEB` no manda nada: devuelve `ok` con `refExterna: "chat-web"`, porque
+guardar la fila YA es enviarla. El correo con la conversación completa sale
+**una sola vez, al cerrar** (`lib/nexus/copia-chat.ts`), y queda sellado en
+`metadata.copiaEnviadaEn` para no mandarlo dos veces.
+
+Antes de esto, responder desde Nexus una conversación del chat web caía en
+el envío por webhook genérico y devolvía *"El canal WEB no tiene URL de
+salida configurada"*. No era un problema de conexión: sencillamente no
+había camino de vuelta.
+
+**Se prueba entero** con `npx tsx scripts/probar-respuesta-web.ts` (10
+comprobaciones, contra producción, manda un correo real al buzón de la
+empresa y borra lo que crea).
+
+### El visitante se identifica antes de escribir
+
+El widget pide nombre, correo y celular **solo si eligió escribir** —la
+primera pantalla es el saludo y dos botones, chat o WhatsApp—. Si la persona
+ya inició sesión en WordPress, no se le pregunta nada: la tienda publica sus
+datos en `window.COSTAMALLAS_USUARIO` con el fragmento PHP que está en
+Configuración → Agente web, listo para copiar.
+
+El token de la conversación va en `sessionStorage`, no en `localStorage`:
+cada visita nueva abre una conversación nueva. Los DATOS de la persona sí se
+recuerdan entre visitas, para no volver a pedirle el nombre a quien ya lo dio.
 
 ### El canal es una cadena, y en la base hay de todo
 

@@ -8,7 +8,7 @@
 > Todo lo de aquí se cambia desde el portal en dos minutos. No hace falta
 > tocar código ni pedir un desarrollo.
 >
-> Última revisión: **2026-08-29**
+> Última revisión: **2026-09-01**
 
 ---
 
@@ -398,6 +398,63 @@ Con el rol nuevo puesto, el botón de permisos de su fila permite quitarles
 cualquier pantalla puntual sin tocar el rol de los demás.
 
 ---
+## 18. ¿Cerramos solos los chats de la web? ⚠️ nuevo
+
+**Qué se necesita:** decidir si un chat de la página que lleva días sin
+actividad se cierra solo, y a los cuántos días.
+
+**Por qué importa:** al cliente le llega la conversación completa por correo
+**cuando se cierra el chat**. Es la decisión que tomó gerencia, y está bien:
+durante la charla el cliente ve las respuestas en la propia ventana, y
+mandarle un correo por cada frase le llena el buzón.
+
+Pero eso tiene una consecuencia: **un chat que nadie cierra nunca manda la
+copia.** Si el asesor responde y deja la conversación abierta en la bandeja,
+el cliente se queda sin su registro escrito de las medidas y los precios.
+
+**Lo que está puesto mientras tanto:** nada automático. La copia sale cuando
+un asesor cierra la conversación a mano.
+
+**La pregunta:** ¿cerramos solos los chats con 48 horas sin actividad? ¿72?
+Se engancha a la corrida diaria y son unas horas de trabajo.
+
+---
+
+## 19. La llave de pago 3007599461 ⚠️ nuevo — confirmar, no cambiar
+
+**Qué se necesita:** confirmar que esa sigue siendo la llave de Daviplata.
+
+**Por qué importa:** aparece en las cotizaciones y en la plantilla de pago de
+Nexus, en la línea *"Llaves: 0063294599 · @DAVICOSTAMALLAS · 3007599461"*.
+
+Gerencia pidió que "en todas partes vayan los dos números autorizados"
+(3006078956 / 3245912653) y eso ya se hizo **en todo lo que es un teléfono
+de contacto**. Este NO se tocó a propósito: no es un teléfono al que se
+llama, es una **llave a la que se transfiere plata**. Cambiarla manda los
+pagos a una llave que no existe o que es de otra persona.
+
+**La pregunta:** ¿sigue siendo esa la llave? Si cambió, ¿a cuál?
+
+---
+
+## 20. El teléfono del pie de costamallas.com ⚠️ nuevo — son 2 minutos tuyos
+
+**Qué pasa:** el pie de la página web muestra **+57 304 310 9168**, que no es
+ninguno de los dos números autorizados.
+
+**Dónde se cambia:** en WordPress, no en el portal. Apariencia →
+Personalizar → Pie de página, o el widget del footer del tema.
+
+**Por qué no lo hicimos nosotros:** ese texto vive en la tienda, no en el
+ERP. Desde el portal no se puede tocar.
+
+Lo demás ya quedó parejo con **3006078956 – 3245912653**: el pie de las
+cotizaciones, los correos, la encuesta y el reparto de Nexus. El botón verde
+del chat apunta a 3006078956 (solo admite uno, porque el enlace de WhatsApp
+lleva a un número).
+
+---
+
 ## Lo que está bloqueado esperando otra cosa (no es pregunta de gerencia)
 
 | Qué | Qué falta |
@@ -412,6 +469,17 @@ cualquier pantalla puntual sin tocar el rol de los demás.
 ---
 
 ## Ya resuelto (para que no se vuelva a pedir)
+
+### 1 de septiembre
+
+- **El secreto de GitHub** (§13). Puesto por gerencia; la primera corrida
+  del disparador de 15 minutos salió verde.
+- **Encender el agente de la web** (§11). Está encendido, con su WhatsApp de
+  escalamiento, el `<script>` pegado en la tienda y respondiendo con precios
+  del catálogo.
+- **Los dos teléfonos autorizados.** Puestos en las cotizaciones, los correos,
+  la encuesta, el reparto de Nexus y el botón del chat. Queda el del pie de la
+  web (§20), que se cambia en WordPress.
 
 ### 29 de agosto
 
