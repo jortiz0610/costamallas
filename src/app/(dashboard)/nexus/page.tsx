@@ -23,6 +23,7 @@ import { Adjuntar, type Adjunto } from "@/components/nexus/Adjuntar";
 import { ContenidoMensaje } from "@/components/nexus/ContenidoMensaje";
 import { MenuComandos } from "@/components/nexus/MenuComandos";
 import { leerEntrada, sugerir, sinMencion, MENCION_IA, type Comando } from "@/lib/nexus/comandos";
+import { PanelContexto } from "@/components/nexus/PanelContexto";
 import {
   leerPrefs, guardarPrefs, sonarMensaje, temaDe, normalizarCanal,
   type PrefsNexus, PREFS_POR_DEFECTO,
@@ -337,7 +338,11 @@ function ChatView({ conv, onMarcarResuelta, onVolver, prefs }: {
   const Icon = meta?.Icon ?? MessageSquare;
 
   return (
-    <div className="flex flex-col h-full">
+    // Tres columnas en escritorio: lista · chat · con quién hablo.
+    // La tercera solo desde 1280 px; por debajo, el chat se queda con
+    // todo el ancho, que es lo correcto en un portátil.
+    <div className="flex h-full w-full min-w-0">
+    <div className="flex flex-col h-full flex-1 min-w-0">
       {/* Header del chat */}
       <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-3 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
         {/* Volver a la lista. Solo en móvil: en escritorio la lista nunca
@@ -439,7 +444,7 @@ function ChatView({ conv, onMarcarResuelta, onVolver, prefs }: {
                   {conv.remitente.charAt(0)}
                 </div>
               )}
-              <div className="max-w-[80%] sm:max-w-xs lg:max-w-md">
+              <div className="max-w-[80%] sm:max-w-[75%] lg:max-w-[68%] xl:max-w-[58%]">
                 {/* Los colores salen del tema que eligió esta persona. */}
                 <div className={cn("px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed",
                   m.origen === "agente" ? "text-white rounded-br-sm" : "rounded-bl-sm border divider"
@@ -531,9 +536,19 @@ function ChatView({ conv, onMarcarResuelta, onVolver, prefs }: {
         </div>
       ) : (
         <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 text-center text-xs text-slate-400 bg-white dark:bg-slate-900">
-          Conversación resuelta · Solo lectura
+          Conversación archivada · solo lectura
         </div>
       )}
+    </div>
+
+    {/* Lo que hay que saber ANTES de contestar: quién es, si ya compró,
+        qué le cotizamos. Antes eso obligaba a abrir el CRM en otra
+        pestaña y perder el hilo. */}
+    <PanelContexto
+      conv={conv}
+      onGuardarCliente={guardarComoCliente}
+      guardando={guardandoCliente}
+    />
     </div>
   );
 }
@@ -739,7 +754,7 @@ function NexusContent() {
         </div>
 
         {/* Centro: chat */}
-        <div className={cn("flex-1 overflow-hidden", convActiva ? "flex" : "hidden lg:flex")}>
+        <div className={cn("flex-1 min-w-0 overflow-hidden", convActiva ? "flex" : "hidden lg:flex")}>
           {convActiva ? (
             <ChatView conv={convActiva} onMarcarResuelta={marcarResuelta} onVolver={() => setConvActiva(null)} prefs={prefs} />
           ) : (

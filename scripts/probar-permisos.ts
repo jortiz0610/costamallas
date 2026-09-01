@@ -112,7 +112,10 @@ async function main() {
   const adm = new Set(PERMISOS_POR_ROL.ADMIN);
   comprobar("el admin NO tiene las conexiones externas ni el SEO con IA",
     !adm.has("nexus.conexiones") && !adm.has("mkt.conexiones") && !adm.has("erp.seo"));
-  comprobar("el admin sí tiene el resto", adm.size === TODAS_LAS_CLAVES.length - 3);
+  comprobar("el admin tampoco tiene el ensayo general",
+    !adm.has("sistema.ensayo"),
+    "crea datos y manda correos de verdad: es del superadministrador");
+  comprobar("el admin sí tiene el resto", adm.size === TODAS_LAS_CLAVES.length - 4);
 
   console.log("\n  — Solo lectura —");
   const sl = new Set(PERMISOS_POR_ROL.SOLO_LECTURA);

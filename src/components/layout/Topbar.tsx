@@ -13,6 +13,7 @@ import { NotificationsPanel } from "./NotificationsPanel";
 import { ReportarError } from "./ReportarError";
 import { useBrand } from "@/contexts/BrandContext";
 import { cn } from "@/lib/utils";
+import { BuscadorGlobal } from "./BuscadorGlobal";
 
 const ERP_COLOR = "#185FA5";
 const CRM_COLOR = "#BA7517";
@@ -164,6 +165,8 @@ export function Topbar({ title, actions }: TopbarProps) {
       <div className="hidden sm:flex items-center gap-2">
         <QuickTaskButton mode={mode} color={modeColor} />
       </div>
+      {/* El buscador va antes que todo lo demás: es lo que más se usa. */}
+      <BuscadorGlobal />
       <BotonRecargar color={modeColor} />
       <div className="hidden sm:flex items-center gap-2">
         <ReportarError />

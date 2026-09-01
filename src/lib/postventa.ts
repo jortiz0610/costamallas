@@ -103,3 +103,97 @@ export async function politicasResueltas(): Promise<{
     faltan,
   };
 }
+
+// ─────────────────────────────────────────────
+// La encuesta de satisfacción
+// ─────────────────────────────────────────────
+
+export interface ResultadoEncuesta {
+  ok: boolean;
+  destino?: string;
+  error?: string;
+}
+
+/**
+ * Le manda la encuesta al cliente cuando la obra se cierra.
+ *
+ * ⚠️ **Hoy el botón lleva al perfil de reseñas de Google, no a una
+ * encuesta propia.** El formulario de valoración de la empresa —NPS,
+ * los seis puntajes de satisfacción y la probabilidad de recompra— NO
+ * está construido todavía: existe el texto del correo y existe el
+ * documento en papel, pero no hay página que lo recoja.
+ *
+ * Por eso, sin el enlace de reseñas cargado, esto **no manda nada** y
+ * dice por qué. Mandar un correo con un botón que lleva a un 404 es
+ * peor que no mandarlo: el cliente hace el esfuerzo de entrar y se
+ * encuentra con un error nuestro.
+ */
+export async function enviarEncuesta(instalacionId: string): Promise<ResultadoEncuesta> {
+  const inst = await prisma.instalacion.findUnique({
+    where: { id: instalacionId },
+    select: {
+      id: true,
+      pedido: {
+        select: {
+          numero: true,
+          cliente: { select: { nombre: true, empresa: true, email: true } },
+          vendedor: { select: { nombre: true, telefono: true } },
+        },
+      },
+    },
+  });
+  if (!inst?.pedido) return { ok: false, error: "La instalación no existe o no tiene pedido." };
+
+  const destino = inst.pedido.cliente.email?.trim();
+  if (!destino) {
+    return { ok: false, error: `${inst.pedido.cliente.nombre} no tiene correo en el CRM.` };
+  }
+
+  const cfg = await getConfigPostventa();
+  const enlace = cfg.urlResena?.trim();
+  if (!enlace) {
+    return {
+      ok: false,
+      destino,
+      error:
+        "Falta el enlace de reseñas de Google (Postventa). Sin destino, el correo llevaría a un botón roto, " +
+        "así que no se manda. La encuesta propia —NPS y los seis puntajes— todavía no está construida.",
+    };
+  }
+
+  const { armarCorreo } = await import("@/lib/correo-plantillas-server");
+  const { enviarCorreo } = await import("@/lib/correo");
+
+  const correo = await armarCorreo(
+    "encuesta_satisfaccion",
+    {
+      cliente: inst.pedido.cliente.empresa || inst.pedido.cliente.nombre,
+      contacto: inst.pedido.cliente.nombre,
+      enlace,
+      asesor: inst.pedido.vendedor?.nombre ?? "",
+      asesorTelefono: inst.pedido.vendedor?.telefono ?? "",
+    },
+    { urlBoton: enlace },
+  );
+
+  try {
+    await enviarCorreo({
+      para: destino,
+      asunto: correo.asunto,
+      html: correo.html,
+      texto: correo.texto,
+    });
+  } catch (e) {
+    return { ok: false, destino, error: (e as Error).message };
+  }
+
+  await prisma.log.create({
+    data: {
+      accion: "ENCUESTA_ENVIADA",
+      detalle: `${inst.pedido.numero} → ${destino}`,
+      resultado: "OK",
+    },
+  }).catch(() => undefined);
+
+  return { ok: true, destino };
+}

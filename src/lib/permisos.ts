@@ -152,6 +152,7 @@ export const PERMISOS: Permiso[] = [
   { clave: "sistema.usuarios", modulo: "SISTEMA", tipo: "vista", label: "Usuarios y roles", ayuda: "Altas, bajas y permisos del equipo." },
   { clave: "sistema.reportes", modulo: "SISTEMA", tipo: "vista", label: "Reportes y logs", ayuda: "La auditoría: quién hizo qué y cuándo." },
   { clave: "sistema.salud", modulo: "SISTEMA", tipo: "vista", label: "Estado del sistema", ayuda: "De un vistazo: qué está conectado, qué está roto y qué deja de funcionar por ello." },
+  { clave: "sistema.ensayo", modulo: "SISTEMA", tipo: "vista", label: "Ensayo general", ayuda: "Recorre el proceso completo con datos de prueba para comprobar que los correos salen. Crea datos reales marcados como prueba." },
   { clave: "sistema.seguridad", modulo: "SISTEMA", tipo: "vista", label: "Seguridad", ayuda: "Sesiones, 2FA y dispositivos de confianza." },
   { clave: "sistema.configuracion", modulo: "SISTEMA", tipo: "vista", label: "Configuración", ayuda: "Todos los ajustes del portal." },
 ];
@@ -229,7 +230,10 @@ const USUARIO_POR_DEFECTO = [
 // y el SEO con IA (gasta dinero y publica en la tienda). Se deriva del
 // catálogo para que una pantalla nueva no se le olvide a nadie.
 const ADMIN_POR_DEFECTO = TODAS_LAS_CLAVES.filter(
-  c => c !== "nexus.conexiones" && c !== "mkt.conexiones" && c !== "erp.seo",
+  c => c !== "nexus.conexiones" && c !== "mkt.conexiones" && c !== "erp.seo"
+    // El ensayo crea datos y manda correos DE VERDAD. Ofrecérselo en el
+    // menú a alguien que va a chocar con un 403 es peor que no ponerlo.
+    && c !== "sistema.ensayo",
 );
 
 // Solo lectura ve todas las PANTALLAS y ninguna acción. Que no pueda
@@ -395,6 +399,7 @@ export const RUTAS_PROTEGIDAS: Record<string, string> = {
   "/usuarios": "sistema.usuarios",
   "/reportes": "sistema.reportes",
   "/sistema/salud": "sistema.salud",
+  "/sistema/ensayo": "sistema.ensayo",
   "/sistema/seguridad": "sistema.seguridad",
   "/configuracion": "sistema.configuracion",
 };

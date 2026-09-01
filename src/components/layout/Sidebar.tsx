@@ -7,7 +7,7 @@ import {
   ShoppingCart, Wrench, Kanban, ChevronDown, ShieldCheck, BarChart2,
   MessageSquare, Truck, CheckSquare, MessageSquareText, Zap,
   Megaphone, Target, TrendingUp, Radio, Receipt, PieChart, Star, Timer,
-  Sparkles, HardHat, PanelLeftClose, PanelLeftOpen, MessagesSquare, Activity,
+  Sparkles, HardHat, PanelLeftClose, PanelLeftOpen, MessagesSquare, Activity, FlaskConical,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -82,6 +82,7 @@ const NEXUS_ITEMS = [
 const SYSTEM_ITEMS = [
   // Primero: es lo que hay que mirar cuando algo "no funciona".
   { href: "/sistema/salud", label: "Estado del sistema", icon: Activity, perm: "sistema.salud" },
+  { href: "/sistema/ensayo", label: "Ensayo general", icon: FlaskConical, perm: "sistema.ensayo" },
   { href: "/usuarios", label: "Usuarios y Roles", icon: Users, perm: "sistema.usuarios" },
   { href: "/reportes", label: "Reportes y logs", icon: BarChart2, perm: "sistema.reportes" },
   { href: "/sistema/seguridad", label: "Seguridad", icon: ShieldCheck, perm: "sistema.seguridad" },

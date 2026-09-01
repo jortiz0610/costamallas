@@ -14,6 +14,7 @@
 // ============================================================
 
 import { prisma } from "@/lib/prisma";
+import { estadoReloj, HORAS_SIN_LATIDO } from "@/lib/automatizaciones";
 
 export type Nivel = "ok" | "aviso" | "problema" | "apagado";
 
@@ -101,24 +102,45 @@ export async function revisarSalud(): Promise<Salud> {
     enlace: "/configuracion?tab=canales",
   });
 
-  // ── La corrida diaria ──
-  // Se mide por su efecto: si hubiera corrido, los clientes tendrían
-  // sello de recálculo reciente.
-  const recalcRecientes = await prisma.cliente.count({
-    where: { estadoCalculadoEn: { gte: new Date(Date.now() - 36 * 3600_000) } },
-  });
-  const totalClientes = await prisma.cliente.count({ where: { activo: true } });
+  // ── El reloj ──
+  // Se mide por el LATIDO que deja la propia corrida al terminar, no
+  // por que un cron esté declarado en un archivo. Un cron declarado y
+  // caído se ve exactamente igual que uno que funciona.
+  const reloj = await estadoReloj();
   c.push({
-    clave: "cron", titulo: "Corrida diaria",
-    nivel: recalcRecientes > 0 ? "ok" : "problema",
-    detalle: recalcRecientes > 0
-      ? `Corrió en las últimas 36 h (${recalcRecientes} de ${totalClientes} clientes revisados).`
-      : "No hay rastro de que haya corrido en 36 h.",
-    consecuencia: recalcRecientes > 0
-      ? undefined
-      : "Las cotizaciones no vencen, el seguimiento no sale y los clientes no pasan a inactivo.",
-    arreglo: recalcRecientes > 0 ? undefined : "Revisar los crons en Vercel y la variable CRON_SECRET.",
+    clave: "cron", titulo: "El reloj de la automatización",
+    nivel: reloj.ultimoLatido === null ? "aviso" : reloj.callado ? "problema" : "ok",
+    detalle: reloj.ultimoLatido === null
+      ? "Todavía no ha dejado ningún latido. Si acabas de desplegar, es normal hasta la próxima corrida."
+      : reloj.callado
+        ? `Lleva ${reloj.horasSinCorrer} h sin correr (el tope son ${HORAS_SIN_LATIDO} h).`
+        : `Corrió hace ${reloj.horasSinCorrer} h.`,
+    consecuencia: reloj.callado
+      ? "Las cotizaciones no vencen, el seguimiento no sale, nadie pasa a inactivo y los avisos no llegan."
+      : undefined,
+    arreglo: reloj.callado
+      ? "Revisar los crons de Vercel y el secreto CRON_SECRET en GitHub."
+      : undefined,
   });
+
+  // ── Y si el reloj rápido está puesto ──
+  // El de 15 minutos es el que hace que el seguimiento salga a tiempo.
+  // Se detecta por lo mismo: si solo corriera el diario, el latido
+  // tendría siempre varias horas.
+  if (reloj.horasSinCorrer !== null && !reloj.callado) {
+    const rapido = reloj.horasSinCorrer <= 1;
+    c.push({
+      clave: "cron-rapido", titulo: "Reloj rápido (cada 15 minutos)",
+      nivel: rapido ? "ok" : "aviso",
+      detalle: rapido
+        ? "Está corriendo: el último latido es de hace menos de una hora."
+        : `El último latido es de hace ${reloj.horasSinCorrer} h, así que solo está corriendo el diario.`,
+      consecuencia: rapido
+        ? undefined
+        : "El seguimiento sale hasta 23 h tarde y el aviso de «una hora sin responder» llega al día siguiente.",
+      arreglo: rapido ? undefined : "Falta el secreto CRON_SECRET en GitHub → Settings → Secrets → Actions.",
+    });
+  }
 
   // ── Recargos de instalación ──
   const recargos = await prisma.recargoCiudad.count();

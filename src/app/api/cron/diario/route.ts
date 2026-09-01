@@ -1,7 +1,7 @@
 // ============================================================
 // GET/POST /api/cron/diario — la corrida diaria del portal
 // ------------------------------------------------------------
-// Hace cuatro cosas:
+// Hace nueve cosas:
 //   1. Vencer lo que caducó (cotizaciones y facturas).
 //   2. El seguimiento post-cotización.
 //   3. Avisar de las conversaciones que pasaron del compromiso de
@@ -41,6 +41,10 @@ import { marcarVencidos } from "@/lib/vencimientos";
 import { alertarSinRespuesta } from "@/lib/nexus/alertas";
 import { recalcularEstados } from "@/lib/estados-cliente-server";
 import { limpiar } from "@/lib/mantenimiento";
+import {
+  apuntarLatido, avisarBorradoresParados, repartirClientesSinAsesor,
+  avisarClientesEnfriandose, resumenSemanal,
+} from "@/lib/automatizaciones";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -81,15 +85,39 @@ async function handle(req: NextRequest) {
     // cotizaciones que acaban de vencer más arriba.
     const estadosCliente = await recalcularEstados({ dry });
 
+    // ── Las de abajo son "extras": útiles, pero ninguna es motivo para
+    // perder lo de arriba. Cada una con su propio try, y el resultado
+    // dice si falló en vez de callarlo.
+    const extra = async <T>(nombre: string, fn: () => Promise<T>) => {
+      try { return await fn(); }
+      catch (e) {
+        console.error(`[cron/diario] ${nombre}`, e);
+        return { error: e instanceof Error ? e.message : String(e) };
+      }
+    };
+
     // Higiene: tokens vencidos, notificaciones leídas viejas y logs de
-    // hace más de un año. Va al final y con su propio try: si la
-    // limpieza falla, lo demás ya se hizo y no tiene por qué perderse.
-    let limpieza;
-    try {
-      limpieza = await limpiar({ dry });
-    } catch (e) {
-      limpieza = { error: e instanceof Error ? e.message : String(e) };
-    }
+    // hace más de un año.
+    const limpieza = await extra("limpieza", () => limpiar({ dry }));
+
+    // Un borrador no dispara nada: el reloj arranca al ENVIAR. Así que
+    // uno olvidado es trabajo hecho que nunca existió para el cliente.
+    const borradores = await extra("borradores", () => avisarBorradoresParados({ dry }));
+
+    // Un cliente sin asesor no está en el pipeline de nadie.
+    const reparto = await extra("reparto", () => repartirClientesSinAsesor({ dry }));
+
+    // Aviso un mes ANTES de que pase a inactivo, que es cuando todavía
+    // se puede hacer algo.
+    const enfriandose = await extra("enfriandose", () => avisarClientesEnfriandose({ dry }));
+
+    // Solo los lunes; los otros días se sale solo.
+    const semanal = await extra("semanal", () => resumenSemanal({ dry }));
+
+    // El latido va AL FINAL y solo si no es una prueba en seco: es lo
+    // que mira el vigilante para saber que la corrida llegó hasta aquí.
+    // Sellarlo al principio diría "corrí bien" aunque se cayera a mitad.
+    if (!dry) await apuntarLatido();
 
     return NextResponse.json({
       success: true,
@@ -101,6 +129,10 @@ async function handle(req: NextRequest) {
         tiemposNexus,
         estadosCliente,
         limpieza,
+        borradores,
+        reparto,
+        enfriandose,
+        semanal,
       },
     });
   } catch (err) {
