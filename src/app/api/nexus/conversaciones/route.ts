@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { enviarCopiaConversacion } from "@/lib/nexus/copia-chat";
 import { getUserFromRequest } from "@/lib/auth";
 import { esAdmin } from "@/lib/permisos";
 
@@ -83,5 +84,21 @@ export async function PATCH(req: NextRequest) {
       ...(asignadoId !== undefined && { asignadoId: asignadoId || null }),
     },
   });
-  return NextResponse.json({ success: true, data: updated });
+
+  // Al cerrar un chat de la web, al cliente le llega la conversación
+  // completa por correo. Es el único correo que recibe: durante la charla
+  // las respuestas le aparecen en el propio chat.
+  //
+  // Se espera el envío en vez de dispararlo y olvidarlo porque esto corre
+  // en una función sin servidor: cerrar la petición mata lo que quede
+  // pendiente, y el correo no saldría nunca. Si falla, se registra y el
+  // cierre se devuelve igual: un correo caído no puede impedir que un
+  // asesor cierre su bandeja.
+  let copia: { ok: boolean; omitida?: boolean; motivo?: string } | null = null;
+  if (estado === "CERRADA" || estado === "ARCHIVADA") {
+    copia = await enviarCopiaConversacion(id);
+    if (!copia.ok) console.error("[nexus] No se pudo enviar la copia del chat:", copia.motivo);
+  }
+
+  return NextResponse.json({ success: true, data: updated, copia });
 }

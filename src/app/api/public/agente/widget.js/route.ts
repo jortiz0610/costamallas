@@ -72,6 +72,8 @@ export async function GET(req: NextRequest) {
   // cierre el chat.
   var LSV = "costamallas_agente_visitante";
 
+  var apiMensajes = CFG.api + "/mensajes";
+
   var waUrl = CFG.whatsapp
     ? "https://wa.me/" + String(CFG.whatsapp).replace(/[^0-9]/g, "")
     : "";
@@ -114,6 +116,15 @@ export async function GET(req: NextRequest) {
     ".r.a p{background:#fff;color:#2b2d29;border:1px solid #e8e7e0;border-bottom-left-radius:4px}",
     ".r.y p{background:" + NEGRO + ";color:#fff;border-bottom-right-radius:4px}",
     ".r.e p{background:#fffbe6;color:#7a5c00;border:1px solid " + CFG.color + ";font-size:12.5px}",
+    // Cuando contesta una persona de verdad se dice su nombre. Saber que
+    // ya no habla el bot es la mitad del valor de que conteste un asesor.
+    ".r .de{display:block;font-size:10.5px;font-weight:800;color:#8a8f88;margin:0 0 3px;letter-spacing:.03em}",
+    ".r.p p{border-left:3px solid " + CFG.color + "}",
+    // Aviso en la burbuja cuando el asesor contesta con el chat cerrado.
+    ".b{position:fixed}",
+    ".pt{position:absolute;top:1px;right:1px;width:14px;height:14px;border-radius:50%;",
+    "background:#e11d48;border:2px solid #fff;display:none}",
+    ".pt.on{display:block}",
     ".f{border-top:1px solid #e8e7e0;padding:10px;display:flex;gap:8px;background:#fff;flex-shrink:0}",
     ".f input{flex:1;border:1px solid #ddd;border-radius:11px;padding:10px 12px;font-size:13.5px;outline:0;font-family:inherit}",
     ".f input:focus{border-color:" + NEGRO + "}",
@@ -191,6 +202,9 @@ export async function GET(req: NextRequest) {
     '<circle cx="12" cy="10.4" r="1.15" fill="' + CFG.color + '"/>' +
     '<circle cx="15.8" cy="10.4" r="1.15" fill="' + CFG.color + '"/>' +
     '</svg>';
+  var punto = document.createElement("span");
+  punto.className = "pt";
+  burbuja.appendChild(punto);
   raiz.appendChild(burbuja);
 
   var botonWa = null;
@@ -356,11 +370,17 @@ export async function GET(req: NextRequest) {
   pie.appendChild(campo); pie.appendChild(enviar);
   panel.appendChild(pie);
 
-  function fila(texto, quien) {
+  function fila(texto, quien, de) {
     var d = document.createElement("div");
-    d.className = "r " + quien;
+    d.className = "r " + quien + (de ? " p" : "");
     var p = document.createElement("p");
-    p.textContent = texto;          // NUNCA innerHTML: esto viene de un modelo
+    if (de) {
+      var n2 = document.createElement("span");
+      n2.className = "de";
+      n2.textContent = de;          // el nombre del asesor, no HTML
+      p.appendChild(n2);
+    }
+    p.appendChild(document.createTextNode(texto));   // NUNCA innerHTML
     d.appendChild(p);
     lista.appendChild(d);
     lista.scrollTop = lista.scrollHeight;
@@ -400,6 +420,58 @@ export async function GET(req: NextRequest) {
 
   var abierto = false, ocupado = false;
   var visitante = null;   // { nombre, email, telefono } una vez identificado
+
+  // ── El camino de vuelta ──
+  //
+  // Cuando un vendedor contesta desde Nexus, su respuesta sale por
+  // correo. Pero si la persona todavía tiene el chat abierto, lo lógico
+  // es que la vea AHÍ, en la conversación, y no que se entere revisando
+  // el buzón. Sin esto, el vendedor escribía y en la pantalla del
+  // cliente no pasaba nada.
+  //
+  // Se pregunta cada siete segundos, también con el chat cerrado: así la
+  // burbuja se pinta con un punto rojo y quien sigue navegando por la
+  // tienda se entera de que le contestaron.
+  var reloj = null, desde = null, historialCargado = false;
+  var vistos = {};
+
+  function pintar(m) {
+    if (vistos[m.id]) return;
+    vistos[m.id] = 1;
+    fila(m.texto, m.quien === "yo" ? "y" : "a", m.de || null);
+    if (m.en > (desde || "")) desde = m.en;
+    if (m.de && !abierto) punto.className = "pt on";
+  }
+
+  function cargarHistorial() {
+    var t = token();
+    if (!t || historialCargado) return;
+    historialCargado = true;
+    fetch(apiMensajes + "?historial=1&token=" + encodeURIComponent(t))
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var ms = (j && j.data && j.data.mensajes) || [];
+        for (var i = 0; i < ms.length; i++) pintar(ms[i]);
+      })
+      .catch(function () { historialCargado = false; });
+  }
+
+  function sondear() {
+    var t = token();
+    if (!t || ocupado) return;
+    fetch(apiMensajes + "?token=" + encodeURIComponent(t) + (desde ? "&desde=" + encodeURIComponent(desde) : ""))
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var ms = (j && j.data && j.data.mensajes) || [];
+        for (var i = 0; i < ms.length; i++) pintar(ms[i]);
+      })
+      .catch(function () {});
+  }
+
+  function arrancarSondeo() {
+    if (reloj || !token()) return;
+    reloj = setInterval(sondear, 7000);
+  }
 
   // Siete dígitos es el mínimo de un fijo nacional; diez, un celular.
   // No se valida más: un formato estricto rechaza números escritos con
@@ -451,6 +523,12 @@ export async function GET(req: NextRequest) {
     reg.className = "g";
     lista.style.display = "";
     pie.style.display = "";
+    punto.className = "pt";
+    // Quien vuelve a abrir el chat en la misma visita tiene que ver lo
+    // que ya se habló, incluido lo que el asesor contestó mientras
+    // estaba cerrado.
+    cargarHistorial();
+    arrancarSondeo();
     setTimeout(function () { campo.focus(); }, 60);
   }
 
@@ -514,6 +592,7 @@ export async function GET(req: NextRequest) {
     // flotando encima de la ventana del chat.
     if (botonWa) botonWa.className = abierto ? "wb off" : "wb";
     if (!abierto) return;
+    punto.className = "pt";
 
     // Quien ya estaba conversando vuelve a su conversación, no a la
     // portada.
@@ -561,7 +640,10 @@ export async function GET(req: NextRequest) {
       .then(function (j) {
         esperando.remove();
         var d = (j && j.data) || {};
-        if (d.token) guardar(d.token);
+        if (d.token) { guardar(d.token); historialCargado = true; arrancarSondeo(); }
+        // Lo que acaba de decir el bot ya queda pintado aquí; el sondeo
+        // solo trae lo que escriben las personas, así que no se duplica.
+        desde = new Date().toISOString();
         fila(d.texto || (j && j.error) || "No pude responder en este momento.", "a");
         if (d.escalado) fila("Un asesor va a continuar esta conversación.", "e");
       })

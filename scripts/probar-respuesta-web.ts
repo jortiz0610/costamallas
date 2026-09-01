@@ -1,14 +1,18 @@
 // ============================================================
-// ¿Se puede responder desde Nexus una conversación del chat de la web?
+// El camino de vuelta del chat de la web.
 //
 //   npx tsx scripts/probar-respuesta-web.ts
 //
-// Hasta hoy no: el envío caía en el webhook genérico y devolvía
-// "El canal WEB no tiene URL de salida configurada". Esta prueba usa el
-// MISMO camino que el botón de responder del inbox.
+// Comprueba las dos mitades de lo mismo:
 //
-// Manda un correo DE VERDAD, al buzón de la propia empresa. Después
-// borra la conversación de prueba que crea.
+//   1. Responder desde Nexus una conversación del chat web SALE, y sale
+//      AL CHAT. Antes caía en el envío por webhook y devolvía "El canal
+//      WEB no tiene URL de salida configurada".
+//   2. El correo ya no se manda por cada respuesta, sino UNA vez, al
+//      cerrar, con toda la conversación.
+//
+// Manda un correo DE VERDAD, al buzón de la propia empresa, y después
+// borra las conversaciones de prueba que crea.
 // ============================================================
 
 import { readFileSync, existsSync } from "node:fs";
@@ -33,6 +37,8 @@ async function main() {
   const { PrismaClient } = await import("@prisma/client");
   const prisma = new PrismaClient();
   const { enviarPorCanal, canalPuedeEnviar } = await import("../src/lib/nexus/canales");
+  const { enviarCopiaConversacion } = await import("../src/lib/nexus/copia-chat");
+  const { randomBytes } = await import("node:crypto");
 
   const host = (process.env.DATABASE_URL ?? "").match(/@([^:/]+)/)?.[1] ?? "?";
   console.log(`\n  (servidor: ${host})\n`);
@@ -44,56 +50,88 @@ async function main() {
   const puede = await canalPuedeEnviar(conexion.id);
   comprobar("el canal se declara capaz de responder", puede.puede, puede.motivo ?? "");
 
-  // A dónde va el correo de prueba: al buzón de la propia empresa.
   const cfg = await prisma.configuracion.findFirst({ where: { clave: "empresa_email" } });
   const destino = (cfg?.valor ?? "").trim();
   if (!destino) { console.log("  ✗ No hay empresa_email configurado."); process.exit(1); }
-  console.log(`\n  El correo de prueba va a: ${destino}\n`);
+  console.log(`\n  La copia de prueba va a: ${destino}\n`);
 
-  let convId: string | null = null;
+  const creadas: string[] = [];
+  const nueva = async (datos: Record<string, unknown>) => {
+    const c = await prisma.nexusConversacion.create({
+      data: { conexionId: conexion.id, canal: "WEB", estado: "ABIERTA", ...datos } as never,
+      select: { id: true, tokenWeb: true },
+    });
+    creadas.push(c.id);
+    return c;
+  };
+
   try {
-    // 1. Con correo: tiene que salir.
-    const conv = await prisma.nexusConversacion.create({
-      data: {
-        conexionId: conexion.id,
-        canal: "WEB",
-        remitente: "VERIF Prueba de respuesta",
-        emailRemit: destino,
-        estado: "ABIERTA",
-      },
-      select: { id: true },
-    });
-    convId = conv.id;
+    console.log("═══ 1. Responder va al chat ═══\n");
 
-    const r = await enviarPorCanal(
-      conv.id,
-      "Esto es una prueba técnica del portal. Si le llegó este correo, " +
-      "responder desde Nexus una conversación del chat de la web ya funciona. " +
-      "No hay que hacer nada: puede borrarlo.",
-    );
+    const conv = await nueva({
+      remitente: "VERIF Prueba de respuesta",
+      emailRemit: destino,
+      tokenWeb: "VERIF" + randomBytes(18).toString("base64url"),
+    });
+
+    // Lo que escribió el visitante, para que haya conversación.
+    await prisma.nexusMensaje.create({
+      data: { conversacionId: conv.id, origen: "contacto", contenido: "¿Cuánto vale la malla para un balcón de 3 metros?" },
+    });
+    await prisma.nexusMensaje.create({
+      data: { conversacionId: conv.id, origen: "agente-ia", contenido: "Depende del alto. ¿Es para gatos o para niños?" },
+    });
+
+    const r = await enviarPorCanal(conv.id, "Buenas, soy Skarlyn. Para 3 metros le sirve el kit estándar.");
     comprobar("responder una conversación del chat web SALE", r.ok, r.error ?? "");
-    comprobar("y queda el id del correo para poder rastrearlo", Boolean(r.refExterna), r.refExterna ?? "");
+    comprobar("y sale por el chat, no por correo", r.refExterna === "chat-web", r.refExterna ?? "");
 
-    // 2. Sin correo: tiene que fallar diciendo qué hacer, no con plomería.
-    const sinCorreo = await prisma.nexusConversacion.create({
+    // Así lo ve el navegador del visitante.
+    await prisma.nexusMensaje.create({
       data: {
-        conexionId: conexion.id, canal: "WEB",
-        remitente: "VERIF Sin correo", estado: "ABIERTA",
+        conversacionId: conv.id, origen: "agente",
+        contenido: "Buenas, soy Skarlyn. Para 3 metros le sirve el kit estándar.",
+        estadoEnvio: "ENVIADO",
       },
-      select: { id: true },
     });
-    const r2 = await enviarPorCanal(sinCorreo.id, "hola");
-    comprobar("una conversación vieja sin correo no se envía", !r2.ok);
-    comprobar("y el motivo le dice al asesor qué hacer",
-      /WhatsApp|tel[ée]fono/i.test(r2.error ?? ""), r2.error ?? "");
+
+    const visibles = await prisma.nexusMensaje.findMany({
+      where: { conversacionId: conv.id, origen: "agente" },
+      select: { contenido: true },
+    });
+    comprobar("el visitante puede verla desde su chat", visibles.length === 1, String(visibles.length));
+
+    console.log("\n═══ 2. La copia, solo al cerrar ═══\n");
+
+    const c1 = await enviarCopiaConversacion(conv.id);
+    comprobar("al cerrar se manda la copia", c1.ok && !c1.omitida, c1.motivo ?? "");
+
+    const c2 = await enviarCopiaConversacion(conv.id);
+    comprobar("y NO se manda dos veces", c2.omitida === true, c2.motivo ?? "");
+
+    console.log("");
+
+    // Un monólogo no merece copia.
+    const sola = await nueva({ remitente: "VERIF Sin respuesta", emailRemit: destino });
+    await prisma.nexusMensaje.create({
+      data: { conversacionId: sola.id, origen: "contacto", contenido: "hola" },
+    });
+    const c3 = await enviarCopiaConversacion(sola.id);
+    comprobar("un chat donde nadie contestó no genera copia", c3.omitida === true, c3.motivo ?? "");
+
+    // Sin correo no hay a dónde mandarla, y eso no es un fallo.
+    const anon = await nueva({ remitente: "VERIF Sin correo" });
+    const c4 = await enviarCopiaConversacion(anon.id);
+    comprobar("sin correo se omite en vez de reventar", c4.ok && c4.omitida === true, c4.motivo ?? "");
+
+    const r2 = await enviarPorCanal(anon.id, "hola");
+    comprobar("y aun sin correo se le puede responder en el chat", r2.ok, r2.error ?? "");
     comprobar("ya NO habla de URL de salida",
       !/URL de salida/i.test(r2.error ?? ""), r2.error ?? "");
-    await prisma.nexusMensaje.deleteMany({ where: { conversacionId: sinCorreo.id } });
-    await prisma.nexusConversacion.delete({ where: { id: sinCorreo.id } });
   } finally {
-    if (convId) {
-      await prisma.nexusMensaje.deleteMany({ where: { conversacionId: convId } }).catch(() => {});
-      await prisma.nexusConversacion.delete({ where: { id: convId } }).catch(() => {});
+    for (const id of creadas) {
+      await prisma.nexusMensaje.deleteMany({ where: { conversacionId: id } }).catch(() => {});
+      await prisma.nexusConversacion.delete({ where: { id } }).catch(() => {});
     }
     console.log("\n  (limpieza: conversaciones de prueba borradas)");
     await prisma.$disconnect();

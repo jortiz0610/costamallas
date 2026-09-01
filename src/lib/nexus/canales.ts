@@ -13,9 +13,6 @@
 
 import { prisma } from "@/lib/prisma";
 import { decryptIfNeeded, encrypt } from "@/lib/encryption";
-import { enviarCorreo } from "@/lib/correo";
-import { envolverCorreo, PIE_EMAIL } from "@/lib/correo-layout";
-import { getMarca } from "@/lib/marca";
 
 export interface ResultadoEnvio {
   ok: boolean;
@@ -141,35 +138,16 @@ async function enviarWebhook(cfg: Config, destino: string, texto: string, canal:
  * Por eso el chat pide el correo antes de dejar escribir: no es para
  * llenar una base de datos, es la única vía de vuelta que hay.
  */
-async function enviarChatWeb(emailRemit: string | null, texto: string): Promise<ResultadoEnvio> {
-  const para = (emailRemit ?? "").trim();
-  if (!para) {
-    return {
-      ok: false,
-      error: "Esta conversación no tiene correo: entró antes de que el chat lo pidiera. Respóndale por WhatsApp o por teléfono.",
-    };
-  }
-
-  try {
-    const marca = await getMarca();
-    const { html, texto: plano } = envolverCorreo({
-      titulo: "Sobre su consulta",
-      cuerpo: texto,
-      marca,
-    });
-    const r = await enviarCorreo({
-      para,
-      asunto: `Su consulta en ${marca.companyName}`,
-      html,
-      texto: plano,
-      // Si el cliente le da a "Responder", la respuesta llega a ventas y
-      // no al buzón técnico que manda los correos.
-      responderA: PIE_EMAIL,
-    });
-    return { ok: true, refExterna: r.messageId };
-  } catch (e) {
-    return { ok: false, error: (e as Error).message };
-  }
+function enviarChatWeb(): ResultadoEnvio {
+  // Guardarlo YA es enviarlo: el chat del visitante pregunta cada siete
+  // segundos por lo que haya escrito un humano, así que en cuanto la
+  // fila existe, le aparece en pantalla. No hay nada más que hacer aquí.
+  //
+  // El correo llega UNA sola vez, al cerrar la conversación, con todo lo
+  // que se habló (ver copia-chat.ts). Mandar uno por respuesta le
+  // llenaba el buzón de trozos de una charla que estaba viendo entera y
+  // en vivo.
+  return { ok: true, refExterna: "chat-web" };
 }
 
 /**
@@ -196,7 +174,7 @@ export async function enviarPorCanal(conversacionId: string, texto: string): Pro
     case "whatsapp":
       return enviarWhatsApp(cfg, destino, texto);
     case "web":
-      return enviarChatWeb(conv.emailRemit, texto);
+      return enviarChatWeb();
     case "wordpress_form":
       // Un formulario web no es un canal de ida y vuelta: se responde por
       // correo. Decirlo claro es mejor que fingir que se envió.
