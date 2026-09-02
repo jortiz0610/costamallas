@@ -20,7 +20,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { useAuth } from "@/hooks/useAuth";
 import {
   ArrowLeft, Search, Plus, Trash2, X, Loader2, Save, Ruler, Package,
-  UserPlus, Wrench, FileText, LayoutTemplate, MapPin, ShieldAlert,
+  UserPlus, Wrench, FileText, LayoutTemplate, MapPin, ShieldAlert, ShoppingCart, Eye,
   ClipboardCheck, HardHat, FlaskConical,
 } from "lucide-react";
 import Link from "next/link";
@@ -45,7 +45,7 @@ interface Producto {
   /// No admite descuento por linea. Viene del catalogo.
   sinDescuento?: boolean;
 }
-interface Cliente { id: string; nombre: string; empresa?: string; email?: string; telefono?: string; ciudad?: string; nit?: string; }
+interface Cliente { id: string; nombre: string; empresa?: string; email?: string; telefono?: string; ciudad?: string; direccion?: string; nit?: string; }
 
 interface Linea {
   productoId?: string;
@@ -376,10 +376,18 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
     return () => { vivo = false; };
   }, [cotizacionId]);
 
-  const guardar = async () => {
-    if (!clienteId) return toast.error("Elige un cliente");
-    if (lineas.length === 0) return toast.error("Agrega al menos un producto");
-    if (lineas.some(l => l.cantidad <= 0)) return toast.error("Hay líneas en cantidad cero");
+  /**
+   * Guarda el borrador.
+   *
+   * `irAlDetalle: false` lo usa la vista previa: guarda, devuelve el id
+   * y NO navega, para que el asesor siga cotizando en la misma pantalla
+   * mientras mira la previa en otra pestaña.
+   */
+  const guardar = async (opciones?: { irAlDetalle?: boolean }): Promise<string | null> => {
+    const irAlDetalle = opciones?.irAlDetalle !== false;
+    if (!clienteId) { toast.error("Elige un cliente"); return null; }
+    if (lineas.length === 0) { toast.error("Agrega al menos un producto"); return null; }
+    if (lineas.some(l => l.cantidad <= 0)) { toast.error("Hay líneas en cantidad cero"); return null; }
 
     setGuardando(true);
     try {
@@ -435,7 +443,7 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
         }),
       });
       const j = await res.json();
-      if (!res.ok || !j.success) return toast.error(j.error ?? "No se pudo guardar");
+      if (!res.ok || !j.success) { toast.error(j.error ?? "No se pudo guardar"); return null; }
       // Si se salió de la política, se dice AQUÍ: el asesor tiene que
       // saberlo antes de prometerle el precio al cliente por teléfono.
       if (j.aviso) toast(j.aviso, { icon: "⚠️", duration: 7000 });
@@ -447,8 +455,28 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
           ? `${j.data.numero} actualizada`
           : `${j.data.numero} guardada como borrador`,
       );
-      router.push(`/crm/cotizaciones/${j.data.id}`);
+      if (irAlDetalle) router.push(`/crm/cotizaciones/${j.data.id}`);
+      return j.data.id as string;
     } finally { setGuardando(false); }
+  };
+
+  /**
+   * Vista previa: exactamente lo que va a ver el cliente.
+   *
+   * Guarda primero y abre el enlace público. No hay una "previa" aparte
+   * que haya que mantener sincronizada con el documento de verdad: la
+   * previa ES el documento. Una previa que se parece pero no es igual es
+   * peor que ninguna, porque da confianza sin merecerla.
+   *
+   * Se abre en otra pestaña para no perder lo que se está cotizando.
+   */
+  const verPrevia = async () => {
+    const id = cotizacionId ?? await guardar({ irAlDetalle: false });
+    if (!id) return;
+    // Si había cambios sin guardar en una que ya existe, se guardan antes:
+    // si no, la previa mostraría la versión anterior.
+    if (cotizacionId) await guardar({ irAlDetalle: false });
+    window.open(`/crm/cotizaciones/${id}?previa=1`, "_blank", "noopener");
   };
 
   return (
@@ -463,7 +491,20 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
           >
             <ArrowLeft size={13} /> Volver
           </Link>
-          <button onClick={guardar} disabled={guardando || cargando} className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5 disabled:opacity-50" style={{ backgroundColor: CRM_COLOR }}>
+          {/* Ver la oferta como la va a recibir el cliente, en el formato
+              que esté elegido (Express o Propuesta). Guarda antes: una
+              previa de algo que no está guardado muestra otra cosa. */}
+          <button
+            onClick={verPrevia}
+            disabled={guardando || cargando || !clienteId || lineas.length === 0}
+            title={!clienteId || lineas.length === 0
+              ? "Elige un cliente y agrega al menos un producto"
+              : "Ver la cotización como la recibe el cliente"}
+            className="btn-secondary btn-sm disabled:opacity-40"
+          >
+            <Eye size={13} /> Vista previa
+          </button>
+          <button onClick={() => guardar()} disabled={guardando || cargando} className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5 disabled:opacity-50" style={{ backgroundColor: CRM_COLOR }}>
             {guardando ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
             {editando ? "Guardar cambios" : "Guardar borrador"}
           </button>
@@ -471,7 +512,7 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
       } />
 
       <div className="flex-1 overflow-y-auto page-bg p-6">
-        <div className="max-w-5xl mx-auto space-y-5">
+        <div className="max-w-[1500px] mx-auto space-y-5">
 
           {cargando && (
             <div className="card p-10 text-center">
@@ -513,6 +554,25 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
             </div>
           )}
 
+          {/* ── Dos columnas en pantalla ancha ──
+
+              Antes todo iba en una sola columna de 5xl y el asesor
+              cotizaba haciendo scroll: elegía un producto arriba, bajaba
+              a ver cómo iba el total, subía otra vez. En un monitor de
+              escritorio eso es tirar la mitad del espacio.
+
+              Ahora, a partir de 1280 px: a la izquierda lo que se elige
+              (cliente, productos, servicios, sitio), y a la derecha lo
+              que se lleva (el carrito y los totales), FIJO en pantalla.
+              Se ve el total mientras se agregan líneas, que es la única
+              razón por la que alguien miraba abajo.
+
+              Por debajo de 1280 px se apila, en el mismo orden de antes.
+              No hay dos diseños: hay uno que se pliega. */}
+          <div className="grid grid-cols-1 xl:grid-cols-5 gap-5 items-start">
+
+            {/* ── Lo que se elige ── */}
+            <div className="xl:col-span-3 space-y-5 min-w-0">
           {/* Cliente */}
           <div className="card p-5">
             <p className="text-xs font-bold uppercase tracking-widest text-muted mb-3">Cliente</p>
@@ -536,7 +596,15 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
                 {clientes.length > 0 && (
                   <div className="absolute z-10 left-0 right-0 mt-1 card p-1 max-h-56 overflow-y-auto">
                     {clientes.map(c => (
-                      <button key={c.id} onClick={() => { setCliente(c); setClienteId(c.id); setClienteBusq(""); if (!ciudadInstalacion && c.ciudad) setCiudadInstalacion(c.ciudad); }}
+                      <button key={c.id} onClick={() => {
+                        setCliente(c); setClienteId(c.id); setClienteBusq("");
+                        // La ciudad y la direccion del cliente entran solas. Se
+                        // pueden cambiar: muchas obras no son en la direccion de
+                        // facturacion, y reescribirlas a mano cada vez es como se
+                        // llega a la direccion equivocada.
+                        if (!ciudadInstalacion && c.ciudad) setCiudadInstalacion(c.ciudad);
+                        if (!direccionInstalacion && c.direccion) setDireccionInstalacion(c.direccion);
+                      }}
                         className="w-full text-left p-2 rounded-lg hover:brand-bg-10">
                         <p className="text-xs font-semibold text-soft">{c.nombre}</p>
                         <p className="text-[10px] text-muted">{[c.empresa, c.ciudad].filter(Boolean).join(" · ")}</p>
@@ -675,109 +743,6 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
               )}
             </div>
 
-            {/* Líneas */}
-            {lineas.length === 0 ? (
-              <div className="p-8 text-center surface-2 rounded-xl">
-                <Package size={22} className="mx-auto mb-2 text-muted" />
-                <p className="text-xs text-muted">Busca un producto arriba para empezar.</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {lineas.map((l, i) => (
-                  <div key={i} className="p-3 rounded-xl surface-2" style={l.tipo === "INSTALACION" ? { borderLeft: `3px solid ${CRM_COLOR}` } : undefined}>
-                    <div className="flex items-start gap-3">
-                      {l.tipo === "INSTALACION" ? (
-                        <div className="w-9 h-9 rounded flex items-center justify-center flex-shrink-0" style={{ backgroundColor: CRM_COLOR + "20" }}>
-                          <Wrench size={14} style={{ color: CRM_COLOR }} />
-                        </div>
-                      ) : l.imagenUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={l.imagenUrl} alt="" className="w-9 h-9 rounded object-cover flex-shrink-0" />
-                      ) : (
-                        <div className="w-9 h-9 rounded surface-3 flex-shrink-0" />
-                      )}
-
-                      <div className="flex-1 min-w-0">
-                        <input
-                          className="input py-1 text-xs font-semibold"
-                          value={l.descripcion}
-                          onChange={e => actualizar(i, { descripcion: e.target.value })}
-                        />
-                        {l.puedeMedida && (
-                          <label className="flex items-center gap-1.5 text-[11px] text-soft mt-1.5 cursor-pointer">
-                            <input type="checkbox" checked={l.aMedida} onChange={e => actualizar(i, { aMedida: e.target.checked, unidad: e.target.checked ? "m2" : "unidad" })} />
-                            <Ruler size={11} /> Fabricar a la medida
-                          </label>
-                        )}
-                      </div>
-
-                      <button onClick={() => quitar(i)} className="text-muted hover:text-red-500 flex-shrink-0"><Trash2 size={14} /></button>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mt-2.5">
-                      {l.aMedida ? (
-                        <>
-                          <div>
-                            <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">Largo (m)</label>
-                            <input type="number" step="0.01" className="input py-1 text-xs" value={l.largo} onChange={e => actualizar(i, { largo: Number(e.target.value) })} />
-                          </div>
-                          <div>
-                            <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">Ancho (m)</label>
-                            <input type="number" step="0.01" className="input py-1 text-xs" value={l.ancho} onChange={e => actualizar(i, { ancho: Number(e.target.value) })} />
-                          </div>
-                          <div>
-                            <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">Piezas</label>
-                            <input type="number" className="input py-1 text-xs" value={l.unidades} onChange={e => actualizar(i, { unidades: Number(e.target.value) })} />
-                          </div>
-                          <div>
-                            <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">Total m²</label>
-                            <div className="input py-1 text-xs font-bold flex items-center" style={{ color: CRM_COLOR }}>{l.cantidad}</div>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div>
-                            <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">Cantidad</label>
-                            <input type="number" step="0.01" className="input py-1 text-xs" value={l.cantidad} onChange={e => actualizar(i, { cantidad: Number(e.target.value) })} />
-                          </div>
-                          <div>
-                            <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">Unidad</label>
-                            <input className="input py-1 text-xs" value={l.unidad} onChange={e => actualizar(i, { unidad: e.target.value })} />
-                          </div>
-                        </>
-                      )}
-                      <div>
-                        <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">V. unitario</label>
-                        <input type="number" className="input py-1 text-xs" value={l.precioUnitario} onChange={e => actualizar(i, { precioUnitario: Number(e.target.value) })} />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">
-                          Desc. %{l.sinDescuento && <span className="text-[8px] normal-case font-normal"> · no admite</span>}
-                        </label>
-                        {/* El producto marcado como "sin descuento" no admite
-                            rebaja POR LÍNEA (margen mínimo). Sí entra en el
-                            descuento global: ese es una decisión sobre el
-                            negocio completo, no sobre este producto. */}
-                        <input
-                          type="number"
-                          className="input py-1 text-xs disabled:opacity-40"
-                          value={l.descuento}
-                          disabled={l.sinDescuento}
-                          title={l.sinDescuento ? "Este producto no admite descuento por línea. Sí entra en el descuento global." : undefined}
-                          onChange={e => actualizar(i, { descuento: Number(e.target.value) })}
-                        />
-                      </div>
-                      <div className={l.aMedida ? "" : "md:col-span-2"}>
-                        <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">Subtotal</label>
-                        <div className="input py-1 text-xs font-bold flex items-center">
-                          {formatCOP(l.cantidad * l.precioUnitario * (1 - l.descuento / 100))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Instalación: dónde */}
@@ -810,8 +775,132 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
             </div>
           )}
 
+            </div>
+
+            {/* ── Lo que se lleva ──
+
+                `sticky` con `top-4`: al bajar por una lista larga de
+                productos, el carrito y el total se quedan a la vista. Sin
+                esto, la columna derecha se pierde arriba en cuanto hay
+                más de seis líneas y volvemos al problema del scroll. */}
+            <div className="xl:col-span-2 space-y-5 min-w-0 xl:sticky xl:top-4">
+
+              <div className="card p-5">
+                <p className="text-xs font-bold uppercase tracking-widest text-muted mb-3 flex items-center gap-1.5">
+                  <ShoppingCart size={12} /> La cotización
+                  {lineas.length > 0 && (
+                    <span className="ml-auto normal-case tracking-normal font-semibold text-[11px]">
+                      {lineas.length} {lineas.length === 1 ? "línea" : "líneas"}
+                    </span>
+                  )}
+                </p>
+              {/* Líneas */}
+              {lineas.length === 0 ? (
+                <div className="p-8 text-center surface-2 rounded-xl">
+                  <Package size={22} className="mx-auto mb-2 text-muted" />
+                  <p className="text-xs text-muted">Busca un producto arriba para empezar.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {lineas.map((l, i) => (
+                    <div key={i} className="p-3 rounded-xl surface-2" style={l.tipo === "INSTALACION" ? { borderLeft: `3px solid ${CRM_COLOR}` } : undefined}>
+                      <div className="flex items-start gap-3">
+                        {l.tipo === "INSTALACION" ? (
+                          <div className="w-9 h-9 rounded flex items-center justify-center flex-shrink-0" style={{ backgroundColor: CRM_COLOR + "20" }}>
+                            <Wrench size={14} style={{ color: CRM_COLOR }} />
+                          </div>
+                        ) : l.imagenUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={l.imagenUrl} alt="" className="w-9 h-9 rounded object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="w-9 h-9 rounded surface-3 flex-shrink-0" />
+                        )}
+  
+                        <div className="flex-1 min-w-0">
+                          <input
+                            className="input py-1 text-xs font-semibold"
+                            value={l.descripcion}
+                            onChange={e => actualizar(i, { descripcion: e.target.value })}
+                          />
+                          {l.puedeMedida && (
+                            <label className="flex items-center gap-1.5 text-[11px] text-soft mt-1.5 cursor-pointer">
+                              <input type="checkbox" checked={l.aMedida} onChange={e => actualizar(i, { aMedida: e.target.checked, unidad: e.target.checked ? "m2" : "unidad" })} />
+                              <Ruler size={11} /> Fabricar a la medida
+                            </label>
+                          )}
+                        </div>
+  
+                        <button onClick={() => quitar(i)} className="text-muted hover:text-red-500 flex-shrink-0"><Trash2 size={14} /></button>
+                      </div>
+  
+                      <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mt-2.5">
+                        {l.aMedida ? (
+                          <>
+                            <div>
+                              <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">Largo (m)</label>
+                              <input type="number" step="0.01" className="input py-1 text-xs" value={l.largo} onChange={e => actualizar(i, { largo: Number(e.target.value) })} />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">Ancho (m)</label>
+                              <input type="number" step="0.01" className="input py-1 text-xs" value={l.ancho} onChange={e => actualizar(i, { ancho: Number(e.target.value) })} />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">Piezas</label>
+                              <input type="number" className="input py-1 text-xs" value={l.unidades} onChange={e => actualizar(i, { unidades: Number(e.target.value) })} />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">Total m²</label>
+                              <div className="input py-1 text-xs font-bold flex items-center" style={{ color: CRM_COLOR }}>{l.cantidad}</div>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div>
+                              <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">Cantidad</label>
+                              <input type="number" step="0.01" className="input py-1 text-xs" value={l.cantidad} onChange={e => actualizar(i, { cantidad: Number(e.target.value) })} />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">Unidad</label>
+                              <input className="input py-1 text-xs" value={l.unidad} onChange={e => actualizar(i, { unidad: e.target.value })} />
+                            </div>
+                          </>
+                        )}
+                        <div>
+                          <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">V. unitario</label>
+                          <input type="number" className="input py-1 text-xs" value={l.precioUnitario} onChange={e => actualizar(i, { precioUnitario: Number(e.target.value) })} />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">
+                            Desc. %{l.sinDescuento && <span className="text-[8px] normal-case font-normal"> · no admite</span>}
+                          </label>
+                          {/* El producto marcado como "sin descuento" no admite
+                              rebaja POR LÍNEA (margen mínimo). Sí entra en el
+                              descuento global: ese es una decisión sobre el
+                              negocio completo, no sobre este producto. */}
+                          <input
+                            type="number"
+                            className="input py-1 text-xs disabled:opacity-40"
+                            value={l.descuento}
+                            disabled={l.sinDescuento}
+                            title={l.sinDescuento ? "Este producto no admite descuento por línea. Sí entra en el descuento global." : undefined}
+                            onChange={e => actualizar(i, { descuento: Number(e.target.value) })}
+                          />
+                        </div>
+                        <div className={l.aMedida ? "" : "md:col-span-2"}>
+                          <label className="block text-[9px] font-bold uppercase text-muted mb-0.5">Subtotal</label>
+                          <div className="input py-1 text-xs font-bold flex items-center">
+                            {formatCOP(l.cantidad * l.precioUnitario * (1 - l.descuento / 100))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              </div>
+
           {/* Documento y totales */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-1 gap-5">
             <div className="card p-5 space-y-4">
               <p className="text-xs font-bold uppercase tracking-widest text-muted flex items-center gap-1.5"><LayoutTemplate size={12} /> Documento</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -954,12 +1043,14 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
                 </div>
               )}
 
-              <button onClick={guardar} disabled={guardando} className="w-full mt-5 py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50" style={{ backgroundColor: CRM_COLOR }}>
+              <button onClick={() => guardar()} disabled={guardando} className="w-full mt-5 py-2.5 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-50" style={{ backgroundColor: CRM_COLOR }}>
                 {guardando ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Guardar borrador
               </button>
               <p className="text-[11px] text-muted mt-2 text-center">
                 Se guarda como borrador. En la cotización podrás imprimirla, mandarla por correo o compartir el enlace.
               </p>
+            </div>
+          </div>
             </div>
           </div>
         </div>
