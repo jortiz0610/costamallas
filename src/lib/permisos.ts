@@ -23,6 +23,9 @@ export type Rol =
   | "MARKETING"
   | "VENDEDOR"
   | "PRODUCCION"
+  /// Quien FABRICA. Llena la orden de produccion en el taller y la
+  /// firma. No ve clientes, ni precios, ni el CRM.
+  | "OPERARIO"
   | "CLIENTE" // login del cliente final: solo su propia información
   // ── Retirados (29-ago) ──
   // Siguen en el tipo y en el enum de la base porque HAY GENTE con ellos
@@ -130,6 +133,8 @@ export const PERMISOS: Permiso[] = [
   // Acciones del CRM
   { clave: "crm.ver_todo", modulo: "CRM", tipo: "accion", label: "Ver el CRM de todo el equipo", ayuda: "Sin esto, la persona solo ve sus propios clientes, cotizaciones y pedidos." },
   { clave: "crm.cotizaciones.equipo", modulo: "CRM", tipo: "accion", label: "Cotizaciones y pedidos del equipo", ayuda: "Ver y editar las cotizaciones y pedidos de los demás asesores. Los CLIENTES siguen repartidos: esto es para poder cubrirse entre ustedes, no para reasignar cartera." },
+  { clave: "erp.ordenes_produccion", modulo: "ERP", tipo: "vista", label: "Órdenes de producción", ayuda: "El formato de fabricación de malla ciclón: especificación, materia prima, producto terminado, paradas y producto no conforme." },
+  { clave: "erp.ordenes_produccion.supervisar", modulo: "ERP", tipo: "accion", label: "Supervisar la producción", ayuda: "Firmar como supervisor una orden que el operario ya cerró. Sin esto se puede llenar y firmar como operario, pero no revisar." },
   { clave: "crm.cotizaciones.prueba", modulo: "CRM", tipo: "accion", label: "Modo capacitación", ayuda: "Marcar un cliente como de capacitación. Todo lo que se le haga —cotizar, aprobar, instalar, facturar— funciona igual que con uno real, pero no gasta consecutivo ni entra en informes." },
 
   // ── NEXUS ──
@@ -202,6 +207,11 @@ const PRODUCCION_POR_DEFECTO = [
   // ERP: exactamente lo mismo que el vendedor. Consulta el catálogo y
   // corrige existencias cuando entra o sale material; nada más.
   "erp.dashboard", "erp.productos", "erp.imagenes", "erp.stock",
+  // Las órdenes de producción, y con el visto bueno: producción es quien
+  // SUPERVISA lo que llena el operario. Sin esto, una orden se quedaría
+  // esperando indefinidamente la segunda firma, porque el único que
+  // podría darla sería el administrador.
+  "erp.ordenes_produccion", "erp.ordenes_produccion.supervisar",
   // CRM: solo lo suyo — el tablero de fabricación, sus trabajos y las
   // instalaciones. No ve clientes, ni cotizaciones, ni el pipeline
   // comercial: no son su trabajo y contienen precios y márgenes.
@@ -257,12 +267,30 @@ const SOLO_LECTURA_POR_DEFECTO = PERMISOS
   .filter(p => p.tipo === "vista" && p.modulo !== "SISTEMA")
   .map(p => p.clave);
 
+/**
+ * OPERARIO: quien fabrica.
+ *
+ * Lo mínimo para hacer su trabajo, y nada más. No ve clientes, ni
+ * precios, ni el CRM: llena la orden de producción en el taller y la
+ * firma. Un operario con acceso a la cartera de clientes no es un
+ * permiso de más, es un problema de confidencialidad que nadie pidió.
+ *
+ * Ve el catálogo porque necesita mirar la referencia y las medidas de lo
+ * que está fabricando, pero solo LEER: `erp.productos` sin
+ * `erp.productos.editar`.
+ */
+const OPERARIO_POR_DEFECTO = [
+  "erp.productos",
+  "erp.ordenes_produccion",
+];
+
 export const PERMISOS_POR_ROL: Record<string, string[]> = {
   SUPERADMIN: TODAS_LAS_CLAVES,
   ADMIN: ADMIN_POR_DEFECTO,
   MARKETING: MARKETING_POR_DEFECTO,
   VENDEDOR: VENDEDOR_POR_DEFECTO,
   PRODUCCION: PRODUCCION_POR_DEFECTO,
+  OPERARIO: OPERARIO_POR_DEFECTO,
   CLIENTE: [], // no entra al portal interno
 
   // Retirados: se conservan tal cual estaban para no cambiarle el portal
@@ -401,6 +429,7 @@ export const RUTAS_PROTEGIDAS: Record<string, string> = {
   "/postventa/resultados": "crm.postventa",
   // La pantalla de campo: la abre el de produccion desde el telefono.
   "/campo": "crm.trabajos",
+  "/produccion": "erp.ordenes_produccion",
 
   "/nexus": "nexus.inbox",
   "/nexus/plantillas": "nexus.plantillas",

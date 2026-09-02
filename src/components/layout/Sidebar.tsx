@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, Package, ImageIcon, Tag, Archive, FileOutput, FileInput,
+  LayoutDashboard, Package, ImageIcon, Tag, Archive, Factory, FileOutput, FileInput,
   AlertTriangle, Settings, LogOut, Users, UserCircle, ClipboardList,
   ShoppingCart, Wrench, Kanban, ChevronDown, ShieldCheck, BarChart2,
   MessageSquare, Truck, CheckSquare, MessageSquareText, Zap,
@@ -44,6 +44,9 @@ const ERP_ITEMS = [
   { href: "/imagenes", label: "Imágenes", icon: ImageIcon, perm: "erp.imagenes" },
   { href: "/categorias", label: "Catálogos", icon: Tag, perm: "erp.catalogos" },
   { section: "Operaciones" },
+  // La orden de producción. Va en Operaciones y no en Catálogo: es lo
+  // que se HACE, no lo que se vende.
+  { href: "/produccion", label: "Orden de producción", icon: Factory, perm: "erp.ordenes_produccion" },
   { href: "/stock", label: "Stock", icon: Archive, alertKey: "stock", perm: "erp.stock" },
   { href: "/compras", label: "Compras", icon: Truck, perm: "erp.compras" },
   { href: "/facturacion", label: "Facturación", icon: Receipt, perm: "erp.facturacion" },

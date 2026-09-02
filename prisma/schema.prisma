@@ -51,6 +51,9 @@ model Usuario {
   @@index([clienteId])
   credenciales CredencialWebauthn[]
 
+  ordenesComoOperario   OrdenProduccion[] @relation("OpOperario")
+  ordenesComoSupervisor OrdenProduccion[] @relation("OpSupervisor")
+
   @@map("usuarios")
 }
 
@@ -87,6 +90,13 @@ enum Rol {
   MARKETING
   VENDEDOR
   PRODUCCION
+  /// Quien FABRICA, que no es lo mismo que quien coordina.
+  ///
+  /// PRODUCCIÓN ve el pipeline, agenda instalaciones y habla con el CRM.
+  /// El OPERARIO llena la orden de producción en el taller. Meterlo en
+  /// PRODUCCION le habría dado acceso a clientes y pedidos para poder
+  /// diligenciar un formato de taller.
+  OPERARIO
   CLIENTE // login del cliente final: solo su propia información
 
   // Retirados el 29-ago. NO se borran del enum: quitar un valor de un
@@ -822,6 +832,8 @@ model Pedido {
   @@index([clienteId])
   @@index([vendedorId])
   @@index([estado])
+  ordenesProduccion OrdenProduccion[]
+
   @@map("pedidos")
 }
 
@@ -1102,6 +1114,8 @@ model Producto {
   @@index([intEstado])
   @@index([publicado])
   @@index([categorias])
+  ordenesProduccion OrdenProduccion[]
+
   @@map("productos")
 }
 
@@ -1590,4 +1604,75 @@ model CredencialWebauthn {
 
   @@index([usuarioId])
   @@map("credenciales_webauthn")
+}
+
+/// La Orden de Producción de Malla Ciclón.
+///
+/// Es el formato que hoy se llena en papel: qué malla se va a fabricar,
+/// con qué materia prima, qué salió, cuánto se desperdició, qué paradas
+/// hubo y si se generó producto no conforme. Lo firma el operario y lo
+/// firma el supervisor.
+///
+/// Las tablas del formato van en JSON y no en tablas hijas a propósito:
+/// son listas cortas —tres presentaciones, cuatro insumos, diez rollos—
+/// que solo se leen junto con su orden y nunca se consultan por separado.
+/// Cuatro tablas más habrían costado cuatro joins para pintar una hoja.
+model OrdenProduccion {
+  id     String @id @default(cuid())
+  numero String @unique
+
+  fechaExpedicion DateTime  @default(now())
+  fechaPrevista   DateTime?
+  /// ABIERTA · EN_PROCESO · TERMINADA · ANULADA
+  estado          String    @default("ABIERTA")
+
+  /// De dónde viene, cuando viene de una venta. Nulo cuando se fabrica
+  /// para reponer inventario.
+  pedidoId   String?
+  pedido     Pedido?   @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
+  productoId String?
+  producto   Producto? @relation(fields: [productoId], references: [id], onDelete: SetNull)
+
+  operarioId   String?
+  operario     Usuario? @relation("OpOperario", fields: [operarioId], references: [id], onDelete: SetNull)
+  supervisorId String?
+  supervisor   Usuario? @relation("OpSupervisor", fields: [supervisorId], references: [id], onDelete: SetNull)
+
+  /// [{ fila, ref, colorGalv, calibre, ojo, alto, largo, m2, cant1, largo1, peso, cant2, largo2 }]
+  especificacion    Json @default("[]")
+  /// [{ n, colorGalv, calibre, ordenCompraLote, kgRecibida, kgUtilizada, kgDesperdicio, kgDevuelta }]
+  materiaPrima      Json @default("[]")
+  /// [{ n, ref, alto, largo, peso, diametro, m2 }]
+  productoTerminado Json @default("[]")
+  /// [{ n, horaInicio, horaFinal, motivo }]
+  interrupciones    Json @default("[]")
+
+  // ── Producto no conforme ──
+  generaPnc      Boolean @default(false)
+  atributoNc     String?
+  pncKg          Float?
+  /// RETENCION_REPROCESO · REPARACION · CONCESION · RECLASIFICACION_APROVECHAMIENTO · DESTRUCCION
+  pncTratamiento String?
+
+  inspeccion    String? @db.Text
+  observaciones String? @db.Text
+
+  // ── Firmas ──
+  // Mismo mecanismo que el acta de entrega: PNG en base64 en la fila.
+  firmaOperario          String?   @db.Text
+  firmaOperarioNombre    String?
+  firmaOperarioEn        DateTime?
+  firmaSupervisor        String?   @db.Text
+  firmaSupervisorNombre  String?
+  firmaSupervisorEn      DateTime?
+
+  esPrueba  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([estado])
+  @@index([operarioId])
+  @@index([pedidoId])
+  @@index([esPrueba])
+  @@map("ordenes_produccion")
 }

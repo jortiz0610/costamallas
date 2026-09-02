@@ -25,13 +25,16 @@ import { prisma } from "@/lib/prisma";
  * declarado desde el principio y nadie lo había llamado hasta que la
  * pantalla de Consecutivos pidió los cinco tipos de una vez.
  */
-export type TipoDocumento = "COT" | "PED" | "OC" | "FAC";
+export type TipoDocumento = "COT" | "PED" | "OC" | "FAC" | "OP";
 
 const CONFIG: Record<TipoDocumento, { clave: string; descripcion: string; digitos: number; etiqueta: string }> = {
   COT: { clave: "consecutivo_cotizacion", descripcion: "Último número de cotización emitido", digitos: 5, etiqueta: "Cotizaciones" },
   PED: { clave: "consecutivo_pedido", descripcion: "Último número de pedido emitido", digitos: 5, etiqueta: "Pedidos" },
   OC:  { clave: "consecutivo_orden_compra", descripcion: "Último número de orden de compra emitido", digitos: 5, etiqueta: "Órdenes de compra" },
   FAC: { clave: "consecutivo_factura", descripcion: "Último número de factura emitido", digitos: 5, etiqueta: "Facturas" },
+  // La orden de producción tiene el suyo: no es una venta ni una compra,
+  // y meterla en cualquiera de los dos habría descuadrado ese conteo.
+  OP:  { clave: "consecutivo_orden_produccion", descripcion: "Último número de orden de producción emitido", digitos: 5, etiqueta: "Órdenes de producción" },
 };
 
 export const TIPOS = Object.keys(CONFIG) as TipoDocumento[];
@@ -80,6 +83,7 @@ const TABLA: Record<TipoDocumento, string> = {
   PED: "pedidos",
   OC: "ordenes_compra",
   FAC: "facturas",
+  OP: "ordenes_produccion",
 };
 
 /**
