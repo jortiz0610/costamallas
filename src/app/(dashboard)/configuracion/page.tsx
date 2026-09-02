@@ -6,7 +6,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import {
   Settings, Link2, Check, X, Loader2, Eye, EyeOff, Building2, Palette, Upload, ImageIcon,
   ShoppingBag, Store, Users, Globe, Smartphone, Instagram, Facebook, Mail, MessageSquare,
-  Plus, PlugZap, ChevronDown, BookOpen, Radio, Sparkles, Route, Percent, Star, Hash,
+  Plus, PlugZap, ChevronDown, BookOpen, Radio, Sparkles, Route, Percent, Star, Hash, UserCircle,
   Bot, FileText, HelpCircle,
 } from "lucide-react";
 import { TabPlantillasCorreo } from "@/components/configuracion/TabPlantillasCorreo";
@@ -23,6 +23,7 @@ import { TabWordPress } from "@/components/configuracion/TabWordPress";
 import { TabInstalacion } from "@/components/configuracion/TabInstalacion";
 import { TabAgenteWeb } from "@/components/configuracion/TabAgenteWeb";
 import { CredencialesCanal, type ConexionCanal } from "@/components/configuracion/CredencialesCanal";
+import { TabMiCuenta } from "@/components/configuracion/TabMiCuenta";
 
 interface WCStatus { configured: boolean; ok?: boolean; storeName?: string; version?: string; error?: string; }
 
@@ -1089,6 +1090,7 @@ function TabCorreo() {
  * que es lo que en realidad se pregunta al llegar aquí.
  */
 const GRUPOS = [
+  { id: "mio",       label: "Lo tuyo" },
   { id: "empresa",   label: "La empresa" },
   { id: "comercial", label: "Lo comercial" },
   { id: "comunica",  label: "Comunicación" },
@@ -1097,6 +1099,11 @@ const GRUPOS = [
 ];
 
 const TABS = [
+  // Esta la ve TODO el mundo. Es la única de la lista que no configura
+  // el negocio, sino a quien está mirando la pantalla.
+  { id: "mi_cuenta",    grupo: "mio",       label: "Mi cuenta",     icon: UserCircle,
+    ayuda: "Tus datos, los avisos de mensajes y cómo instalar la app en tu teléfono." },
+
   { id: "empresa",      grupo: "empresa",   label: "Empresa",       icon: Building2,
     ayuda: "Nombre, NIT, logo, color y datos de contacto. Salen en la cotización y en los correos." },
   { id: "consecutivos", grupo: "empresa",   label: "Consecutivos",  icon: Hash,
@@ -1144,48 +1151,104 @@ function ConfiguracionContent() {
   const { brand } = useBrand();
   const { user } = useAuth();
 
-  // Conexiones e IA: solo superadmin. Empresa: admin+superadmin.
+  /**
+   * Tres niveles, y la diferencia importa.
+   *
+   *   SUPERADMIN · todo, incluidas las conexiones externas y la IA, que
+   *                mueven dinero o credenciales.
+   *   ADMIN      · toda la configuración del negocio. Administrar es su
+   *                trabajo; dejarlo fuera obligaba a llamar al
+   *                superadministrador para cambiar un plazo de pago.
+   *   El resto   · solo lo suyo.
+   *
+   * Antes, un vendedor entraba aquí y veía dieciocho pestañas del negocio
+   * que no podía tocar: o se chocaba con un 403 o cambiaba algo que no le
+   * correspondía. Un menú lleno de puertas cerradas es peor que uno corto.
+   */
   const superadmin = user?.rol === "SUPERADMIN";
-  const soloSuper = new Set(["ia", "facturacion", "canales", "agente_web", "marketing", "woocommerce", "falabella", "mercadolibre", "wp_users"]);
-  const tabsVisibles = TABS.filter(t => superadmin || !soloSuper.has(t.id));
+  const administra = superadmin || user?.rol === "ADMIN";
+  const soloSuper = new Set(["ia", "canales", "agente_web", "marketing", "woocommerce", "falabella", "mercadolibre", "wp_users"]);
 
-  const initial = searchParams.get("tab") ?? "empresa";
-  const [tab, setTab] = useState(tabsVisibles.some(t => t.id === initial) ? initial : "empresa");
+  const tabsVisibles = TABS.filter(t => {
+    if (t.grupo === "mio") return true;          // suya, siempre
+    if (!administra) return false;               // el resto: solo administración
+    return superadmin || !soloSuper.has(t.id);
+  });
+
+  const porDefecto = administra ? "empresa" : "mi_cuenta";
+  const initial = searchParams.get("tab") ?? porDefecto;
+  const [tab, setTab] = useState(tabsVisibles.some(t => t.id === initial) ? initial : porDefecto);
+  // El menú arranca cerrado: son dieciocho pestañas en cinco grupos y
+  // desplegadas se comían un tercio de la pantalla en el teléfono.
+  const [menuAbierto, setMenuAbierto] = useState(false);
   const ayudaActual = TABS.find(t => t.id === tab)?.ayuda ?? null;
   return (
     <>
       <Topbar title="Configuración" />
       <div className="flex-1 overflow-y-auto page-bg">
-        {/* Las pestañas se ENVUELVEN. Deslizándose, las últimas
-            —facturación, marketing, canales— no existían para quien
-            entra desde el móvil: no se ven y nadie arrastra buscándolas. */}
-        <div className="bg-white dark:bg-slate-900 px-3 sm:px-6" style={{ borderBottom: "1px solid var(--border)" }}>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 items-end">
-            {GRUPOS.map(g => {
-              const delGrupo = tabsVisibles.filter(t => t.grupo === g.id);
-              if (!delGrupo.length) return null;
+        {/* El menú, PLEGADO.
+
+            Antes estaban las dieciocho pestañas siempre a la vista, en
+            cinco filas con sus títulos. Ordenado, sí, pero se comía un
+            tercio de la pantalla —en el teléfono, más— para algo que se
+            toca una vez y luego estorba durante toda la sesión.
+
+            Ahora se ve una sola línea: dónde estás. Se despliega para
+            cambiar y se vuelve a cerrar al elegir. */}
+        <div className="bg-white dark:bg-slate-900 px-3 sm:px-6 py-2" style={{ borderBottom: "1px solid var(--border)" }}>
+          <button
+            onClick={() => setMenuAbierto(v => !v)}
+            aria-expanded={menuAbierto}
+            className="flex items-center gap-2.5 w-full sm:w-auto px-3 py-2 rounded-xl surface-2 border divider transition-all"
+          >
+            {(() => {
+              const t = TABS.find(x => x.id === tab);
+              const Icon = t?.icon ?? Building2;
               return (
-                <div key={g.id} className="flex flex-col">
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-gray-300 dark:text-slate-600 px-3 pt-2.5">
-                    {g.label}
-                  </span>
-                  <div className="flex flex-wrap gap-0.5">
-                    {delGrupo.map(t => {
-                      const Icon = t.icon;
-                      const active = tab === t.id;
-                      return (
-                        <button key={t.id} onClick={() => setTab(t.id)}
-                          className="flex items-center gap-2 px-3 py-2.5 text-[12px] font-medium border-b-2 transition-all whitespace-nowrap"
-                          style={active ? { borderBottomColor: brand.brandColor, color: brand.brandColor } : { borderBottomColor: "transparent", color: "var(--text-muted)" }}>
-                          <Icon size={13} />{t.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                <>
+                  <Icon size={15} style={{ color: brand.brandColor }} />
+                  <span className="text-[13px] font-bold text-soft flex-1 text-left">{t?.label ?? "Configuración"}</span>
+                  <ChevronDown
+                    size={15}
+                    className="text-muted transition-transform"
+                    style={{ transform: menuAbierto ? "rotate(180deg)" : "none" }}
+                  />
+                </>
               );
-            })}
-          </div>
+            })()}
+          </button>
+
+          {menuAbierto && (
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
+              {GRUPOS.map(g => {
+                const delGrupo = tabsVisibles.filter(t => t.grupo === g.id);
+                if (!delGrupo.length) return null;
+                return (
+                  <div key={g.id}>
+                    <span className="block text-[9px] font-bold uppercase tracking-widest text-gray-300 dark:text-slate-600 px-2 pb-1">
+                      {g.label}
+                    </span>
+                    <div className="flex flex-col">
+                      {delGrupo.map(t => {
+                        const Icon = t.icon;
+                        const active = tab === t.id;
+                        return (
+                          <button key={t.id}
+                            onClick={() => { setTab(t.id); setMenuAbierto(false); }}
+                            className="flex items-center gap-2 px-2 py-2 rounded-lg text-[12.5px] font-medium text-left transition-all hover:surface-3"
+                            style={active
+                              ? { backgroundColor: brand.brandColor + "14", color: brand.brandColor }
+                              : { color: "var(--text-muted)" }}>
+                            <Icon size={13} className="flex-shrink-0" />{t.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* La ayuda de la pestaña abierta. Va aquí y no en un icono "?"
@@ -1199,6 +1262,7 @@ function ConfiguracionContent() {
           </div>
         )}
         <div className="p-6">
+          {tab === "mi_cuenta"    && <TabMiCuenta />}
           {tab === "empresa"      && <TabEmpresa />}
           {tab === "ia"           && <TabIA />}
           {tab === "correo"       && <TabCorreo />}

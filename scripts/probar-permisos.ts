@@ -166,11 +166,29 @@ async function main() {
   comprobar("'/' solo empareja consigo misma", permisoDeRuta("/") === "erp.dashboard");
   comprobar("una ruta desconocida no exige permiso", permisoDeRuta("/algo-que-no-existe") === null);
 
+  // ── /configuracion está ABIERTA a propósito ──
+  //
+  // Antes exigía `sistema.configuracion` y esta prueba comprobaba que un
+  // vendedor no pudiera entrar. Se cambió el 1-sep: la página tiene dos
+  // caras, y la que ve quien no administra —"Mi cuenta": sus datos, los
+  // avisos de mensajes, cómo instalar la app— la necesita cualquiera.
+  // Cerrar la ruta entera dejaba a un asesor sin poder activar sus
+  // notificaciones.
+  //
+  // Lo que protege ahora son tres cosas, y hay que conservar las tres:
+  //   1. La página solo lista las pestañas del rol.
+  //   2. Si alguien fuerza otra por la URL, cae en "Mi cuenta".
+  //   3. Cada endpoint de guardado exige su permiso en el SERVIDOR.
+  comprobar("/configuracion ya NO se cierra por ruta (a propósito)",
+    permisoDeRuta("/configuracion") === null, String(permisoDeRuta("/configuracion")));
+  comprobar("pero el vendedor sigue SIN el permiso de configurar",
+    !vend.has("sistema.configuracion"));
+
   console.log("\n  — Lo que el vendedor NO puede abrir escribiendo la URL —");
   for (const ruta of ["/crm/embudo", "/postventa", "/nexus/plantillas", "/nexus/flujos",
                       "/nexus/tiempos", "/categorias", "/compras", "/facturacion",
                       "/facturacion/cartera", "/woocommerce", "/marketing", "/usuarios",
-                      "/configuracion", "/productos/seo"]) {
+                      "/productos/seo"]) {
     const clave = permisoDeRuta(ruta);
     comprobar(`${ruta} le queda cerrado`, Boolean(clave) && !vend.has(clave!), `clave=${clave}`);
   }

@@ -86,7 +86,10 @@ const SYSTEM_ITEMS = [
   { href: "/usuarios", label: "Usuarios y Roles", icon: Users, perm: "sistema.usuarios" },
   { href: "/reportes", label: "Reportes y logs", icon: BarChart2, perm: "sistema.reportes" },
   { href: "/sistema/seguridad", label: "Seguridad", icon: ShieldCheck, perm: "sistema.seguridad" },
-  { href: "/configuracion", label: "Configuración", icon: Settings, perm: "sistema.configuracion" },
+  // Sin `perm`: la ve todo el mundo, pero cada quien ve dentro lo suyo.
+  // Ver "Configuración" y que te rebote es peor que no verla; y no verla
+  // dejaba a un asesor sin poder activar sus avisos ni instalar la app.
+  { href: "/configuracion", label: "Configuración", icon: Settings },
 ];
 
 // Rutas de todo el menu, para resolver cual se ilumina.
@@ -230,6 +233,20 @@ export function Sidebar({
 
   const verSistema = modulosVisibles(permisos).includes("SISTEMA");
 
+  /**
+   * Qué cabe en esta sección para esta persona.
+   *
+   * Antes la sección entera dependía de tener el módulo SISTEMA, así que
+   * un asesor no veía Configuración —y ahí es donde ahora están sus
+   * avisos y cómo instalar la app en el teléfono—. Ahora la sección se
+   * pinta si hay al menos una cosa dentro, que es la regla que debió ser
+   * desde el principio.
+   */
+  const itemsSistema = SYSTEM_ITEMS.filter(i => !i.perm || permisos.has(i.perm));
+  // Y cambia de nombre: a quien solo tiene su cuenta, "Sistema" le suena
+  // a algo que no le corresponde y no lo abre.
+  const tituloSistema = verSistema ? "Sistema" : "Ajustes";
+
   return (
     <aside
       className={cn(
@@ -297,19 +314,19 @@ export function Sidebar({
       </nav>
 
       {/* Sistema (collapsible) — solo admin/superadmin */}
-      {verSistema && (
+      {itemsSistema.length > 0 && (
       <div style={{ borderTop: "1px solid rgba(100,116,139,0.12)" }}>
         <button
           onClick={() => setSysOpen((v) => !v)}
           className="w-full flex items-center gap-3 px-4 py-3 text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
         >
           <Settings size={12} />
-          {!plegado && <span className="flex-1 text-left font-medium">Sistema</span>}
+          {!plegado && <span className="flex-1 text-left font-medium">{tituloSistema}</span>}
           {!plegado && <ChevronDown size={11} className={cn("transition-transform", sysOpen && "rotate-180")} />}
         </button>
         {sysOpen && (
           <div className="pb-1">
-            {SYSTEM_ITEMS.filter(i => permisos.has(i.perm)).map((item) => {
+            {itemsSistema.map((item) => {
               const Icon = item.icon;
               const isActive = item.href === activa;
               return (

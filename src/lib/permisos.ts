@@ -407,7 +407,19 @@ export const RUTAS_PROTEGIDAS: Record<string, string> = {
   "/sistema/salud": "sistema.salud",
   "/sistema/ensayo": "sistema.ensayo",
   "/sistema/seguridad": "sistema.seguridad",
-  "/configuracion": "sistema.configuracion",
+  // OJO: `/configuracion` NO está aquí, y es a propósito.
+  //
+  // La página tiene dos caras. Para quien administra son dieciocho
+  // pantallas del negocio; para todos los demás es UNA, "Mi cuenta", con
+  // sus datos, los avisos y cómo instalar la app en el teléfono. Eso lo
+  // necesita cualquiera, así que cerrar la ruta entera dejaba a un
+  // vendedor sin poder ni activar sus notificaciones.
+  //
+  // Lo que protege de verdad no es la puerta, son los tres candados que
+  // ya había: la propia página solo lista las pestañas del rol y cae en
+  // "Mi cuenta" si alguien fuerza otra por la URL, y cada endpoint de
+  // guardado exige su permiso en el SERVIDOR. Sin esos tres, esto sería
+  // un agujero; con ellos, la puerta cerrada solo estorbaba.
 };
 
 /**
