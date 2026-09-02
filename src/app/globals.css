@@ -324,3 +324,20 @@ html.dark {
     @page { margin: 12mm; }
   }
 }
+
+
+/* ── Las ondas de "grabando" ──
+   Cinco barras con la misma animación y distinto retraso. Es CSS puro
+   —sin leer el micrófono— porque animar barras al ritmo del volumen
+   gasta batería en un teléfono que ya está grabando y subiendo. */
+@keyframes onda {
+  0%, 100% { height: 30%; opacity: .55; }
+  50%      { height: 100%; opacity: 1; }
+}
+.animate-onda {
+  height: 30%;
+  animation: onda .85s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-onda { animation: none; height: 65%; }
+}

@@ -65,8 +65,25 @@ function Dato({ Icon, children }: { Icon: React.ElementType; children: React.Rea
   );
 }
 
+/**
+ * Etiquetas que dicen cómo llegó la conversación, escritas para leerse.
+ *
+ * En la base se guardan en clave —así se pueden filtrar— pero
+ * "escalada-por-agente" no es una frase; es un identificador que se coló
+ * a la pantalla.
+ */
+const NOMBRE_DE_PROCESO: Record<string, string> = {
+  "escalada-por-agente": "El asistente la pasó a una persona",
+  "sesion-web": "Escribió desde el chat de la página",
+  "ya-es-cliente": "Ya era cliente cuando escribió",
+};
+const CLAVES_DE_PROCESO = Object.keys(NOMBRE_DE_PROCESO);
+
 export function PanelContexto({ conv, onGuardarCliente, guardando }: Props) {
   const clienteId = conv.cliente?.id;
+  const todas = conv.etiquetas ?? [];
+  const etiquetasDeProceso = todas.filter(e => CLAVES_DE_PROCESO.includes(e));
+  const etiquetasDeTema = todas.filter(e => !CLAVES_DE_PROCESO.includes(e));
 
   const { data: ficha, isLoading } = useQuery<FichaCliente | null>({
     queryKey: ["crm-cliente", clienteId],
@@ -113,11 +130,16 @@ export function PanelContexto({ conv, onGuardarCliente, guardando }: Props) {
         )}
       </Bloque>
 
-      {/* Lo que el bot dedujo del primer mensaje */}
-      {conv.etiquetas && conv.etiquetas.length > 0 && (
+      {/* Las etiquetas, en dos grupos.
+          Antes iban todas juntas —y también en cada fila de la bandeja—,
+          así que "escalada-por-agente" salía repetida en media pantalla y
+          tapaba lo que sí ayuda a decidir: el producto y la ciudad.
+          Aquí se separan: lo que el bot dedujo de LO QUE SE HABLÓ, y
+          aparte cómo llegó la conversación. */}
+      {etiquetasDeTema.length > 0 && (
         <Bloque titulo="De la conversación">
           <div className="flex flex-wrap gap-1">
-            {conv.etiquetas.map((e, i) => {
+            {etiquetasDeTema.map((e, i) => {
               const urgente = e === "urgencia:alta";
               return (
                 <span key={i}
@@ -130,6 +152,19 @@ export function PanelContexto({ conv, onGuardarCliente, guardando }: Props) {
                 </span>
               );
             })}
+          </div>
+        </Bloque>
+      )}
+
+      {etiquetasDeProceso.length > 0 && (
+        <Bloque titulo="Cómo llegó">
+          <div className="flex flex-col gap-1.5">
+            {etiquetasDeProceso.map((e, i) => (
+              <span key={i} className="flex items-start gap-1.5 text-[11px] text-muted leading-snug">
+                <Tag size={10} className="flex-shrink-0 mt-0.5" />
+                {NOMBRE_DE_PROCESO[e] ?? e}
+              </span>
+            ))}
           </div>
         </Bloque>
       )}

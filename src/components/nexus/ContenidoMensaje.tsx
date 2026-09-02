@@ -80,9 +80,11 @@ function Adjunto({ url }: { url: string }) {
   }
 
   if (EXT_AUDIO.test(url)) {
-    return (
-      <audio controls preload="none" src={url} className="mt-1 w-full max-w-[260px] h-9" />
-    );
+    // `preload="none"` dejaba el reproductor sin saber ni cuanto dura: en
+    // varios navegadores la barra sale a cero, el play responde y no se
+    // oye nada hasta el segundo intento. Con "metadata" se pide la
+    // cabecera -unos pocos KB- y no el audio entero.
+    return <audio controls preload="metadata" src={url} className="mt-1 w-full max-w-[260px] h-9" />;
   }
 
   if (EXT_VIDEO.test(url)) {

@@ -51,9 +51,17 @@ const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, 
 export function Adjuntar({
   onAdjunto,
   deshabilitado,
+  onGrabando,
 }: {
   onAdjunto: (a: Adjunto) => void;
   deshabilitado?: boolean;
+  /**
+   * Se avisa hacia arriba porque el campo de texto no es de este
+   * componente y hay que esconderlo mientras se graba: escribir y grabar
+   * a la vez no se hace, y tener las dos cosas en pantalla solo estrecha
+   * la barra hasta que no cabe nada.
+   */
+  onGrabando?: (v: boolean) => void;
 }) {
   const camRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -116,6 +124,7 @@ export function Adjuntar({
       grabadora.current = mr;
       setSegundos(0);
       setGrabando(true);
+      onGrabando?.(true);
     } catch (e) {
       // El navegador distingue entre "dijiste que no", "no hay
       // micrófono" y "está prohibido por la página". Decir siempre lo
@@ -134,6 +143,28 @@ export function Adjuntar({
   const parar = () => {
     grabadora.current?.stop();
     setGrabando(false);
+    onGrabando?.(false);
+  };
+
+  /**
+   * Cancelar: se para el micrófono y NO queda borrador.
+   *
+   * Sin esto, arrepentirse a mitad de una nota obligaba a pararla, verla
+   * aparecer y borrarla. Tres toques para deshacer algo que no se quería
+   * hacer.
+   */
+  const cancelarGrabacion = () => {
+    const mr = grabadora.current;
+    if (mr) {
+      // Se quita el manejador ANTES de parar: si no, `onstop` crea el
+      // borrador de todos modos y aparece la nota que se acaba de
+      // cancelar.
+      mr.onstop = () => mr.stream.getTracks().forEach(t => t.stop());
+      mr.stop();
+    }
+    trozos.current = [];
+    setGrabando(false);
+    onGrabando?.(false);
   };
 
   const descartar = () => {
@@ -141,11 +172,21 @@ export function Adjuntar({
     setBorrador(null);
     setSonando(false);
     audioRef.current?.pause();
+    // Y se TIRA. Este `Audio` guarda dentro la URL de la nota anterior,
+    // que además se acaba de revocar. Si se conserva, la siguiente nota
+    // se reproduce contra una URL muerta: el botón responde, el contador
+    // no se mueve y no se oye nada. Era exactamente el síntoma de "el
+    // audio tiene el play pero no suena".
+    audioRef.current = null;
   };
 
   const escuchar = () => {
     if (!borrador) return;
-    if (!audioRef.current) audioRef.current = new Audio(borrador.url);
+    // Se compara la fuente: si el reproductor quedó apuntando a otra
+    // grabación, se rehace.
+    if (!audioRef.current || !audioRef.current.src.includes(borrador.url.split("/").pop() ?? "")) {
+      audioRef.current = new Audio(borrador.url);
+    }
     if (sonando) { audioRef.current.pause(); setSonando(false); return; }
     audioRef.current.onended = () => setSonando(false);
     void audioRef.current.play();
@@ -184,13 +225,34 @@ export function Adjuntar({
   }
 
   // ── Grabando ──
+  //
+  // Ocupa la barra entera y el padre esconde el campo de texto (ver
+  // `onGrabando`), como en WhatsApp. Escribir y grabar a la vez no se
+  // hace, y tener las dos cosas en pantalla solo estrecha el espacio.
+  //
+  // Las ondas son cinco barras con la MISMA animación y distinto retraso.
+  // No reaccionan al volumen a propósito: leer el micrófono en tiempo
+  // real para animar cinco barras gasta batería en un teléfono que ya
+  // está grabando y subiendo.
   if (grabando) {
     return (
-      <div className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-900/20">
-        <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-        <span className="text-[12px] font-semibold text-red-600 dark:text-red-400 flex-1">
-          Grabando… {mmss(segundos)}
+      <div className="flex items-center gap-3 flex-1 min-w-0 px-3 py-2 rounded-xl bg-red-50 dark:bg-red-900/20">
+        <button onClick={cancelarGrabacion} aria-label="Cancelar la grabación"
+          className="w-8 h-8 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 flex-shrink-0">
+          <Trash2 size={16} />
+        </button>
+
+        <span className="flex items-end gap-[3px] h-5 flex-shrink-0" aria-hidden="true">
+          {[0, 1, 2, 3, 4].map(i => (
+            <span key={i} className="w-[3px] rounded-full bg-red-500 animate-onda"
+              style={{ animationDelay: `${i * 0.12}s` }} />
+          ))}
         </span>
+
+        <span className="text-[13px] font-bold text-red-600 dark:text-red-400 flex-1 tabular-nums">
+          {mmss(segundos)}
+        </span>
+
         <button onClick={parar} className="btn-primary btn-sm flex-shrink-0">
           <Square size={12} /> Parar
         </button>

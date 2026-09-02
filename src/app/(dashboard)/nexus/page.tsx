@@ -29,6 +29,19 @@ import {
   type PrefsNexus, PREFS_POR_DEFECTO,
 } from "@/lib/nexus-preferencias";
 
+/**
+ * Etiquetas que describen COMO llego la conversacion, no de que habla.
+ *
+ * Se ponen solas -el agente escala, el chat de la web marca su origen,
+ * el reparto reconoce a un cliente- y por eso salian en casi todas las
+ * filas de la bandeja, repetidas, empujando hacia abajo lo unico que de
+ * verdad ayuda a decidir que abrir primero: el producto y la ciudad.
+ *
+ * Siguen guardadas y siguen sirviendo para filtrar. Solo cambian de
+ * sitio: se muestran en la ficha del cliente.
+ */
+const ETIQUETAS_DE_PROCESO = new Set(["escalada-por-agente", "sesion-web", "ya-es-cliente"]);
+
 // ── Tipos ────────────────────────────────────────────────────────
 
 interface NexusConexion {
@@ -148,22 +161,34 @@ function ConversacionItem({ conv, activa, onClick, nombreAsignado, prefs, marcad
           {!conv.leida && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: brand.brandColor }} />}
         </div>
 
-        {/* Lo que el bot dedujo del primer mensaje. Es la diferencia entre
-            abrir una conversación a ciegas y saber de qué se trata antes. */}
-        {conv.etiquetas && conv.etiquetas.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1.5">
-            {conv.etiquetas.slice(0, 3).map((e, i) => {
-              const urgente = e === "urgencia:alta";
-              return (
-                <span key={i}
-                  className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded", urgente ? "text-white" : "surface-3 text-muted")}
-                  style={urgente ? { backgroundColor: "#dc2626" } : {}}>
-                  {urgente ? "URGENTE" : e}
-                </span>
-              );
-            })}
-          </div>
-        )}
+        {/* Lo que el bot dedujo del primer mensaje: producto, ciudad,
+            urgencia. Es la diferencia entre abrir una conversación a
+            ciegas y saber de qué se trata antes.
+
+            Lo que NO va aquí son las etiquetas de PROCESO —"escalada por
+            agente", "sesión web", "ya es cliente"—. Esas describen cómo
+            llegó la conversación, no de qué habla, y llenaban cada fila
+            de la bandeja con la misma palabra repetida. Ahora viven en la
+            ficha del cliente, a la derecha, que es donde se mira cuando
+            se quiere saber de dónde salió esto. */}
+        {(() => {
+          const suyas = (conv.etiquetas ?? []).filter(e => !ETIQUETAS_DE_PROCESO.has(e));
+          if (!suyas.length) return null;
+          return (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {suyas.slice(0, 3).map((e, i) => {
+                const urgente = e === "urgencia:alta";
+                return (
+                  <span key={i}
+                    className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded", urgente ? "text-white" : "surface-3 text-muted")}
+                    style={urgente ? { backgroundColor: "#dc2626" } : {}}>
+                    {urgente ? "URGENTE" : e}
+                  </span>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         <div className="mt-1 flex items-center gap-1.5 flex-wrap">
           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
@@ -194,6 +219,9 @@ function ChatView({ conv, onMarcarResuelta, onVolver, prefs }: {
   const { user, puedeVer } = useAuth();
   const qc = useQueryClient();
   const [texto, setTexto] = useState("");
+  // Mientras se graba una nota de voz, la barra de abajo es solo la
+  // grabadora: el campo de texto y los botones se esconden.
+  const [grabandoNota, setGrabandoNota] = useState(false);
   const [sugiriendo, setSugiriendo] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -513,13 +541,13 @@ function ChatView({ conv, onMarcarResuelta, onVolver, prefs }: {
             />
           )}
 
-          <Adjuntar onAdjunto={mandarAdjunto} deshabilitado={sendMutation.isPending} />
+          <Adjuntar onAdjunto={mandarAdjunto} deshabilitado={sendMutation.isPending} onGrabando={setGrabandoNota} />
 
           {/* El asistente cuesta dinero cada vez que se usa, así que va
               detrás de `nexus.ia`: el administrador lo activa persona por
               persona desde Usuarios y Roles. También responde a @mallita
               escrito en el mensaje. */}
-          {puedeIA && (
+          {puedeIA && !grabandoNota && (
             <div className="relative flex-shrink-0 hidden sm:block">
               <button onClick={() => sugerirIA()} disabled={sugiriendo} title="Que Mallita redacte la respuesta (o escribe @mallita)"
                 className="w-10 h-10 rounded-xl flex items-center justify-center border divider text-muted hover:surface-2 transition-all disabled:opacity-50">
@@ -530,29 +558,41 @@ function ChatView({ conv, onMarcarResuelta, onVolver, prefs }: {
               </span>
             </div>
           )}
-          <input
-            value={texto}
-            onChange={e => setTexto(e.target.value)}
-            onKeyDown={e => {
-              // Con el menú de comandos abierto, Enter lo elige él: si no,
-              // el primer Enter mandaría "/plan" como mensaje.
-              if (comandosVisibles.length > 0) return;
-              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
-            }}
-            className="input flex-1 min-w-0 py-2 text-sm"
-            placeholder={puedeIA ? "Escribe, / para atajos, @mallita para ayuda…" : "Escribe una respuesta… (/ para atajos)"}
-          />
-          {/* Nota interna: queda en el hilo para quien retome la
-              conversación, pero NO se le manda al cliente. */}
-          <button onClick={handleNota} disabled={!texto.trim() || sendMutation.isPending} title="Guardar como nota interna (no se envía al cliente)"
-            className="w-10 h-10 rounded-xl flex items-center justify-center border divider text-muted hover:surface-2 transition-all disabled:opacity-50 flex-shrink-0">
-            <StickyNote size={16} />
-          </button>
-          <button onClick={handleSend} disabled={!texto.trim() || sendMutation.isPending}
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all disabled:opacity-50 flex-shrink-0"
-            style={{ backgroundColor: brand.brandColor }}>
-            {sendMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-          </button>
+          {/* Mientras se graba, la barra es solo la grabadora. Como en
+              WhatsApp: el campo de texto y los botones estorban y no se
+              van a usar. */}
+          {!grabandoNota && (
+            <>
+              <input
+                value={texto}
+                onChange={e => setTexto(e.target.value)}
+                onKeyDown={e => {
+                  // Con el menú de comandos abierto, Enter lo elige él: si no,
+                  // el primer Enter mandaría "/plan" como mensaje.
+                  if (comandosVisibles.length > 0) return;
+                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+                }}
+                // 16 px en el teléfono, 14 en escritorio. Por debajo de 16,
+                // Safari en iPhone hace zoom al enfocar el campo: la
+                // conversación se agranda, se sale por los lados y toca
+                // alejarla a mano. Es EL motivo de que el chat se "acerque"
+                // al ir a escribir.
+                className="input flex-1 min-w-0 py-2 text-[16px] sm:text-sm"
+                placeholder={puedeIA ? "Escribe, / para atajos, @mallita para ayuda…" : "Escribe una respuesta… (/ para atajos)"}
+              />
+              {/* Nota interna: queda en el hilo para quien retome la
+                  conversación, pero NO se le manda al cliente. */}
+              <button onClick={handleNota} disabled={!texto.trim() || sendMutation.isPending} title="Guardar como nota interna (no se envía al cliente)"
+                className="w-10 h-10 rounded-xl flex items-center justify-center border divider text-muted hover:surface-2 transition-all disabled:opacity-50 flex-shrink-0">
+                <StickyNote size={16} />
+              </button>
+              <button onClick={handleSend} disabled={!texto.trim() || sendMutation.isPending}
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all disabled:opacity-50 flex-shrink-0"
+                style={{ backgroundColor: brand.brandColor }}>
+                {sendMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              </button>
+            </>
+          )}
         </div>
       ) : (
         <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 text-center text-xs text-slate-400 bg-white dark:bg-slate-900">

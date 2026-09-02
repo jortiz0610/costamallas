@@ -13,7 +13,7 @@
 // "fabricación a medida" en el catálogo.
 // ============================================================
 
-import { useState, Suspense, useMemo, useEffect } from "react";
+import { useState, Suspense, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { Topbar } from "@/components/layout/Topbar";
@@ -87,6 +87,19 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [clienteBusq, setClienteBusq] = useState("");
   const [prodBusq, setProdBusq] = useState("");
+  const buscadorRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * Lleva al buscador de productos y lo enfoca.
+   *
+   * `scrollIntoView` primero porque en el teléfono el buscador puede
+   * estar fuera de pantalla, y enfocar sin desplazar deja el cursor
+   * puesto en un campo que no se ve.
+   */
+  const irAlBuscador = () => {
+    buscadorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => buscadorRef.current?.focus(), 320);
+  };
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [descuentoGlobal, setDescuentoGlobal] = useState(0);
   // AIU. Apagado por defecto: una oferta de material suelto no lo lleva,
@@ -625,7 +638,13 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
 
             <div className="relative mb-4">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-              <input className="input pl-9" value={prodBusq} onChange={e => setProdBusq(e.target.value)} placeholder="Buscar producto por nombre o SKU…" />
+              <input
+                ref={buscadorRef}
+                className="input pl-9"
+                value={prodBusq}
+                onChange={e => setProdBusq(e.target.value)}
+                placeholder="Buscar producto por nombre o SKU…"
+              />
               {productos.length > 0 && (
                 <div className="absolute z-10 left-0 right-0 mt-1 card p-1 max-h-64 overflow-y-auto">
                   {productos.map(p => (
@@ -796,9 +815,22 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
                 </p>
               {/* Líneas */}
               {lineas.length === 0 ? (
-                <div className="p-8 text-center surface-2 rounded-xl">
+                <div className="p-6 text-center surface-2 rounded-xl">
                   <Package size={22} className="mx-auto mb-2 text-muted" />
-                  <p className="text-xs text-muted">Busca un producto arriba para empezar.</p>
+                  <p className="text-xs text-muted mb-3">Todavía no hay nada en la cotización.</p>
+                  {/* Antes decía "busca un producto ARRIBA". Con las dos
+                      columnas el buscador quedó a la IZQUIERDA, y una
+                      instrucción que apunta al sitio equivocado es peor
+                      que ninguna: quien la lee busca donde le dicen, no lo
+                      encuentra y concluye que el buscador desapareció.
+                      Ahora no se explica dónde está: se lleva hasta él. */}
+                  <button
+                    onClick={irAlBuscador}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white"
+                    style={{ backgroundColor: CRM_COLOR }}
+                  >
+                    <Search size={13} /> Buscar un producto
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-2">
