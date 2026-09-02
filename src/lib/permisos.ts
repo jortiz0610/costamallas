@@ -135,6 +135,7 @@ export const PERMISOS: Permiso[] = [
   { clave: "crm.cotizaciones.equipo", modulo: "CRM", tipo: "accion", label: "Cotizaciones y pedidos del equipo", ayuda: "Ver y editar las cotizaciones y pedidos de los demás asesores. Los CLIENTES siguen repartidos: esto es para poder cubrirse entre ustedes, no para reasignar cartera." },
   { clave: "erp.ordenes_produccion", modulo: "ERP", tipo: "vista", label: "Órdenes de producción", ayuda: "El formato de fabricación de malla ciclón: especificación, materia prima, producto terminado, paradas y producto no conforme." },
   { clave: "erp.ordenes_produccion.supervisar", modulo: "ERP", tipo: "accion", label: "Supervisar la producción", ayuda: "Firmar como supervisor una orden que el operario ya cerró. Sin esto se puede llenar y firmar como operario, pero no revisar." },
+  { clave: "erp.compras.aprobar_proveedor", modulo: "ERP", tipo: "accion", label: "Aprobar proveedores", ayuda: "Dar el visto bueno a la evaluación de un proveedor. En el formulario de papel esta casilla decía «solo la gerencia administrativa»; aquí se cumple de verdad." },
   { clave: "crm.cotizaciones.prueba", modulo: "CRM", tipo: "accion", label: "Modo capacitación", ayuda: "Marcar un cliente como de capacitación. Todo lo que se le haga —cotizar, aprobar, instalar, facturar— funciona igual que con uno real, pero no gasta consecutivo ni entra en informes." },
 
   // ── NEXUS ──
@@ -430,6 +431,7 @@ export const RUTAS_PROTEGIDAS: Record<string, string> = {
   // La pantalla de campo: la abre el de produccion desde el telefono.
   "/campo": "crm.trabajos",
   "/produccion": "erp.ordenes_produccion",
+  "/compras/proveedores/evaluacion": "erp.compras",
 
   "/nexus": "nexus.inbox",
   "/nexus/plantillas": "nexus.plantillas",

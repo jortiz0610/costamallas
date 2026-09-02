@@ -54,6 +54,8 @@ model Usuario {
   ordenesComoOperario   OrdenProduccion[] @relation("OpOperario")
   ordenesComoSupervisor OrdenProduccion[] @relation("OpSupervisor")
 
+  evaluacionesAprobadas EvaluacionProveedor[]
+
   @@map("usuarios")
 }
 
@@ -389,6 +391,8 @@ model Proveedor {
 
   @@index([activo])
   @@index([esPropio])
+  evaluaciones EvaluacionProveedor[]
+
   @@map("proveedores")
 }
 
@@ -1675,4 +1679,53 @@ model OrdenProduccion {
   @@index([pedidoId])
   @@index([esPrueba])
   @@map("ordenes_produccion")
+}
+
+/// Selección de proveedores y contratistas.
+///
+/// Es el formulario que vivía en Google Forms. Traerlo aquí no es por
+/// gusto: en Forms las respuestas quedan en una hoja aparte, así que para
+/// saber si un proveedor está aprobado había que abrir otra pestaña y
+/// buscarlo a mano. Colgado del proveedor, la ficha lo dice sola.
+model EvaluacionProveedor {
+  id String @id @default(cuid())
+
+  /// Se puede evaluar a alguien que todavía NO está en la lista: el
+  /// formato es de SELECCIÓN, va antes de contratarlo.
+  proveedorId String?
+  proveedor   Proveedor? @relation(fields: [proveedorId], references: [id], onDelete: SetNull)
+
+  /// NATURAL · JURIDICA
+  tipo      String
+  nombre    String
+  documento String
+
+  /// [{ clave, texto, valor }] — valor: SI · NO · NA
+  documentos    Json    @default("[]")
+  /// INMEDIATA · DIAS_1_3 · DIAS_4_7 · MAS_7
+  tiempoEntrega String?
+  /// CONTADO · CREDITO_30 · CREDITO_45 · CREDITO_60
+  opcionPago    String?
+
+  /// De 0 a 100. Se guarda calculado para poder ordenar y filtrar sin
+  /// recalcularlo en cada consulta.
+  puntaje Float?
+
+  // ── Visto bueno ──
+  // Solo lo diligencia la gerencia administrativa, igual que en el papel.
+  aprobado     Boolean?
+  aprobadoPor  String?
+  aprobador    Usuario?  @relation(fields: [aprobadoPor], references: [id], onDelete: SetNull)
+  aprobadoEn   DateTime?
+  notaGerencia String?   @db.Text
+
+  creadoPor String?
+  esPrueba  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([proveedorId])
+  @@index([aprobado])
+  @@index([esPrueba])
+  @@map("evaluaciones_proveedor")
 }
