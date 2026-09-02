@@ -24,6 +24,10 @@ const MODULOS: Record<string, { label: string; href: string; Icon: React.Element
 
 export function MobileNav() {
   const pathname = usePathname();
+
+  // Dentro de Nexus manda la barra de Nexus (BarraNexus): en el telefono
+  // hay UNA barra abajo, y dos apiladas seria peor que ninguna.
+  const enNexus = pathname === "/nexus";
   const { mode, setMode, setSidebarOpen } = useBrand();
   const { permisos } = useAuth();
 
@@ -42,6 +46,8 @@ export function MobileNav() {
     { key: "ERP" as const, ...MODULOS.ERP },
     { key: "MARKETING" as const, ...MODULOS.MARKETING },
   ]).filter(i => visibles.includes(i.key));
+
+  if (enNexus) return null;
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 topbar-bg border-t divider"

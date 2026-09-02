@@ -19,15 +19,17 @@ import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import { CostoIA } from "@/components/ia/CostoIA";
 import { BotonFiltros } from "@/components/nexus/FiltrosInbox";
+import { BarraNexus } from "@/components/nexus/BarraNexus";
 import { Adjuntar, type Adjunto } from "@/components/nexus/Adjuntar";
 import { ContenidoMensaje } from "@/components/nexus/ContenidoMensaje";
 import { MenuComandos } from "@/components/nexus/MenuComandos";
 import { leerEntrada, sugerir, sinMencion, MENCION_IA, type Comando } from "@/lib/nexus/comandos";
 import { PanelContexto } from "@/components/nexus/PanelContexto";
 import {
-  leerPrefs, guardarPrefs, sonarMensaje, temaDe, normalizarCanal,
+  leerPrefs, guardarPrefs, sonarMensaje, avisarMensaje, temaDe, normalizarCanal,
   type PrefsNexus, PREFS_POR_DEFECTO,
 } from "@/lib/nexus-preferencias";
+import { AccionesChat, ESTADOS_CHAT } from "@/components/nexus/AccionesChat";
 
 /**
  * Etiquetas que describen COMO llego la conversacion, no de que habla.
@@ -218,6 +220,62 @@ function ChatView({ conv, onMarcarResuelta, onVolver, prefs }: {
   const { brand } = useBrand();
   const { user, puedeVer } = useAuth();
   const qc = useQueryClient();
+  const [cambiandoEstado, setCambiandoEstado] = useState(false);
+
+  /**
+   * Cambiar el estado a mano.
+   *
+   * Hace falta justamente porque en esta bandeja cae todo: web, WhatsApp
+   * y correo. Sin poder moverlas, la única forma de sacar algo de la
+   * lista era archivarlo, y archivar no es lo mismo que "ya lo estoy
+   * atendiendo".
+   */
+  const cambiarEstado = async (estado: string) => {
+    setCambiandoEstado(true);
+    try {
+      const r = await fetch("/api/nexus/conversaciones", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: conv.id, estado }),
+      });
+      if (!r.ok) { toast.error("No se pudo cambiar el estado"); return; }
+      const nombre = ESTADOS_CHAT.find(e => e.v === estado)?.l ?? estado;
+      toast.success(`Marcada como ${nombre.toLowerCase()}`);
+      qc.invalidateQueries({ queryKey: ["nexus-conversaciones"] });
+      // Al sacarla de la bandeja se cierra el hilo: dejar abierto un chat
+      // que ya no está en la lista confunde sobre si se guardó.
+      if (estado === "ARCHIVADA" || estado === "RESUELTA") onVolver();
+    } finally { setCambiandoEstado(false); }
+  };
+
+  const atenderYo = async () => {
+    if (!user?.id) return;
+    setCambiandoEstado(true);
+    try {
+      await fetch("/api/nexus/conversaciones", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: conv.id, asignadoId: user.id, estado: "EN_PROCESO" }),
+      });
+      toast.success("Es tuya");
+      qc.invalidateQueries({ queryKey: ["nexus-conversaciones"] });
+    } finally { setCambiandoEstado(false); }
+  };
+
+  const borrarEste = async () => {
+    setCambiandoEstado(true);
+    try {
+      const r = await fetch("/api/nexus/conversaciones/borrar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [conv.id] }),
+      });
+      if (!r.ok) { toast.error("No se pudo borrar"); return; }
+      toast.success("Conversación borrada");
+      qc.invalidateQueries({ queryKey: ["nexus-conversaciones"] });
+      onVolver();
+    } finally { setCambiandoEstado(false); }
+  };
   const [texto, setTexto] = useState("");
   // Mientras se graba una nota de voz, la barra de abajo es solo la
   // grabadora: el campo de texto y los botones se esconden.
@@ -424,18 +482,17 @@ function ChatView({ conv, onMarcarResuelta, onVolver, prefs }: {
             </select>
           )}
           {!puedeTransferir && asignado && <span className="text-[10px] text-muted hidden sm:inline">Asignado: {asignado.nombre}</span>}
-          {/* Ya no hay botón de "resolver": todos son chats, y lo único
-              que los diferencia es el canal. Archivar sigue existiendo
-              —una bandeja que solo crece no se puede atender— pero es una
-              acción secundaria, no el botón más grande de la cabecera. */}
-          {conv.estado === "ABIERTA" && (
-            <button onClick={onMarcarResuelta}
-              title="Archivar: sale de la bandeja y se puede volver a abrir desde el filtro"
-              aria-label="Archivar la conversación"
-              className="w-9 h-9 rounded-lg flex items-center justify-center border divider text-muted hover:surface-2 transition-colors flex-shrink-0">
-              <Archive size={15} />
-            </button>
-          )}
+          {/* Antes aquí solo había "archivar", y archivar es UNA de las
+              cosas que se hacen con un chat. Mover el estado a mano —que
+              es lo que se necesita cuando en la misma bandeja cae todo—
+              no se podía sin salirse a otra pantalla. */}
+          <AccionesChat
+            estadoActual={conv.estado}
+            ocupado={cambiandoEstado}
+            onEstado={cambiarEstado}
+            onAsignarme={puedeTransferir && conv.asignadoId !== user?.id ? atenderYo : undefined}
+            onBorrar={puedeVer("nexus.borrar") ? borrarEste : undefined}
+          />
         </div>
       </div>
 
@@ -459,7 +516,11 @@ function ChatView({ conv, onMarcarResuelta, onVolver, prefs }: {
               Guardar en el CRM
             </button>
           )}
-          {(conv.etiquetas ?? []).map((e, i) => {
+          {/* Las de proceso van en la ficha de la derecha. Aquí salían
+              otra vez, así que "escalada-por-agente" aparecía dos veces
+              en la misma pantalla: en la fila de la bandeja y en la
+              cabecera del hilo. */}
+          {(conv.etiquetas ?? []).filter(e => !ETIQUETAS_DE_PROCESO.has(e)).map((e, i) => {
             const urgente = e === "urgencia:alta";
             return (
               <span key={i}
@@ -673,6 +734,10 @@ function NexusContent() {
   const [convActiva, setConvActiva] = useState<Conversacion | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("ABIERTA");
+  // El filtro rápido de la barra de abajo. Va aparte del resto de
+  // filtros porque es el que se usa treinta veces al día.
+  const [soloNoLeidas, setSoloNoLeidas] = useState(false);
+  const [abrirFiltros, setAbrirFiltros] = useState(0);
   const [filtroCanal, setFiltroCanal] = useState("");
   const [showLineas, setShowLineas] = useState(false);
 
@@ -709,10 +774,48 @@ function NexusContent() {
   const conversaciones: Conversacion[] = result?.data ?? [];
   const noLeidas: number = result?.noLeidas ?? 0;
 
+  /**
+   * Avisar de lo que entra mientras se está en otra parte.
+   *
+   * Antes el sonido solo salía con la conversación ABIERTA (dentro de
+   * ChatView), así que si el asesor estaba en la lista —o en otra
+   * pestaña— no se enteraba de nada hasta que miraba.
+   *
+   * Se compara contra lo que ya se había visto, no contra el contador:
+   * un contador que sube de 2 a 3 no dice QUIÉN escribió, y el aviso sin
+   * nombre no sirve para decidir si vale la pena mirar ahora.
+   */
+  const vistas = useRef<Map<string, string>>(new Map());
+  const primeraCarga = useRef(true);
+  useEffect(() => {
+    if (!conversaciones.length) return;
+    if (primeraCarga.current) {
+      // La primera vez solo se memoriza. Si no, al entrar al portal
+      // sonarían de golpe todas las conversaciones sin leer del día.
+      conversaciones.forEach(c => vistas.current.set(c.id, c.updatedAt ?? ""));
+      primeraCarga.current = false;
+      return;
+    }
+    for (const c of conversaciones) {
+      const antes = vistas.current.get(c.id);
+      const ahora = c.updatedAt ?? "";
+      vistas.current.set(c.id, ahora);
+      if (antes === undefined || antes === ahora || c.leida) continue;
+      avisarMensaje({
+        de: c.cliente?.empresa || c.cliente?.nombre || c.remitente,
+        texto: c.asunto ?? "Mensaje nuevo",
+        conversacionId: c.id,
+      });
+    }
+  }, [conversaciones]);
+
   // La búsqueda incluye las etiquetas del bot: escribir "santa marta" o
   // "balcones" encuentra la conversación aunque el cliente no lo haya
   // escrito con esas palabras exactas.
   const filtradas = conversaciones.filter(c => {
+    // El filtro rapido de la barra de abajo. Va antes que la busqueda:
+    // "sin leer" acota, no busca.
+    if (soloNoLeidas && c.leida) return false;
     if (!busqueda) return true;
     const q = busqueda.toLowerCase();
     return c.remitente.toLowerCase().includes(q)
@@ -835,6 +938,7 @@ function NexusContent() {
             <BotonFiltros
               filtros={{ estado: filtroEstado, canal: filtroCanal }}
               onCambiar={f => { setFiltroEstado(f.estado); setFiltroCanal(f.canal); }}
+              abrirDesdeFuera={abrirFiltros}
               prefs={prefs}
               onPrefs={guardar}
             />
@@ -951,6 +1055,22 @@ function NexusContent() {
         </div>
       </div>
       {showLineas && <AsignarLineas onClose={() => setShowLineas(false)} />}
+
+      {/* En el telefono, la barra de abajo es de Nexus, no del portal.
+          Cuatro botones que llevan a OTROS modulos, en el sitio mas
+          accesible de la pantalla, es tirar la mejor barra que hay
+          cuando lo que se esta haciendo es contestar. Salir sigue
+          estando, en "Mas". */}
+      {!convActiva && (
+        <BarraNexus
+          sinLeer={noLeidas}
+          soloNoLeidas={soloNoLeidas}
+          onTodas={() => setSoloNoLeidas(false)}
+          onSoloNoLeidas={() => setSoloNoLeidas(true)}
+          onFiltrar={() => setAbrirFiltros(n => n + 1)}
+          puedeInterno={puedeVer("nexus.interno")}
+        />
+      )}
     </>
   );
 }

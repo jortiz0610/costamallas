@@ -187,3 +187,76 @@ export function sonarMensaje() {
     // Sin audio disponible no pasa nada: el aviso visual sigue estando.
   }
 }
+
+// ── Avisos que se parecen a los del teléfono ──
+
+/**
+ * ¿Se pueden mostrar avisos del sistema?
+ *
+ * Son los que salen fuera de la pestaña, como los de WhatsApp. Con la
+ * app instalada en el teléfono se ven idénticos a un aviso normal; en el
+ * navegador salen en la esquina.
+ *
+ * ⚠️ Lo que esto NO hace: llegar con la app CERRADA. Eso necesita push
+ * de verdad —claves VAPID y un service worker suscrito—, y hasta que eso
+ * exista, prometerlo sería peor que no tenerlo.
+ */
+export function avisosDisponibles(): boolean {
+  return typeof window !== "undefined" && "Notification" in window;
+}
+
+export function estadoAvisos(): NotificationPermission | "no-disponible" {
+  if (!avisosDisponibles()) return "no-disponible";
+  return Notification.permission;
+}
+
+/**
+ * Pide el permiso.
+ *
+ * Se llama desde un botón y NUNCA al cargar: un navegador que pregunta
+ * por notificaciones antes de que la persona haya hecho nada recibe un
+ * "bloquear" automático, y ese "bloquear" ya no se puede volver a pedir.
+ */
+export async function pedirPermisoAvisos(): Promise<NotificationPermission | "no-disponible"> {
+  if (!avisosDisponibles()) return "no-disponible";
+  if (Notification.permission !== "default") return Notification.permission;
+  try { return await Notification.requestPermission(); } catch { return Notification.permission; }
+}
+
+/**
+ * Un aviso por conversación, no uno por mensaje.
+ *
+ * `tag` hace que el segundo mensaje del mismo cliente REEMPLACE al
+ * primero en lugar de apilarse. Sin eso, alguien que manda cinco
+ * mensajes seguidos deja cinco avisos que hay que descartar uno a uno.
+ */
+export function avisarMensaje(datos: {
+  de: string;
+  texto: string;
+  conversacionId: string;
+}) {
+  const prefs = leerPrefs();
+  if (prefs.sonido) sonarMensaje();
+
+  if (!avisosDisponibles() || Notification.permission !== "granted") return;
+  // Si la pestaña está delante, el aviso del sistema sobra: la persona ya
+  // está mirando la bandeja y el mensaje aparece solo.
+  if (typeof document !== "undefined" && document.visibilityState === "visible") return;
+
+  try {
+    const n = new Notification(datos.de, {
+      body: datos.texto.slice(0, 140),
+      tag: `nexus-${datos.conversacionId}`,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+    });
+    n.onclick = () => {
+      window.focus();
+      window.location.href = `/nexus?conv=${datos.conversacionId}`;
+      n.close();
+    };
+  } catch {
+    // Algunos navegadores no dejan crear avisos fuera de un service
+    // worker. No es un fallo: queda el sonido y el contador.
+  }
+}

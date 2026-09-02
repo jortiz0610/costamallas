@@ -13,7 +13,7 @@
 // es su ETIQUETA de color, que cada persona configura a su gusto.
 // ============================================================
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SlidersHorizontal, X, Check, Volume2, VolumeX } from "lucide-react";
 import {
   leerPrefs, guardarPrefs, CANALES_CONOCIDOS, TEMAS,
@@ -44,13 +44,26 @@ export function BotonFiltros({
   onCambiar,
   prefs,
   onPrefs,
+  abrirDesdeFuera,
 }: {
   filtros: EstadoFiltros;
   onCambiar: (f: EstadoFiltros) => void;
   prefs: PrefsNexus;
   onPrefs: (p: PrefsNexus) => void;
+  /**
+   * Contador que, al subir, abre el panel.
+   *
+   * Es un número y no un booleano porque hace falta poder abrirlo VARIAS
+   * veces: con un booleano, cerrarlo a mano dejaría el prop en `true` y
+   * el segundo toque del botón de la barra no haría nada.
+   */
+  abrirDesdeFuera?: number;
 }) {
   const [abierto, setAbierto] = useState(false);
+
+  useEffect(() => {
+    if (abrirDesdeFuera) setAbierto(true);
+  }, [abrirDesdeFuera]);
   const [pestana, setPestana] = useState<"filtros" | "etiquetas" | "aspecto">("filtros");
 
   // "Abiertas" es el valor de arranque, así que no cuenta como filtro
