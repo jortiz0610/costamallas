@@ -129,6 +129,7 @@ export const PERMISOS: Permiso[] = [
   { clave: "crm.postventa", modulo: "CRM", tipo: "vista", label: "Postventa", ayuda: "Encuesta de satisfacción y políticas públicas." },
   // Acciones del CRM
   { clave: "crm.ver_todo", modulo: "CRM", tipo: "accion", label: "Ver el CRM de todo el equipo", ayuda: "Sin esto, la persona solo ve sus propios clientes, cotizaciones y pedidos." },
+  { clave: "crm.cotizaciones.equipo", modulo: "CRM", tipo: "accion", label: "Cotizaciones y pedidos del equipo", ayuda: "Ver y editar las cotizaciones y pedidos de los demás asesores. Los CLIENTES siguen repartidos: esto es para poder cubrirse entre ustedes, no para reasignar cartera." },
   { clave: "crm.cotizaciones.prueba", modulo: "CRM", tipo: "accion", label: "Modo capacitación", ayuda: "Marcar un cliente como de capacitación. Todo lo que se le haga —cotizar, aprobar, instalar, facturar— funciona igual que con uno real, pero no gasta consecutivo ni entra en informes." },
 
   // ── NEXUS ──
@@ -178,6 +179,16 @@ const VENDEDOR_POR_DEFECTO = [
   // momento hace falta, se le activa a esa persona sin tocar el rol.
   "crm.resumen", "crm.clientes", "crm.cotizaciones", "crm.pedidos",
   "crm.pipeline", "crm.instalaciones",
+  // Las cotizaciones y los pedidos son del EQUIPO, no de cada uno.
+  //
+  // Alguien sale a una obra, o se enferma, y su cliente llama: el que
+  // conteste tiene que poder abrir esa oferta y cambiarle una medida sin
+  // esperar a que vuelva. Antes cada asesor solo veía las suyas y la
+  // respuesta era "llámelo a él".
+  //
+  // Los CLIENTES siguen repartidos: quién atiende a quién es una
+  // decisión comercial, y esto es para cubrirse entre ustedes.
+  "crm.cotizaciones.equipo",
   // Nexus: la bandeja de clientes y el chat con el equipo. El
   // asistente de IA viene ENCENDIDO porque ya lo estaba usando; el
   // administrador puede apagarlo persona por persona si se dispara el

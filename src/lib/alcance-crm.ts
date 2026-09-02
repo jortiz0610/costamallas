@@ -36,9 +36,24 @@ export async function filtroClientes(req: NextRequest): Promise<Record<string, u
   return { OR: [{ vendedorId: usuarioId }, { vendedorId: null }] };
 }
 
-/** Filtro para cotizaciones y pedidos, que sí nacen con dueño. */
+/**
+ * Filtro para cotizaciones y pedidos, que sí nacen con dueño.
+ *
+ * Se abre con DOS permisos, y la diferencia importa:
+ *
+ *   `crm.ver_todo`               · el CRM entero, clientes incluidos.
+ *                                  Administración y producción.
+ *   `crm.cotizaciones.equipo`    · solo las ofertas y los pedidos.
+ *                                  Los asesores, entre ellos.
+ *
+ * El segundo existe porque compartir ofertas y compartir CARTERA no son
+ * la misma decisión. Un asesor tiene que poder abrir la cotización de un
+ * compañero que está en una obra —el cliente llamó y hay que cambiarle
+ * una medida— sin que eso signifique que ve la cartera de todos.
+ */
 export async function filtroPorVendedor(req: NextRequest): Promise<Record<string, unknown>> {
   const { usuarioId, verTodo } = await alcance(req);
   if (verTodo || !usuarioId) return {};
+  if (await peticionPuede(req, "crm.cotizaciones.equipo")) return {};
   return { vendedorId: usuarioId };
 }

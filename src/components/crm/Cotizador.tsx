@@ -764,10 +764,23 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
 
           </div>
 
-          {/* Instalación: dónde */}
-          {hayInstalacion && (
-            <div className="card p-5">
-              <p className="text-xs font-bold uppercase tracking-widest text-muted mb-3 flex items-center gap-1.5"><MapPin size={12} /> Sitio de instalación</p>
+          {/* A dónde va esto.
+
+              Antes el bloque solo salía CON instalación, y se llamaba
+              "Sitio de instalación". Pero una cotización sin instalación
+              también tiene que ir a alguna parte: la malla se despacha, y
+              sin dirección el pedido llega a producción sin saber a dónde.
+              Se preguntaba por teléfono o se sacaba de la ficha del
+              cliente, que muchas veces es la de facturación y no la de la
+              obra.
+
+              Ahora sale siempre y cambia de nombre según lo que sea. No
+              son dos campos distintos: es el mismo dato con el nombre que
+              le corresponde. */}
+          <div className="card p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-muted mb-3 flex items-center gap-1.5">
+                <MapPin size={12} /> {hayInstalacion ? "Dirección de instalación" : "Dirección destino"}
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Ciudad</label>
@@ -775,24 +788,27 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
                   <datalist id="ciudades-recargo">
                     {ciudades.map(c => <option key={c.id} value={c.ciudad} />)}
                   </datalist>
-                  {recargo && (
+                  {/* El recargo es por desplazar la cuadrilla: sin
+                      instalación no hay cuadrilla que desplazar. */}
+                  {hayInstalacion && recargo && (
                     <p className="text-[11px] mt-1 font-semibold" style={{ color: CRM_COLOR }}>
                       Recargo por desplazamiento: {recargo.porcentaje > 0 && `${recargo.porcentaje}%`}
                       {recargo.porcentaje > 0 && recargo.montoFijo > 0 && " + "}
                       {recargo.montoFijo > 0 && formatCOP(recargo.montoFijo)} → {formatCOP(recargoValor)}
                     </p>
                   )}
-                  {!recargo && ciudadInstalacion.trim().length > 2 && (
+                  {hayInstalacion && !recargo && ciudadInstalacion.trim().length > 2 && (
                     <p className="text-[11px] text-muted mt-1">Sin recargo configurado para esta ciudad.</p>
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Dirección</label>
+                  <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">
+                    {hayInstalacion ? "Dirección de instalación" : "Dirección destino"}
+                  </label>
                   <input className="input" value={direccionInstalacion} onChange={e => setDireccionInstalacion(e.target.value)} placeholder="Km 8 vía Ciénaga, Bodega 4" />
                 </div>
               </div>
-            </div>
-          )}
+          </div>
 
             </div>
 
