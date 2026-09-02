@@ -16,13 +16,37 @@
 import { useState, useEffect } from "react";
 import { SlidersHorizontal, X, Check, Volume2, VolumeX } from "lucide-react";
 import {
-  leerPrefs, guardarPrefs, CANALES_CONOCIDOS, TEMAS,
+  leerPrefs, guardarPrefs, TEMAS, normalizarCanal,
   type PrefsNexus,
 } from "@/lib/nexus-preferencias";
+import { useQuery } from "@tanstack/react-query";
 
 export interface EstadoFiltros {
   estado: string;
   canal: string;
+}
+
+/**
+ * Qué canales se ofrecen para filtrar.
+ *
+ * Los que EXISTEN, no un catálogo. Antes se pintaban los seis conocidos
+ * —WhatsApp, Web, Correo, Instagram, Facebook— aunque solo hubiera uno
+ * conectado, así que la fila de filtros parecía repetir lo mismo
+ * ("Web"… "Correo"… "Web") y ninguno de los otros cinco devolvía nada
+ * jamás. Un filtro que siempre da cero no es un filtro, es ruido.
+ *
+ * Se derivan de las conexiones, así que el día que se conecte WhatsApp
+ * aparece solo, sin tocar esta lista.
+ */
+function canalesDisponibles(conexiones: { canal: string; activo: boolean }[]): string[] {
+  const vistos = new Set<string>();
+  for (const c of conexiones) {
+    if (!c.activo) continue;
+    const n = normalizarCanal(c.canal);
+    if (n === "INTERNO") continue;   // el chat del equipo tiene su propia pantalla
+    vistos.add(n);
+  }
+  return [...vistos];
 }
 
 const ESTADOS = [
@@ -70,6 +94,15 @@ export function BotonFiltros({
   // puesto: si contara, el botón saldría siempre en 1 y dejaría de
   // llamar la atención cuando de verdad hay algo filtrado.
   const puestos = (filtros.estado && filtros.estado !== "ABIERTA" ? 1 : 0) + (filtros.canal ? 1 : 0);
+
+  // Las conexiones ya se piden en la pantalla de Nexus; con la misma
+  // clave, react-query reusa esa respuesta y esto no cuesta otra vuelta.
+  const { data: conexiones = [] } = useQuery<{ canal: string; activo: boolean }[]>({
+    queryKey: ["nexus-conexiones-estado"],
+    queryFn: async () => (await (await fetch("/api/nexus/conexiones")).json()).data ?? [],
+    staleTime: 300_000,
+  });
+  const canales = canalesDisponibles(conexiones);
 
   const actualizar = (p: Partial<PrefsNexus>) => {
     const nuevo = { ...prefs, ...p };
@@ -210,7 +243,7 @@ export function BotonFiltros({
                           : { backgroundColor: "var(--surface-3)", color: "var(--text-muted)" }}>
                         Todos
                       </button>
-                      {CANALES_CONOCIDOS.filter(c => c !== "INTERNO").map(canal => {
+                      {canales.map(canal => {
                         const activo = filtros.canal === canal;
                         const color = prefs.colores[canal];
                         return (
@@ -240,7 +273,10 @@ export function BotonFiltros({
                     no le cambia nada a nadie más del equipo.
                   </p>
 
-                  {CANALES_CONOCIDOS.map(canal => (
+                  {/* Tambien los que existen. Ponerle color a Instagram
+                      cuando no hay Instagram conectado es decorar algo
+                      que nadie va a ver. */}
+                  {canales.map(canal => (
                     <div key={canal} className="space-y-1.5">
                       <div className="flex items-center gap-2">
                         <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: prefs.colores[canal] }} />
