@@ -46,6 +46,16 @@ export interface ItemDoc {
   unidad?: string | null;
   tipo?: string | null;          // PRODUCTO | INSTALACION
   imagenUrl?: string | null;
+  /**
+   * Descuento de ESTA línea, en porcentaje.
+   *
+   * Faltaba, y por eso el cliente nunca veía la rebaja: el subtotal ya
+   * venía neto y el precio unitario también, así que un 15 % negociado
+   * quedaba invisible. Regalar un descuento sin que se note es regalarlo
+   * dos veces — el cliente no sabe que se lo dieron y la próxima vez lo
+   * pide otra vez desde ese precio.
+   */
+  descuento?: number;
 }
 
 export interface CotizacionDocData {
@@ -249,7 +259,26 @@ function TablaItems({ items, conFoto }: { items: ItemDoc[]; conFoto: boolean }) 
                 {Number(it.cantidad).toLocaleString("es-CO")}
                 {it.unidad ? <span className="font-normal text-[9px]"> {it.unidad}</span> : null}
               </td>
-              <td className="py-3 px-2 text-right text-[10.5px] whitespace-nowrap" style={{ color: TINTA }}>{formatCOP(Number(it.precioUnitario))}</td>
+              <td className="py-3 px-2 text-right text-[10.5px] whitespace-nowrap" style={{ color: TINTA }}>
+                {Number(it.descuento) > 0 ? (
+                  <>
+                    {/* El precio de lista tachado, y debajo el que paga.
+                        Ver el antes y el después es lo que convierte un
+                        número en una rebaja. */}
+                    <span className="block line-through text-[9px]" style={{ color: "#9a9a92" }}>
+                      {formatCOP(Number(it.precioUnitario))}
+                    </span>
+                    <span className="block font-bold">
+                      {formatCOP(Number(it.precioUnitario) * (1 - Number(it.descuento) / 100))}
+                    </span>
+                    <span className="block text-[8.5px] font-black" style={{ color: NEGRO }}>
+                      −{Number(it.descuento)}%
+                    </span>
+                  </>
+                ) : (
+                  formatCOP(Number(it.precioUnitario))
+                )}
+              </td>
               <td className="py-3 px-3 text-right text-[11px] font-black whitespace-nowrap" style={{ color: NEGRO }}>{formatCOP(Number(it.subtotal))}</td>
             </tr>
           );
@@ -290,12 +319,34 @@ function Totales({ data, grande = false }: { data: CotizacionDocData; grande?: b
   // de obra el material es parte del costo directo, no una venta aparte.
   const baseAIU = (Number(data.subtotal) || 0) - Number(data.descuento ?? 0);
 
+  /**
+   * Lo que se rebajó línea por línea.
+   *
+   * No está guardado en ningún campo: el `subtotal` de cada ítem ya viene
+   * neto. Se reconstruye desde el precio de lista, que es el único sitio
+   * donde queda rastro de lo que valía antes.
+   */
+  const ahorroPorLinea = (data.items ?? []).reduce((suma, it) => {
+    const pct = Number(it.descuento ?? 0);
+    if (!(pct > 0)) return suma;
+    return suma + Number(it.cantidad) * Number(it.precioUnitario) * (pct / 100);
+  }, 0);
+
   return (
     <div className={grande ? "w-full" : "w-80 ml-auto"}>
       <div className="px-4 py-3 space-y-1.5" style={{ backgroundColor: "#f7f6f0" }}>
         <div className="flex justify-between text-[10.5px]" style={{ color: TINTA }}><span>Subtotal</span><span className="font-bold">{formatCOP(Number(data.subtotal))}</span></div>
+        {/* Lo que se ahorró POR LÍNEA, sumado. Va antes del descuento
+            global porque son dos rebajas distintas y meterlas en un solo
+            número deja al cliente sin saber de dónde salió cada una. */}
+        {ahorroPorLinea > 0 && (
+          <div className="flex justify-between text-[10.5px]" style={{ color: TINTA }}>
+            <span>Descuento por producto</span>
+            <span className="font-bold">− {formatCOP(ahorroPorLinea)}</span>
+          </div>
+        )}
         {!!data.descuento && data.descuento > 0 && (
-          <div className="flex justify-between text-[10.5px]" style={{ color: TINTA }}><span>Descuento</span><span className="font-bold">− {formatCOP(Number(data.descuento))}</span></div>
+          <div className="flex justify-between text-[10.5px]" style={{ color: TINTA }}><span>Descuento sobre el total</span><span className="font-bold">− {formatCOP(Number(data.descuento))}</span></div>
         )}
         {/* AIU. Va desglosado a propósito: en una obra el cliente
             espera ver la administración, los imprevistos y la utilidad

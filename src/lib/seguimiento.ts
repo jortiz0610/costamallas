@@ -36,6 +36,7 @@ import {
   aplicarMarcadores,
   type ConfigSeguimiento,
 } from "@/lib/seguimiento-textos";
+import { toca, esHabil, cuandoSaldra, describirCuando } from "@/lib/horario-habil";
 
 export { SEGUIMIENTO_DEFAULTS };
 export type { ConfigSeguimiento };
@@ -424,6 +425,30 @@ export interface ResumenCorrida {
 export async function correrSeguimientos(opts: { dry?: boolean; soloCotizacionId?: string } = {}): Promise<ResumenCorrida> {
   const cfg = await getConfigSeguimiento();
   const ahora = Date.now();
+
+  /**
+   * ¿Ya toca mandar esto?
+   *
+   * Dos condiciones: que haya pasado la hora prevista Y que estemos en
+   * horario de atención.
+   *
+   * Lo segundo es lo nuevo. Un seguimiento cuyas 24 horas se cumplían el
+   * sábado a las 11 de la noche salía el sábado a las 11 de la noche:
+   * llegaba cuando nadie lo iba a leer, y para el lunes estaba enterrado
+   * bajo otros veinte. Y si el cliente contestaba a esa hora, no había
+   * nadie para responderle — justo lo contrario de lo que busca un
+   * seguimiento.
+   *
+   * No se pierde nada: se corre al siguiente momento hábil, que con la
+   * corrida cada 15 minutos es como mucho un cuarto de hora después de
+   * abrir.
+   */
+  const yaToca = (previsto: Date) => toca(previsto, new Date(ahora));
+
+  // Con la empresa cerrada solo se ANOTA lo que habría salido. Así la
+  // pantalla de seguimiento puede decir "esto sale el lunes a las 8" en
+  // vez de dejar a alguien preguntándose por qué no ha salido.
+  const cerrado = !esHabil(new Date(ahora));
   const acciones: ResumenCorrida["acciones"] = [];
   const omitidas: string[] = [];
 
@@ -478,7 +503,9 @@ export async function correrSeguimientos(opts: { dry?: boolean; soloCotizacionId
     // ── Toque 1 ──
     const prog1 = new Date(enviada + cfg.t1Horas * HORA);
     const r1 = reg.get(1);
-    if (ahora >= prog1.getTime() && (!r1 || r1.estado === "PENDIENTE")) {
+    if (ahora >= prog1.getTime() && cerrado && (!r1 || r1.estado === "PENDIENTE")) {
+      omitidas.push(`${cot.numero}: el toque 1 sale ${describirCuando(cuandoSaldra(new Date(ahora)))}`);
+    } else if (yaToca(prog1) && (!r1 || r1.estado === "PENDIENTE")) {
       if (opts.dry) {
         acciones.push({ cotizacion: cot.numero, toque: 1, estado: "SIMULADO", detalle: "Se enviaría el toque 1" });
       } else {
@@ -491,7 +518,11 @@ export async function correrSeguimientos(opts: { dry?: boolean; soloCotizacionId
     const prog2 = new Date(enviada + cfg.t2Horas * HORA);
     const limite2 = new Date(enviada + cfg.t2LimiteHoras * HORA);
     const r2 = reg.get(2);
-    if (ahora >= prog2.getTime() && !r2) {
+    // La tarea del asesor también espera: crearla a las tres de la
+    // mañana le llena la lista de cosas fechadas cuando no estaba.
+    if (ahora >= prog2.getTime() && cerrado && !r2) {
+      omitidas.push(`${cot.numero}: la tarea del asesor se crea ${describirCuando(cuandoSaldra(new Date(ahora)))}`);
+    } else if (yaToca(prog2) && !r2) {
       if (opts.dry) {
         acciones.push({ cotizacion: cot.numero, toque: 2, estado: "SIMULADO", detalle: "Se crearía la tarea del asesor" });
       } else {
@@ -525,7 +556,9 @@ export async function correrSeguimientos(opts: { dry?: boolean; soloCotizacionId
     // ── Toque 3 ──
     const prog3 = new Date(vence.getTime() - cfg.t3DiasAntes * DIA);
     const r3 = reg.get(3);
-    if (ahora >= prog3.getTime() && (!r3 || r3.estado === "PENDIENTE")) {
+    if (ahora >= prog3.getTime() && cerrado && (!r3 || r3.estado === "PENDIENTE")) {
+      omitidas.push(`${cot.numero}: el toque 3 sale ${describirCuando(cuandoSaldra(new Date(ahora)))}`);
+    } else if (yaToca(prog3) && (!r3 || r3.estado === "PENDIENTE")) {
       if (opts.dry) {
         acciones.push({ cotizacion: cot.numero, toque: 3, estado: "SIMULADO", detalle: "Se enviaría el toque 3" });
       } else {

@@ -109,6 +109,8 @@ export default async function CotizacionPublica({ params }: P) {
       cantidad: Number(i.cantidad),
       precioUnitario: Number(i.precioUnitario),
       subtotal: Number(i.subtotal),
+      // Sin esto, la rebaja que se negoció no se ve en ninguna parte.
+      descuento: Number(i.descuento ?? 0),
       unidad: i.unidad,
       tipo: i.tipo,
       productoId: i.productoId,

@@ -19,6 +19,7 @@
 // ============================================================
 
 import type { Marca } from "@/lib/marca";
+import { HORARIO_TEXTO } from "@/lib/horario-habil";
 
 /** Teléfonos y correo de ventas. Van al pie de TODO lo que sale. */
 export const PIE_TELEFONOS = "3006078956 – 3245912653";
@@ -148,6 +149,17 @@ export function envolverCorreo(o: OpcionesCorreo): { html: string; texto: string
         <a href="mailto:${email}" style="color:${GRIS};text-decoration:underline;">${escapar(email)}</a>
         ${o.marca.address ? `<br>${escapar(o.marca.address)}` : ""}
       </p>
+      ${/* El horario de atención, en TODO lo que sale.
+
+           No es decoración: la mitad de los correos de este portal son
+           automáticos y llegan pidiendo una respuesta. Sin decir cuándo
+           hay alguien, un cliente llama el domingo, no le contestan, y la
+           impresión que queda es que no atienden — cuando lo que pasó es
+           que llamó cerrado. */ ""}
+      <p style="margin:12px 0 0;font-size:12px;line-height:1.6;color:${GRIS};">
+        <strong style="color:${NEGRO};">Horario de atención</strong><br>
+        ${HORARIO_TEXTO.split("\n").map(l => escapar(l)).join("<br>")}
+      </p>
       <p style="margin:12px 0 0;font-size:11px;color:${GRIS_SUAVE};">
         Este correo se envió desde el portal de ${escapar(empresa)}.
         Si no esperabas recibirlo, respóndenos y lo corregimos.
@@ -171,6 +183,10 @@ export function envolverCorreo(o: OpcionesCorreo): { html: string; texto: string
     empresa,
     `Teléfonos ${telefonos}`,
     email,
+    "",
+    "HORARIO DE ATENCIÓN",
+    HORARIO_TEXTO,
+    "",
     URL_TIENDA,
   ].filter(l => l !== undefined).join("\n").replace(/\n{3,}/g, "\n\n").trim();
 

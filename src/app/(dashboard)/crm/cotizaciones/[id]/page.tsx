@@ -165,6 +165,9 @@ function DetalleContent() {
       unidad: i.unidad as string | null,
       tipo: i.tipo as string | null,
       imagenUrl: i.imagenUrl as string | null,
+      // El descuento de la linea: sin el, la vista interna muestra otra
+      // cosa que la que recibe el cliente.
+      descuento: Number(i.descuento ?? 0),
     })),
   };
 

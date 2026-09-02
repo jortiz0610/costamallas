@@ -20,7 +20,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { useAuth } from "@/hooks/useAuth";
 import {
   ArrowLeft, Search, Plus, Trash2, X, Loader2, Save, Ruler, Package,
-  UserPlus, Wrench, FileText, LayoutTemplate, MapPin, ShieldAlert, ShoppingCart, Eye,
+  UserPlus, Wrench, FileText, LayoutTemplate, MapPin, ShieldAlert, ShoppingCart, Eye, Mail,
   ClipboardCheck, HardHat, FlaskConical,
 } from "lucide-react";
 import Link from "next/link";
@@ -88,6 +88,31 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
   const [clienteBusq, setClienteBusq] = useState("");
   const [prodBusq, setProdBusq] = useState("");
   const buscadorRef = useRef<HTMLInputElement>(null);
+
+  /** La oferta que se acaba de corregir y que el cliente ya tenía. */
+  const [reenviar, setReenviar] = useState<{ id: string; numero: string } | null>(null);
+  const [reenviando, setReenviando] = useState(false);
+
+  const mandarDeNuevo = async () => {
+    if (!reenviar) return;
+    setReenviando(true);
+    try {
+      const r = await fetch(`/api/crm/cotizaciones/${reenviar.id}/enviar`, { method: "POST" });
+      const j = await r.json();
+      if (!r.ok || !j.success) {
+        toast.error(j.error ?? "No se pudo reenviar");
+        return;
+      }
+      toast.success("Se le mandó la versión nueva");
+    } catch {
+      toast.error("Sin conexión. Inténtalo desde la cotización.");
+    } finally {
+      setReenviando(false);
+      const id = reenviar.id;
+      setReenviar(null);
+      router.push(`/crm/cotizaciones/${id}`);
+    }
+  };
 
   /**
    * Lleva al buscador de productos y lo enfoca.
@@ -460,14 +485,26 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
       // Si se salió de la política, se dice AQUÍ: el asesor tiene que
       // saberlo antes de prometerle el precio al cliente por teléfono.
       if (j.aviso) toast(j.aviso, { icon: "⚠️", duration: 7000 });
-      if (j.editadaEnviada) {
-        toast("El cliente ya tiene el enlace: si la abre, verá esta versión.", { icon: "⚠️", duration: 7000 });
-      }
       toast.success(
         editando
           ? `${j.data.numero} actualizada`
           : `${j.data.numero} guardada como borrador`,
       );
+
+      // ── ¿Le reenviamos la versión nueva? ──
+      //
+      // Antes esto era un aviso: "el cliente ya tiene el enlace, si la
+      // abre verá esta versión". Cierto, pero incompleto — el cliente NO
+      // abre el enlace otra vez porque nadie le dijo que había cambiado.
+      // El correo salía la primera vez que la oferta pasaba a ENVIADA y
+      // nunca más, así que la segunda corrección no le llegaba a nadie.
+      //
+      // Se PREGUNTA en vez de mandarlo solo: un correo al cliente no se
+      // deshace, y hay ediciones que son un dedazo en una nota interna.
+      if (j.editadaEnviada && irAlDetalle) {
+        setReenviar({ id: j.data.id as string, numero: j.data.numero as string });
+        return j.data.id as string;   // se navega cuando conteste
+      }
       if (irAlDetalle) router.push(`/crm/cotizaciones/${j.data.id}`);
       return j.data.id as string;
     } finally { setGuardando(false); }
@@ -1103,6 +1140,62 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
           </div>
         </div>
       </div>
+
+      {/* ── ¿Se lo reenviamos? ──
+
+          Sale al guardar una oferta que el cliente YA tenía. Se pregunta
+          en vez de mandarlo solo porque un correo no se deshace, y hay
+          ediciones que son un dedazo en una nota interna.
+
+          Y se pregunta SIEMPRE, no solo la primera vez: el correo salía
+          cuando la oferta pasaba a ENVIADA y nunca más, así que la
+          segunda corrección no le llegaba a nadie y el cliente seguía
+          mirando la versión vieja. */}
+      {reenviar && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50">
+          <div className="card p-6 max-w-md w-full">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: CRM_COLOR + "1f" }}>
+                <Mail size={18} style={{ color: CRM_COLOR }} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[15px] font-bold text-soft">
+                  ¿Le reenviamos la {reenviar.numero}?
+                </p>
+                <p className="text-[12.5px] text-muted mt-1 leading-relaxed">
+                  El cliente ya la había recibido. Si no se la reenvías, va a seguir
+                  mirando la versión anterior en el correo — aunque el enlace ya muestre
+                  esta.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end mt-5">
+              <button
+                onClick={() => {
+                  const id = reenviar.id;
+                  setReenviar(null);
+                  router.push(`/crm/cotizaciones/${id}`);
+                }}
+                disabled={reenviando}
+                className="btn-secondary btn-sm justify-center sm:w-auto"
+              >
+                No, solo guardar
+              </button>
+              <button
+                onClick={mandarDeNuevo}
+                disabled={reenviando}
+                className="px-4 py-2 rounded-xl text-[13px] font-bold text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                style={{ backgroundColor: CRM_COLOR }}
+              >
+                {reenviando ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                Sí, reenviar por correo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
