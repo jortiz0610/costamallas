@@ -5,7 +5,7 @@
 > cómo está construido, dónde está alojado y cómo se conecta con los servicios externos
 > (Vercel, Supabase, WooCommerce, FTP, IA, plataformas de Ads).
 >
-> **Última actualización:** 2026-09-01 · Commit de referencia: `9a085fc`
+> **Última actualización:** 2026-09-01 · Commit de referencia: `b08f20a`
 > _Mantén este archivo actualizado cuando cambie la arquitectura o las integraciones._
 >
 > **Antes de tocar nada, lee también:**
@@ -998,3 +998,99 @@ el día. Un comando NUNCA se manda como mensaje — mandarle "/cliente" a un
 cliente por WhatsApp no se puede deshacer.
 
 `@mallita` redacta, no envía: la IA propone y la persona decide.
+
+---
+
+## 14. El proceso de campo: visita, instalación y firma
+
+Las dos comparten tabla (`instalaciones`) y se distinguen por `tipo`.
+Para el de producción son lo mismo —ir a una dirección, hacer algo,
+anotarlo y que le firmen—, y separarlas le habría dado dos listas donde
+necesita una.
+
+**El orden completo, y por qué cada paso está donde está:**
+
+1. El ASESOR agenda la visita. Él habla con el cliente.
+2. Una visita **sin fecha queda PENDIENTE y NO le sale a producción**. Un
+   trabajo sin hora no es trabajo de nadie, y meterlo en la lista de campo
+   hace que esa lista deje de servir.
+3. PRODUCCIÓN llena el formato en el sitio. **Sin precios**, y no por
+   descuido: quien mide no negocia. `/api/crm/trabajos/[id]/campo` ni
+   siquiera los selecciona — lo que no se pide no se puede filtrar mal.
+4. El cliente FIRMA. La firma es lo que cierra el trabajo, no un botón de
+   "terminar": un acta sin firma no sirve si mañana hay un reclamo.
+5. El asesor cotiza, el cliente aprueba, y el asesor **agenda la
+   instalación**. Ese es el paso que la convierte en trabajo de campo.
+
+**Los correos de cierre son distintos según qué se cerró:**
+
+| Se cerró | Al cliente | Al asesor |
+|----------|-----------|-----------|
+| VISITA | Un aviso de que ya fueron y que va la cotización. **SIN las medidas** | El formato entero, para cotizar |
+| INSTALACIÓN | El acta firmada, que sí es suya | — |
+
+Lo que se midió es material de trabajo del asesor. Mandárselo al cliente
+antes que el precio invita a que lo lleve a otro lado.
+
+**La firma** va en base64 dentro de la fila. Son unos pocos KB, y el disco
+privado todavía no existe: una firma en una URL adivinable es exactamente
+lo que no se puede hacer.
+
+**La pantalla de campo** (`/campo/[id]`) guarda cada campo al salir de
+él. Estar en un balcón con media barra de señal y perder veinte minutos
+de anotaciones por un botón de "guardar" al final es como se deja de usar
+una herramienta. Los campos van a 16 px: por debajo de eso Safari hace
+zoom al enfocar y deja la pantalla torcida.
+
+Se prueba entero con `npx tsx scripts/probar-visitas.ts` (26).
+
+---
+
+## 15. Modo capacitación
+
+Se marca **un cliente** y todo lo que cuelgue de él nace marcado y
+recorre el proceso completo, igual que uno real.
+
+Antes era una casilla de la COTIZACIÓN, y por eso el ensayo se moría ahí:
+el pedido nacía marcado, pero el pipeline y la lista de pedidos esconden
+lo de prueba, así que **no había dónde seguir el proceso**.
+
+Cuatro reglas:
+
+1. **La marca empieza en el cliente y baja sola.** Nadie tiene que
+   acordarse de tildar nada en cada paso.
+2. **Numeración aparte**: `PRUEBA-001` y `PRUEBA-PED-001`, con
+   contadores propios. El consecutivo de COT viene de SIIGO.
+3. **Fuera de informes**, pero el pipeline SÍ las muestra con el
+   interruptor encendido: ahí es donde se capacita.
+4. **Se borra todo de una**, en el orden correcto — las facturas antes que
+   el cliente, porque la relación es `onDelete: Restrict`.
+
+El interruptor vive en `localStorage`: es de quien mira la pantalla, no
+del negocio. Mientras está encendido hay una franja morada permanente.
+
+Se prueba con `npx tsx scripts/probar-capacitacion.ts` (23), incluida la
+comprobación de que los consecutivos reales no se movieron.
+
+---
+
+## 16. Entrar con huella
+
+WebAuthn con el sensor del propio aparato. **No hay ninguna huella en la
+base y no la puede haber**: el teléfono guarda la llave privada en su chip
+seguro y solo manda una firma; aquí está la pública.
+
+**Cómo convive con el 2FA en vez de saltárselo:** la credencial solo se
+registra desde una sesión ya iniciada. Por eso el middleware nombra
+`/api/auth/huella/entrar` y NO el prefijo `/api/auth/huella` — el de
+registrar tiene que quedarse detrás del login.
+
+⚠️ Tres cosas que no se pueden "mejorar" sin romper la seguridad:
+
+- El reto de entrada **no lleva `allowCredentials`**. Mandar las llaves
+  del correo que escriban convertiría el endpoint en un detector de
+  cuentas.
+- **Mismo mensaje** para "esa llave no existe" y "esa cuenta está
+  desactivada".
+- El **contador anti-clonación se registra pero no bloquea**: muchos
+  autenticadores de teléfono devuelven siempre 0.

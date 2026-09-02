@@ -455,6 +455,23 @@ lleva a un número).
 
 ---
 
+## 21. Push con la app cerrada ⚠️ nuevo — decisión técnica, no comercial
+
+**Qué funciona hoy:** los avisos de mensajes nuevos llegan con la pestaña
+abierta o en segundo plano, y con la app instalada se ven como los de
+cualquier otra aplicación.
+
+**Qué NO:** que lleguen con la app **cerrada del todo**.
+
+**Qué haría falta:** un par de claves VAPID cargadas en Vercel y un
+service worker suscrito. Es trabajo de un rato, pero toca variables de
+entorno de producción y por eso no se hizo sin avisar.
+
+**La pregunta:** ¿hace falta? Si los asesores tienen la app abierta
+durante la jornada, lo que hay ya cumple.
+
+---
+
 ## Lo que está bloqueado esperando otra cosa (no es pregunta de gerencia)
 
 | Qué | Qué falta |
