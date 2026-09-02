@@ -49,6 +49,8 @@ model Usuario {
 
   @@index([email])
   @@index([clienteId])
+  credenciales CredencialWebauthn[]
+
   @@map("usuarios")
 }
 
@@ -1563,4 +1565,29 @@ model ReporteError {
   @@index([estado])
   @@index([createdAt])
   @@map("reportes_error")
+}
+
+/// Llaves de huella / Face ID. Ver prisma/migrations/20260901_huella.
+///
+/// Aquí NO se guarda ninguna huella: el teléfono conserva la llave
+/// privada en su chip seguro y solo manda una firma. Lo que hay aquí es
+/// la llave PÚBLICA, que sin la privada no sirve para entrar.
+model CredencialWebauthn {
+  id           String   @id @default(cuid())
+  usuarioId    String
+  usuario      Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  /// Tal como lo devuelve el navegador (base64url). Único en el mundo.
+  credentialId String   @unique
+  publicKey    String
+  /// Anti-clonación: si llega un número menor o igual al anterior, o
+  /// alguien copió la credencial o algo va mal.
+  contador     BigInt   @default(0)
+  /// Para reconocer cuál borrar. Ej: el modelo del teléfono.
+  apodo        String?
+  transports   String?
+  ultimoUsoEn  DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([usuarioId])
+  @@map("credenciales_webauthn")
 }

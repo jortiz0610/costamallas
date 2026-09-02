@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { GestionHuella } from "@/components/seguridad/Huella";
 import { estadoAvisos, pedirPermisoAvisos } from "@/lib/nexus-preferencias";
 
 const NOMBRE_ROL: Record<string, string> = {
@@ -179,6 +180,9 @@ export function TabMiCuenta() {
       </Bloque>
 
       <Bloque titulo="Seguridad" icono={<Shield size={13} className="text-muted" />}>
+        <div className="mb-4">
+          <GestionHuella />
+        </div>
         <p className="text-[12.5px] text-muted leading-relaxed mb-3">
           La contraseña y la verificación en dos pasos se manejan desde tu perfil de usuario.
           Si necesitas restablecerla, pídeselo a un administrador.

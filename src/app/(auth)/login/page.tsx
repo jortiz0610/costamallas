@@ -6,6 +6,7 @@ import { Loader2, Lock, Mail, Eye, EyeOff, ShieldCheck, ArrowLeft, HelpCircle, S
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { EntrarConHuella } from "@/components/seguridad/Huella";
 
 function GuiaAuth({ onClose }: { onClose: () => void }) {
   return (
@@ -148,6 +149,20 @@ function LoginForm() {
                 {loading ? <><Loader2 size={15} className="animate-spin" /> Ingresando...</> : "Ingresar"}
               </button>
             </form>
+
+            {/* La huella, DEBAJO y sin protagonismo.
+                Arriba estorbaría a quien entra por primera vez —que es
+                todo el mundo la primera vez— y el botón solo aparece si
+                este aparato de verdad tiene sensor: uno que falla se deja
+                de usar aunque después funcione. */}
+            <div className="mt-4">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="flex-1 h-px" style={{ backgroundColor: "var(--divider)" }} />
+                <span className="text-[11px] text-muted">o</span>
+                <span className="flex-1 h-px" style={{ backgroundColor: "var(--divider)" }} />
+              </div>
+              <EntrarConHuella onEntrado={() => router.push(params.get("from") ?? "/")} />
+            </div>
           </>
         )}
       </div>

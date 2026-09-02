@@ -23,6 +23,12 @@ const PUBLIC_PATHS = [
   // La encuesta la contesta el cliente, que no tiene cuenta. Se llega
   // por un token largo del correo, no por un id adivinable.
   "/encuesta",
+  // Entrar con huella se hace SIN sesión, igual que el login: es
+  // justamente lo que la crea. `/api/auth/huella/registrar` NO está aquí
+  // —ese sí exige estar dentro, y es lo que hace que la huella no
+  // debilite el doble factor— y por eso se nombra la ruta completa en vez
+  // del prefijo `/api/auth/huella`.
+  "/api/auth/huella/entrar",
 ];
 const API_RATE_LIMIT = 200;
 
