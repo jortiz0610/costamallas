@@ -1,6 +1,18 @@
 // ============================================================
 // Cambiarle la llave a lo que está cifrado en la base.
 //
+// ⚠️ ESTO YA SE CORRIÓ. El 4 de septiembre de 2026, contra producción:
+// 5 filas de `configuracion` y 2 de doble factor, sin un solo fallo. La
+// llave de hoy es la que salió de ahí.
+//
+// La ruta que lo exponía (`/api/mantenimiento/recifrar`) SE BORRÓ el
+// mismo día: era una herramienta de una sola vez, y dejar puesta una
+// palanca que le cambia la llave a todo lo cifrado no se justifica por
+// la comodidad de no volver a escribirla. El código se queda porque
+// rotar la llave es algo que se vuelve a necesitar —y volver a
+// deducirlo, con la trampa del doble factor incluida, es la parte cara.
+// Para usarlo otra vez, recuperar la ruta del commit que la borró.
+//
 // POR QUÉ EXISTE
 // --------------
 // `ENCRYPTION_KEY` está marcada como *Sensitive* en Vercel: se puede
