@@ -1,15 +1,17 @@
 # Lo que sigue — portal de Costamallas
 
-> Escrito al cerrar la sesión del **1 de septiembre de 2026**.
-> Commit de referencia: `b08f20a`.
+> Escrito al cerrar la sesión del **2 de septiembre de 2026**.
+> Commit de referencia: `bc760b6`.
 
 ## Antes de empezar
 
-1. `git log --oneline -20` — los commits explican qué se hizo **y por qué**.
-2. `CONTEXTO-IA.md` **§12 cómo se trabaja aquí** y **§13 Nexus**.
-3. `PENDIENTES-GERENCIA.md` — las decisiones que no dependen del código.
-4. `GUIA-WHATSAPP.md` — los 7 pasos para conectar WhatsApp Business.
-5. Los `scripts/probar-*.ts` son la red de seguridad: hoy hay **24**.
+1. `git log --oneline -25` — los commits explican qué se hizo **y por qué**.
+2. `CONTEXTO-IA.md` **§12 cómo se trabaja aquí**, **§13 Nexus**, **§14 proceso
+   de campo**, **§15 capacitación**, **§16 huella**.
+3. `PENDIENTES-GERENCIA.md` — 21 puntos. Las decisiones que no dependen del código.
+4. `MIGRACION-VPS.md` — el plan de migración y de protección del código.
+5. `GUIA-WHATSAPP.md` — los 7 pasos para conectar WhatsApp Business.
+6. Los `scripts/probar-*.ts` son la red de seguridad: hoy hay **27**.
 
 ⚠️ **Varios scripts tocan producción de verdad**: mandan correos y crean
 filas. Cada uno lo avisa en su cabecera y limpia lo que crea. No hay base
@@ -17,78 +19,85 @@ de pruebas: la única que existe es la que usan los clientes.
 
 ---
 
-## Lo que se hizo en esta sesión
+## Lo primero de la cola
 
-Diez entregas, todas desplegadas.
+### 1. Enganchar la visita al cotizador
 
-**WhatsApp.** La guía de los 7 pasos, y el webhook arreglado: esperaba un
-cuerpo plano y Meta manda uno anidado, así que conectarlo habría llenado
-la bandeja de filas `(Sin mensaje)` de `WhatsApp`. Ahora entiende audios,
-fotos, documentos, ubicaciones y botones, no confunde un acuse de entrega
-con un mensaje, y exige el token de verificación —antes aceptaba
-cualquiera—.
+Es lo que más valor añade de todo lo que queda, y es media pantalla.
 
-**Modo capacitación.** La marca de prueba empieza en el CLIENTE y baja
-sola a cotizaciones, pedidos, visitas, instalaciones y facturas. Antes era
-una casilla de la cotización y el ensayo se moría ahí: el pipeline
-escondía lo de prueba, así que no había dónde seguir el proceso.
+El modelo **ya guarda `cotizacionId`** en la visita, y la relación está en
+los dos sentidos. Lo que falta es el botón: desde una visita terminada,
+un «Cotizar esto» que abra el cotizador con el cliente puesto, la
+dirección de la visita, y las medidas y recomendados de producción
+volcados en las notas o en las líneas.
 
-**Visita técnica.** El paso que faltaba antes de cotizar. Agendar →
-producción llena el formato en campo → el cliente firma → al asesor le
-llega el formato para cotizar. Con firma a pantalla completa.
+Hoy el asesor recibe el formato por correo y lo copia a mano. Ese copiado
+es donde se pierden medidas.
 
-**Cotizador.** Dos columnas en escritorio, vista previa, y la ciudad y
-dirección del cliente entran solas.
+### 2. La migración al VPS — ver `MIGRACION-VPS.md`
 
-**Nexus.** Barra propia en el móvil, avisos del sistema, menú de tres
-puntos con los cuatro estados, el audio que no sonaba, el zoom al
-escribir, y las etiquetas de proceso fuera del hilo.
+El servidor lo compra el cliente. El plan incluye cómo proteger el código
+en una máquina que no es nuestra, y **corrige** la recomendación anterior
+de usar Coolify construyendo desde GitHub: eso pondría el código fuente
+en el servidor del cliente.
 
-**Configuración.** Menú plegado y tres niveles de rol, con "Mi cuenta"
-para quien no administra.
+### 3. Lo que nunca se enganchó a la corrida diaria
 
-**Huella.** WebAuthn con el sensor del propio aparato, sin debilitar el
-doble factor.
+Dos plantillas escritas y sin disparador:
+
+- **La encuesta a las 24 h** de que un pedido pase a entregado.
+- **La visita agendada**, cuando producción fija la fecha.
+
+Ambas tienen que respetar `lib/horario-habil.ts`, como ya hace el
+seguimiento.
+
+### 4. Cerrar solos los chats de la web — PENDIENTES §18
+
+La copia de la conversación sale al cerrar, así que **un chat que nadie
+cierra nunca manda la copia**. Falta decidir el plazo y engancharlo.
+
+### 5. Push con la app cerrada — PENDIENTES §21
+
+Los avisos de Nexus funcionan con la pestaña abierta o en segundo plano.
+Con la app **cerrada** hacen falta claves VAPID y un service worker
+suscrito. Está dicho en el código para que nadie lo prometa antes.
 
 ---
 
-## Lo que quedó pendiente, por orden de valor
+## Lo que se hizo el 1 y 2 de septiembre
 
-### 1. Enganchar la visita al cotizador — el círculo a medio cerrar
+Para no repetirlo ni deshacerlo por accidente.
 
-La visita ya guarda `cotizacionId` y el modelo tiene la relación en los
-dos sentidos, pero **falta la pantalla**: desde una visita terminada no
-hay un botón de "cotizar esto" que abra el cotizador con el cliente y las
-medidas puestas. Hoy el asesor recibe el formato por correo y lo copia a
-mano.
+| | |
+|---|---|
+| **WhatsApp** | Guía de 7 pasos + webhook que entiende el formato real de Meta (antes cada mensaje habría entrado vacío) |
+| **Capacitación** | La marca de prueba empieza en el CLIENTE y baja sola por todo el proceso |
+| **Visita técnica** | Agendar → formato en campo → firma → el asesor cotiza |
+| **Firma** | Pantalla completa, dedo o lápiz, con presión |
+| **Cotizador** | Dos columnas, vista previa, ciudad y dirección automáticas, descuentos discriminados |
+| **Nexus** | Barra propia en móvil, avisos, menú de 3 puntos, audio, zoom, etiquetas fuera del hilo |
+| **Configuración** | Menú plegado y tres niveles de rol, con "Mi cuenta" para quien no administra |
+| **Huella** | WebAuthn con el sensor del aparato, sin debilitar el doble factor |
+| **Horario hábil** | Los correos automáticos esperan al siguiente momento de atención |
+| **OPERARIO** | Rol nuevo + Orden de Producción de Malla Ciclón |
+| **Proveedores** | El formato de selección que vivía en Google Forms |
 
-Es lo que más valor añade de lo que queda, y es media pantalla de trabajo.
+---
 
-### 2. Cerrar solos los chats de la web — PENDIENTES §18
+## Decisiones de gerencia pendientes
 
-La copia de la conversación sale al cerrar, así que **un chat que nadie
-cierra nunca manda la copia**. Falta decidir el plazo y engancharlo a la
-corrida diaria.
+Las de siempre están en `PENDIENTES-GERENCIA.md`. Las **nuevas** del 2-sep,
+que salieron de decisiones que tomé yo y conviene confirmar:
 
-### 3. Push de verdad (con la app cerrada)
-
-Los avisos de Nexus funcionan con la pestaña abierta o en segundo plano.
-Para que lleguen con la app **cerrada** hacen falta claves VAPID en Vercel
-y un service worker suscrito. Está dicho en el código para que nadie lo
-prometa antes de tiempo.
-
-### 4. La llave de pago — PENDIENTES §19
-
-`3007599461` sale en las cotizaciones y en la plantilla de pago. **No es
-un teléfono, es la llave de Daviplata.** Se dejó quieta a propósito
-cuando se unificaron los números.
-
-### 5. Deuda vieja
-
-- **113 productos sin foto** — la causa real de las miniaturas que faltan.
-- **171 sin SEO**; el generador masivo nunca se lanzó (~US$ 2).
-- **Recargos por ciudad**: 0 cargados, aplazado por gerencia.
-- La encuesta **nunca se ha mandado**: hay 0 en la base.
+- **El horario de atención vive en el código** (`lib/horario-habil.ts`), no
+  en Configuración. Razón: es el horario de la puerta — si cambia el
+  letrero cambia esto, y las dos cosas se hacen a la vez. En Configuración
+  se habrían desincronizado. **Si gerencia lo quiere editable, se mueve.**
+- **El puntaje de proveedores es promedio simple** de los tres bloques. El
+  formato no dice pesos y repartirlos sería inventar una política
+  comercial desde el código.
+- **`crm.cotizaciones.equipo` viene activado** para VENDEDOR: se ven y se
+  editan las ofertas entre asesores. Los clientes siguen repartidos.
 
 ---
 
@@ -97,10 +106,13 @@ cuando se unificaron los números.
 Compilan, los tipos están bien y la lógica está probada por debajo, pero
 **nadie los ha visto funcionando**:
 
-- El tablero de módulos y la barra de Nexus en un teléfono.
-- La firma a pantalla completa con un dedo o un lápiz.
-- La **huella**: WebAuthn solo se puede probar con un sensor real y https.
-- Las dos columnas del cotizador en un monitor.
+- La **orden de producción** en una tablet de taller.
+- La **firma** a pantalla completa con un dedo o un lápiz.
+- La **huella**: WebAuthn solo se puede probar con sensor real y https.
+- El **tablero de módulos** y la barra de Nexus en un teléfono.
+- Las **dos columnas** del cotizador en un monitor.
+- El **diálogo de reenvío** al modificar una oferta ya enviada.
+- La **evaluación de proveedores**.
 
 Entrar al portal con sesión escribe en producción, así que esto solo lo
 puede comprobar alguien con una cuenta.
@@ -122,3 +134,6 @@ puede comprobar alguien con una cuenta.
 - **El sondeo del chat de la web no puede devolver notas internas.**
 - **Los precios NO se piden en la API de campo.** Si no se seleccionan, no
   se pueden filtrar mal desde la pantalla.
+- **`cumplePermisoDeRuta(permisos, exigido)`** — en ese orden. Una ruta
+  puede exigir varios permisos separados por `|` y comprobarlo con
+  `permisos.has(clave)` da siempre falso.
