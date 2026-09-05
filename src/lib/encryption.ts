@@ -85,9 +85,40 @@ export function encrypt(plaintext: string): string {
 
 /**
  * Descifra un string cifrado con encrypt().
+ *
+ * ── La segunda llave, y por qué existe ──
+ *
+ * Durante el cambio de `ENCRYPTION_KEY` hay un rato en que la base ya
+ * está cifrada con la llave nueva y el proceso todavía tiene la vieja.
+ * En ese rato no saldrían correos y quien tenga doble factor no podría
+ * entrar. Son dos o tres minutos, pero son dos o tres minutos en los
+ * que alguien se queda fuera de su portal sin entender por qué.
+ *
+ * Con esto no hay tal rato: si la llave principal no abre un valor, se
+ * prueba con `ENCRYPTION_KEY_ALTERNA` antes de darlo por perdido. Sirve
+ * en los dos sentidos —antes del cambio abre lo ya recifrado, después
+ * del cambio abre lo que no se alcanzó a mover— así que el orden de los
+ * pasos deja de importar.
+ *
+ * Es TEMPORAL y se apaga sola: sin esa variable, esto no hace nada. Se
+ * borra la variable cuando la mudanza esté comprobada, y entonces vuelve
+ * a haber una sola llave, que es como tiene que quedar.
  */
 export function decrypt(ciphertext: string): string {
-  return descifrarConBuffer(getEncryptionKey(), ciphertext);
+  try {
+    return descifrarConBuffer(getEncryptionKey(), ciphertext);
+  } catch (e) {
+    const alterna = process.env.ENCRYPTION_KEY_ALTERNA;
+    if (alterna) {
+      try {
+        return descifrarCon(alterna, ciphertext);
+      } catch {
+        // Tampoco la alterna. Se lanza el error de la principal, que es
+        // el que dice la verdad sobre la llave que deberia haber servido.
+      }
+    }
+    throw e;
+  }
 }
 
 /**

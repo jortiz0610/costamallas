@@ -82,6 +82,28 @@ async function main() {
     comprobar("y el secreto sale igual", descifrarCon(nueva, leido.secretEnc) === "JBSWY3DPEHPK3PXP");
   }
 
+  console.log("\n═══ 6. La segunda llave, durante la mudanza ═══\n");
+
+  // decrypt() prueba ENCRYPTION_KEY_ALTERNA cuando la principal no abre.
+  // Es lo que evita que haya un rato sin correo y sin doble factor
+  // mientras se cambia la llave.
+  const { decrypt } = await import("../src/lib/encryption");
+  process.env.ENCRYPTION_KEY = nueva;
+  delete process.env.ENCRYPTION_KEY_ALTERNA;
+
+  const conNueva = cifrarCon(nueva, "hola");
+  comprobar("la principal abre lo suyo", decrypt(conNueva) === "hola");
+  comprobar("y sin alterna, lo de la llave vieja NO abre", (() => {
+    try { decrypt(conVieja); return false; } catch { return true; }
+  })());
+
+  process.env.ENCRYPTION_KEY_ALTERNA = vieja;
+  comprobar("con la alterna puesta, si abre lo de la vieja", decrypt(conVieja) === secreto);
+  comprobar("y lo de la nueva sigue abriendo", decrypt(conNueva) === "hola");
+  comprobar("lo de una tercera llave sigue fallando", (() => {
+    try { decrypt(ajeno); return false; } catch { return true; }
+  })());
+
   console.log(`\n${"─".repeat(52)}`);
   console.log(`${ok} comprobaciones OK, ${fallos} fallos`);
   process.exit(fallos > 0 ? 1 : 0);
