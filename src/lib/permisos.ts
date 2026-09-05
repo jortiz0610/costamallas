@@ -424,6 +424,12 @@ export const RUTAS_PROTEGIDAS: Record<string, string> = {
   "/crm/pipeline": "crm.pipeline|crm.pipeline_produccion",
   "/nexus/interno": "nexus.interno",
   "/crm/instalaciones": "crm.instalaciones",
+  // Las visitas técnicas van con el mismo permiso que las
+  // instalaciones: es la misma gente —el asesor que la pide y el de
+  // producción que va— y son la misma tabla. Un permiso nuevo solo
+  // conseguiría que la mitad del equipo no viera la pantalla el día que
+  // se estrena.
+  "/crm/visitas": "crm.instalaciones",
   "/crm/trabajos": "crm.trabajos",
   "/crm/embudo": "crm.embudo",
   "/postventa": "crm.postventa",

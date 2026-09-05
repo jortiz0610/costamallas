@@ -9,7 +9,12 @@ export async function GET(req: NextRequest) {
   const estado = req.nextUrl.searchParams.get("estado");
 
   const instalaciones = await prisma.instalacion.findMany({
-    where: estado ? { estado } : undefined,
+    // SOLO instalaciones. Las visitas comparten tabla pero no tienen
+    // pedido —van antes de que exista— y esta pantalla pinta el número
+    // del pedido y su cliente sin preguntar: una visita en la lista la
+    // dejaba en blanco. Las visitas tienen su propia pantalla,
+    // /crm/visitas, que es donde se pueden mirar sin precios.
+    where: { tipo: "INSTALACION", ...(estado ? { estado } : {}) },
     include: {
       pedido: { select: { id: true, numero: true, total: true, cliente: { select: { nombre: true, empresa: true, telefono: true } } } },
       tecnico: { select: { id: true, nombre: true } },

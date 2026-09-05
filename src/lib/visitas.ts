@@ -236,3 +236,65 @@ export async function trabajosDeCampo(opciones?: {
     },
   });
 }
+
+// ─────────────────────────────────────────────
+// De la visita a la oferta
+// ─────────────────────────────────────────────
+
+/**
+ * El formato de la visita, en un bloque de texto.
+ *
+ * Es lo que el asesor tiene delante mientras cotiza: medidas, cómo está
+ * el sitio y lo que anotó producción. Se arma en una sola función —y no
+ * en la pantalla— porque lo usan tres sitios: el panel del cotizador, el
+ * correo al asesor y la prueba.
+ *
+ * ⚠️ **Esto NO se copia solo a las observaciones de la oferta.** Las
+ * observaciones viajan al cliente en el enlace público, y en
+ * `lib/cierre-trabajo.ts` está decidido —con su motivo— que al cliente
+ * no se le mandan las medidas antes que el precio. El asesor lo copia si
+ * quiere; el portal no lo hace por él.
+ */
+export function resumenParaCotizar(v: {
+  fechaRealizada?: Date | null;
+  direccion?: string | null;
+  ciudad?: string | null;
+  medidas?: string | null;
+  condicionesSitio?: string | null;
+  notas?: string | null;
+  recomendados?: unknown;
+}): string {
+  const donde = [v.direccion, v.ciudad].filter(Boolean).join(", ");
+  const cuando = v.fechaRealizada
+    ? new Date(v.fechaRealizada).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })
+    : "";
+
+  const recomendados = Array.isArray(v.recomendados) ? (v.recomendados as ProductoRecomendado[]) : [];
+
+  return [
+    `VISITA TÉCNICA${cuando ? ` — ${cuando}` : ""}${donde ? `\n${donde}` : ""}`,
+    v.medidas ? `MEDIDAS\n${v.medidas}` : "",
+    v.condicionesSitio ? `CÓMO ESTÁ EL SITIO\n${v.condicionesSitio}` : "",
+    recomendados.length
+      ? "LO QUE RECOMIENDA PRODUCCIÓN\n" + recomendados
+          .map(r => `· ${r.nombre}${r.cantidad ? ` — ${r.cantidad} ${r.unidad ?? ""}`.trimEnd() : ""}${r.nota ? ` (${r.nota})` : ""}`)
+          .join("\n")
+      : "",
+    v.notas ? `NOTAS DE CAMPO\n${v.notas}` : "",
+  ].filter(Boolean).join("\n\n");
+}
+
+/**
+ * Enlaza la oferta con la visita de la que salió.
+ *
+ * `updateMany` con el filtro puesto y no `update`: así una visita que ya
+ * tiene oferta no se la deja quitar por un enlace viejo que alguien
+ * abrió dos veces, y un id inventado no revienta — devuelve `false`.
+ */
+export async function enlazarCotizacion(visitaId: string, cotizacionId: string): Promise<boolean> {
+  const r = await prisma.instalacion.updateMany({
+    where: { id: visitaId, tipo: "VISITA", cotizacionId: null },
+    data: { cotizacionId },
+  });
+  return r.count === 1;
+}

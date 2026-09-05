@@ -8,6 +8,7 @@ import {
   MessageSquare, Truck, CheckSquare, MessageSquareText, Zap,
   Megaphone, Target, TrendingUp, Radio, Receipt, PieChart, Star, Timer,
   Sparkles, HardHat, PanelLeftClose, PanelLeftOpen, MessagesSquare, Activity, FlaskConical,
+  Ruler,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -66,6 +67,9 @@ const CRM_ITEMS = [
   { href: "/crm/pedidos", label: "Pedidos", icon: ShoppingCart, perm: "crm.pedidos" },
   { section: "Producción" },
   { href: "/crm/pipeline", label: "Pipeline", icon: Kanban, perm: "crm.pipeline" },
+  // Va ANTES de instalaciones porque ese es el orden real: se mide, se
+  // cotiza, se vende y entonces se instala.
+  { href: "/crm/visitas", label: "Visitas técnicas", icon: Ruler, perm: "crm.instalaciones" },
   { href: "/crm/instalaciones", label: "Instalaciones", icon: Wrench, perm: "crm.instalaciones" },
   { href: "/crm/trabajos", label: "Trabajos", icon: HardHat, alertKey: "trabajos", perm: "crm.trabajos" },
   { section: "Postventa" },

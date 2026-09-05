@@ -18,6 +18,7 @@ import { getUserFromRequest } from "@/lib/auth";
 import { exigirPermiso } from "@/lib/permisos-server";
 import { guardarFormato, cerrarConFirma, type ProductoRecomendado } from "@/lib/visitas";
 import { avisarCierreDeTrabajo } from "@/lib/cierre-trabajo";
+import { urlPortal } from "@/lib/url-portal";
 
 type P = { params: Promise<{ id: string }> };
 
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest, { params }: P) {
   // pendiente. Si falla, el trabajo queda cerrado igual — un correo
   // caído no puede dejar a un técnico en la puerta de un cliente sin
   // poder cerrar el acta.
-  const aviso = await avisarCierreDeTrabajo(id).catch(e => ({
+  const aviso = await avisarCierreDeTrabajo(id, urlPortal(req)).catch(e => ({
     ok: false, motivo: (e as Error).message,
   }));
 

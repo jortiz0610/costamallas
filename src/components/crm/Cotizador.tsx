@@ -21,7 +21,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   ArrowLeft, Search, Plus, Trash2, X, Loader2, Save, Ruler, Package,
   UserPlus, Wrench, FileText, LayoutTemplate, MapPin, ShieldAlert, ShoppingCart, Eye, Mail,
-  ClipboardCheck, HardHat, FlaskConical,
+  ClipboardCheck, HardHat, FlaskConical, Copy,
 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -72,6 +72,15 @@ function metrosCuadrados(l: number, a: number, u: number): number {
   return Math.round(l * a * Math.max(u, 1) * 100) / 100;
 }
 
+/** El formato que trajo producción de la visita. Solo para mirarlo. */
+interface VisitaEnlazada {
+  id: string;
+  resumen: string;
+  donde: string;
+  cuando: string;
+  cuantos: number;
+}
+
 /**
  * El cotizador, que sirve para las dos cosas.
  *
@@ -79,8 +88,13 @@ function metrosCuadrados(l: number, a: number, u: number): number {
  * la guarda con PUT. Es el mismo formulario a propósito: mantener una
  * pantalla de crear y otra de editar significa que dentro de un mes
  * una tiene el AIU y la otra no.
+ *
+ * Con `visitaId` arranca CON la visita técnica delante: el cliente
+ * puesto, la dirección donde se midió, y lo que recomendó producción ya
+ * como líneas —sin precio, que lo pone el asesor—. Es el paso que antes
+ * se hacía copiando un correo a mano.
  */
-export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
+export function Cotizador({ cotizacionId, visitaId }: { cotizacionId?: string; visitaId?: string }) {
   const router = useRouter();
 
   const [clienteId, setClienteId] = useState("");
@@ -159,6 +173,14 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
   const editando = Boolean(cotizacionId);
   const [cargando, setCargando] = useState(editando);
   const [original, setOriginal] = useState<{ numero: string; estado: string } | null>(null);
+
+  // ── La visita de la que sale esta oferta ──
+  // Solo al CREAR: abrir a editar una oferta vieja con `?visita=` en la
+  // dirección volvería a volcar las líneas encima de lo que ya escribió
+  // el asesor.
+  const desdeVisita = Boolean(visitaId) && !editando;
+  const [visita, setVisita] = useState<VisitaEnlazada | null>(null);
+  const [cargandoVisita, setCargandoVisita] = useState(desdeVisita);
 
   const { data: clientes = [] } = useQuery<Cliente[]>({
     queryKey: ["cot-clientes", clienteBusq],
@@ -415,6 +437,77 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
   }, [cotizacionId]);
 
   /**
+   * Carga la visita técnica y arranca la oferta con ella.
+   *
+   * Qué se vuelca y qué NO:
+   *
+   *   · **Sí**: el cliente, la dirección y la ciudad donde se midió, y
+   *     lo que recomendó producción como líneas —con su cantidad y su
+   *     unidad, y en CERO de precio, que es lo único que pone el asesor.
+   *   · **No**: las medidas y las condiciones del sitio no se copian a
+   *     las observaciones. Las observaciones viajan al cliente en el
+   *     enlace público, y en `lib/cierre-trabajo.ts` está decidido —con
+   *     su motivo— que al cliente no se le mandan las medidas antes que
+   *     el precio. Se enseñan en un panel al lado, que es donde el
+   *     asesor las necesita: para calcular, no para publicarlas.
+   */
+  useEffect(() => {
+    if (!desdeVisita || !visitaId) return;
+    let vivo = true;
+    (async () => {
+      try {
+        const j = await (await fetch(`/api/crm/visitas/${visitaId}`)).json();
+        if (!vivo) return;
+        if (!j.success) { toast.error(j.error ?? "No se pudo cargar la visita"); return; }
+        const v = j.data;
+
+        if (v.cliente) {
+          setClienteId(v.cliente.id);
+          setCliente(v.cliente);
+        }
+        // Donde se midió es donde se instala. Casi siempre no es la
+        // dirección de facturación, y ese es justo el dato que se
+        // transcribía mal.
+        setDireccionInstalacion(v.direccion ?? v.cliente?.direccion ?? "");
+        setCiudadInstalacion(v.ciudad ?? v.cliente?.ciudad ?? "");
+        // Si hubo visita es porque hay obra que ejecutar: la casilla se
+        // marca para que salga el sitio y el recargo por desplazamiento.
+        setIncluyeInstalacion(true);
+
+        const recomendados = (v.recomendados ?? []) as
+          { nombre: string; cantidad?: number; unidad?: string; nota?: string }[];
+        setLineas(recomendados.filter(r => r.nombre?.trim()).map(r => ({
+          descripcion: r.nombre,
+          detalle: [r.nota, "De la visita técnica"].filter(Boolean).join(" · "),
+          aMedida: false,
+          puedeMedida: false,
+          largo: 0, ancho: 0, unidades: 1,
+          cantidad: Number(r.cantidad) > 0 ? Number(r.cantidad) : 1,
+          // En cero a propósito: producción no pone precios, y una línea
+          // con un precio inventado se envía sin que nadie la mire.
+          precioUnitario: 0,
+          descuento: 0,
+          unidad: r.unidad?.trim() || "und",
+          tipo: "PRODUCTO" as const,
+        })));
+
+        setVisita({
+          id: v.id,
+          resumen: v.resumen ?? "",
+          donde: [v.direccion, v.ciudad].filter(Boolean).join(", "),
+          cuando: v.fechaRealizada
+            ? new Date(v.fechaRealizada).toLocaleDateString("es-CO", { day: "numeric", month: "long" })
+            : "",
+          cuantos: recomendados.length,
+        });
+      } finally {
+        if (vivo) setCargandoVisita(false);
+      }
+    })();
+    return () => { vivo = false; };
+  }, [desdeVisita, visitaId]);
+
+  /**
    * Guarda el borrador.
    *
    * `irAlDetalle: false` lo usa la vista previa: guarda, devuelve el id
@@ -478,6 +571,10 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
           requiereVisita,
           requiereSgsst,
           esPrueba,
+          // De qué visita salió. El servidor la enlaza al crearla: así
+          // desde la visita se ve la oferta y desde la oferta se ve qué
+          // se midió, sin que nadie tenga que acordarse de apuntarlo.
+          visitaId: desdeVisita ? visitaId : undefined,
         }),
       });
       const j = await res.json();
@@ -568,6 +665,58 @@ export function Cotizador({ cotizacionId }: { cotizacionId?: string }) {
             <div className="card p-10 text-center">
               <Loader2 size={18} className="animate-spin mx-auto" style={{ color: CRM_COLOR }} />
               <p className="text-xs text-muted mt-3">Cargando la cotización…</p>
+            </div>
+          )}
+
+          {cargandoVisita && (
+            <div className="card p-10 text-center">
+              <Loader2 size={18} className="animate-spin mx-auto" style={{ color: CRM_COLOR }} />
+              <p className="text-xs text-muted mt-3">Trayendo lo que midió producción…</p>
+            </div>
+          )}
+
+          {/* ── El formato de la visita, al lado y no dentro ──
+
+              Está aquí para consultarlo mientras se cotiza, no para
+              copiarlo a la oferta: las observaciones las lee el cliente
+              en el enlace público, y las medidas no se le mandan antes
+              que el precio (el mismo criterio que en
+              lib/cierre-trabajo.ts). Si el asesor decide que alguna
+              línea las lleve, el botón se las pone en el portapapeles. */}
+          {visita && (
+            <div className="card p-4 sm:p-5" style={{ borderLeft: `4px solid ${CRM_COLOR}` }}>
+              <div className="flex items-start gap-3 flex-wrap">
+                <Ruler size={18} className="flex-shrink-0 mt-0.5" style={{ color: CRM_COLOR }} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-soft">
+                    Esta oferta sale de la visita técnica
+                    {visita.cuando ? ` del ${visita.cuando}` : ""}
+                    {visita.donde ? ` — ${visita.donde}` : ""}
+                  </p>
+                  <p className="text-[11px] text-muted mt-1 leading-relaxed">
+                    {visita.cuantos > 0
+                      ? `Se cargaron ${visita.cuantos} línea${visita.cuantos === 1 ? "" : "s"} con lo que recomendó producción, en cero: en campo no se ponen precios, los pones tú.`
+                      : "Producción no dejó productos recomendados. Agrega las líneas con el formato delante."}
+                    {" "}Las medidas se quedan aquí a propósito: las observaciones de la oferta las lee el cliente.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard?.writeText(visita.resumen)
+                      .then(() => toast.success("Formato copiado"))
+                      .catch(() => toast.error("No se pudo copiar"));
+                  }}
+                  className="btn-secondary btn-sm"
+                >
+                  <Copy size={12} /> Copiar
+                </button>
+              </div>
+              {visita.resumen && (
+                <pre
+                  className="mt-3 rounded-xl p-3 text-[11.5px] text-soft whitespace-pre-wrap font-sans max-h-64 overflow-y-auto"
+                  style={{ backgroundColor: "var(--surface-3)" }}
+                >{visita.resumen}</pre>
+              )}
             </div>
           )}
 

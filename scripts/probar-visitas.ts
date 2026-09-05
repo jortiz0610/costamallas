@@ -36,8 +36,10 @@ const comprobar = (t: string, c: boolean, d = "") => {
 async function main() {
   const { PrismaClient } = await import("@prisma/client");
   const prisma = new PrismaClient();
-  const { agendarVisita, agendar, guardarFormato, cerrarConFirma, trabajosDeCampo } =
-    await import("../src/lib/visitas");
+  const {
+    agendarVisita, agendar, guardarFormato, cerrarConFirma, trabajosDeCampo,
+    resumenParaCotizar, enlazarCotizacion,
+  } = await import("../src/lib/visitas");
   const { avisarCierreDeTrabajo } = await import("../src/lib/cierre-trabajo");
 
   const host = (process.env.DATABASE_URL ?? "").match(/@([^:/]+)/)?.[1] ?? "?";
@@ -49,6 +51,7 @@ async function main() {
 
   const creados: string[] = [];
   let clienteId: string | null = null;
+  let cotizacionId: string | null = null;
 
   try {
     console.log("═══ 1. Agendar ═══\n");
@@ -168,7 +171,47 @@ async function main() {
     const json = JSON.stringify(uno ?? {});
     comprobar("la lista de campo no trae ningún total", !json.includes('"total"'), "trae total");
     comprobar("ni precios unitarios", !json.includes("precioUnitario"), "trae precioUnitario");
+
+    console.log("\n═══ 6. De la visita al cotizador ═══\n");
+
+    const formato = await prisma.instalacion.findUnique({
+      where: { id: conFecha.id },
+      select: {
+        fechaRealizada: true, direccion: true, ciudad: true,
+        medidas: true, condicionesSitio: true, notas: true, recomendados: true,
+      },
+    });
+    const resumen = resumenParaCotizar(formato!);
+    comprobar("el resumen lleva las medidas", resumen.includes("3.20 x 1.10"), resumen);
+    comprobar("y cómo estaba el sitio", resumen.includes("sin ascensor"));
+    comprobar("y lo que recomendó producción", resumen.includes("Anclajes de expansión"));
+    comprobar("y dónde se midió", resumen.includes("Calle 5 # 10-20"));
+
+    // La oferta que nace de la visita. De prueba: esto corre contra
+    // producción y una cotización de mentira en el embudo es basura que
+    // alguien tiene que ir a limpiar.
+    const cot = await prisma.cotizacion.create({
+      data: { numero: `VERIF-${Date.now()}`, clienteId: cliente.id, esPrueba: true },
+      select: { id: true },
+    });
+    cotizacionId = cot.id;
+
+    comprobar("la visita se enlaza con la oferta", await enlazarCotizacion(conFecha.id, cot.id));
+
+    const enlazada = await prisma.instalacion.findUnique({
+      where: { id: conFecha.id },
+      select: { cotizacionId: true },
+    });
+    comprobar("y queda escrito en la visita", enlazada?.cotizacionId === cot.id, enlazada?.cotizacionId ?? "");
+
+    comprobar("una visita ya cotizada no se re-enlaza",
+      !(await enlazarCotizacion(conFecha.id, cot.id)), "se dejó enlazar dos veces");
+    comprobar("y un id inventado no revienta",
+      !(await enlazarCotizacion("no-existe", cot.id)));
   } finally {
+    if (cotizacionId) {
+      await prisma.cotizacion.deleteMany({ where: { id: cotizacionId } }).catch(() => {});
+    }
     for (const id of creados) {
       await prisma.instalacion.deleteMany({ where: { id } }).catch(() => {});
     }

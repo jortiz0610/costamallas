@@ -19,6 +19,8 @@ import { prisma } from "@/lib/prisma";
 import { enviarCorreo } from "@/lib/correo";
 import { envolverCorreo, PIE_EMAIL } from "@/lib/correo-layout";
 import { getMarca } from "@/lib/marca";
+import { urlPortal } from "@/lib/url-portal";
+import { resumenParaCotizar } from "@/lib/visitas";
 
 export interface ResultadoAviso {
   ok: boolean;
@@ -29,14 +31,21 @@ export interface ResultadoAviso {
   aAsesor?: boolean;
 }
 
-export async function avisarCierreDeTrabajo(id: string): Promise<ResultadoAviso> {
+/**
+ * @param urlBase Dominio del portal para el botón «Cotizar esta visita».
+ *   Se pasa desde la ruta —que sí tiene la petición delante— porque es
+ *   la única forma fiable de saber en qué dominio corre el portal
+ *   (ver lib/url-portal.ts). Sin él se usa el de producción.
+ */
+export async function avisarCierreDeTrabajo(id: string, urlBase?: string): Promise<ResultadoAviso> {
   const t = await prisma.instalacion.findUnique({
     where: { id },
     select: {
       id: true, tipo: true, avisoCierreEn: true, esPrueba: true,
       medidas: true, condicionesSitio: true, recomendados: true,
       notas: true, actaObservaciones: true,
-      firmaNombre: true, firmadoEn: true, direccion: true, ciudad: true,
+      firmaNombre: true, firmadoEn: true, fechaRealizada: true,
+      direccion: true, ciudad: true,
       vendedorId: true,
       cliente: { select: { nombre: true, empresa: true, email: true } },
       pedido: {
@@ -110,23 +119,28 @@ export async function avisarCierreDeTrabajo(id: string): Promise<ResultadoAviso>
     });
 
     if (asesor?.email) {
-      const recomendados = (t.recomendados as { nombre?: string; cantidad?: number; unidad?: string; nota?: string }[]) ?? [];
+      // El mismo texto que ve en el panel del cotizador. Una sola
+      // función lo arma (lib/visitas.ts): si mañana el formato lleva un
+      // dato más, aparece en los dos sitios a la vez.
       const cuerpo = [
-        `Ya se hizo la visita de ${nombre || "el cliente"}${donde ? ` en ${donde}` : ""}. Puedes cotizar.`,
-        t.medidas ? `MEDIDAS\n${t.medidas}` : "",
-        t.condicionesSitio ? `CÓMO ESTÁ EL SITIO\n${t.condicionesSitio}` : "",
-        recomendados.length
-          ? "LO QUE RECOMIENDA PRODUCCIÓN\n" + recomendados
-              .map(r => `· ${r.nombre}${r.cantidad ? ` — ${r.cantidad} ${r.unidad ?? ""}`.trimEnd() : ""}${r.nota ? ` (${r.nota})` : ""}`)
-              .join("\n")
-          : "",
-        t.notas ? `NOTAS\n${t.notas}` : "",
+        `Ya se hizo la visita de ${nombre || "el cliente"}. Puedes cotizar.`,
+        resumenParaCotizar(t),
       ].filter(Boolean).join("\n\n");
 
       const { html, texto } = envolverCorreo({
         titulo: "Visita lista para cotizar",
         cuerpo,
         marca,
+        // El botón es el arreglo de verdad: abre el cotizador con el
+        // cliente puesto, la dirección donde se midió y lo que
+        // recomendó producción ya como líneas. Antes esto se copiaba
+        // a mano desde este mismo correo, y ahí es donde se perdían
+        // las medidas.
+        boton: {
+          texto: "Cotizar esta visita",
+          url: `${(urlBase ?? urlPortal()).replace(/\/$/, "")}/crm/cotizaciones/nueva?visita=${t.id}`,
+        },
+        pieDelBoton: "Se abre el cotizador con el formato de la visita al lado.",
       });
 
       try {

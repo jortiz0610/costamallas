@@ -10,6 +10,7 @@ import { clienteEsDePrueba } from "@/lib/cotizaciones-prueba";
 import { conFotoDelCatalogo, type ItemGuardable } from "@/lib/cotizacion-imagenes";
 import { siguienteNumeroPrueba } from "@/lib/cotizaciones-prueba";
 import { peticionPuede } from "@/lib/permisos-server";
+import { enlazarCotizacion } from "@/lib/visitas";
 import {
   getPoliticaComercial, descuentoEfectivoPct, evaluarPolitica,
 } from "@/lib/politica-comercial";
@@ -175,6 +176,16 @@ export async function POST(req: NextRequest) {
   // Cotizarle a alguien lo saca de "prospecto": el estado del cliente
   // se calcula a partir de sus cotizaciones.
   await recalcularCliente(clienteId);
+
+  // ── La visita de la que salió ──
+  //
+  // Cierra el círculo en los dos sentidos: desde la visita se ve si ya
+  // se cotizó —que es como se descubren las que quedaron olvidadas— y
+  // desde la oferta se ve qué se midió. Si falla, la oferta ya está
+  // creada y no se pierde: solo queda sin enlazar.
+  if (body.visitaId) {
+    await enlazarCotizacion(String(body.visitaId), cotizacion.id).catch(() => false);
+  }
 
   return NextResponse.json(
     {
