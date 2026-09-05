@@ -1,0 +1,38 @@
+# ============================================================
+# Finales de linea.
+#
+# Esto existe por un fallo concreto que iba a costar una tarde de
+# depuracion: los archivos de este repositorio se editan en Windows, y
+# git los devuelve con CRLF. Un script de shell con CRLF metido en un
+# contenedor Linux NO falla diciendo "finales de linea": falla con
+#
+#     exec ./arrancar.sh: no such file or directory
+#
+# ...que es lo que dice Linux cuando el interprete de la primera linea
+# se llama "/bin/sh\r" y no "/bin/sh". Nadie encuentra eso mirando el
+# archivo, porque el archivo se ve bien.
+#
+# Lo mismo vale para el Caddyfile y para los YAML: se leen dentro de
+# contenedores Linux, asi que se guardan y se sacan siempre con LF.
+# ============================================================
+
+# Por defecto, que git decida y normalice el texto en el repositorio.
+* text=auto
+
+# Lo que ENTRA en una imagen o lo lee un contenedor: LF siempre, se
+# edite donde se edite.
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+docker/Caddyfile text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+
+# Binarios: que git no les toque un byte.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
