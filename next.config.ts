@@ -1,6 +1,23 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // ── Para que el portal quepa en una imagen sin fuentes ──
+  //
+  // `standalone` empaqueta en `.next/standalone` SOLO lo necesario para
+  // correr: el servidor y las dependencias que de verdad se usan. Sin
+  // esto, la imagen del VPS tendría que llevar `node_modules` entero y,
+  // con él, medio proyecto en texto.
+  //
+  // En Vercel no cambia nada: lo ignora y despliega como siempre.
+  output: "standalone",
+
+  // Sin mapas de origen en producción.
+  //
+  // Con ellos, cualquiera que abra las herramientas del navegador
+  // reconstruye el TypeScript original con un clic — y entonces da
+  // igual que en el servidor solo haya JavaScript compilado.
+  productionBrowserSourceMaps: false,
+
   // pdf-parse usa fs/require nativo: no lo empaquetes, cárgalo como externo en el servidor
   serverExternalPackages: ["pdf-parse"],
   images: {

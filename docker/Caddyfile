@@ -1,0 +1,59 @@
+# ============================================================
+# El HTTPS del portal. Va en /srv/caddy/Caddyfile.
+#
+# Caddy pide el certificado a Let's Encrypt la primera vez que alguien
+# entra al dominio, y lo renueva solo. No hay que acordarse de nada.
+#
+# ⚠️ Esto NO funciona hasta que el DNS apunte al VPS: Let's Encrypt
+# comprueba que el dominio es de esta máquina entrando por el puerto 80.
+# Por eso el DNS va de último en la migración, y por eso el corte del
+# chat de la web ocurre en ese mismo momento (el widget que está pegado
+# en WordPress carga desde portal.costamallas.com).
+# ============================================================
+
+{
+	email {$ACME_EMAIL}
+	# Un solo registro, en formato de texto: lo que hace falta para
+	# mirarlo con `docker compose logs caddy` cuando un certificado no
+	# sale.
+	log {
+		format console
+	}
+}
+
+# Los dos dominios sirven la MISMA aplicación.
+#
+# `cotizacion.` existe para lo que se le manda al cliente por correo o
+# WhatsApp: un enlace a `portal.` invita a curiosear el portal interno,
+# y un subdominio dedicado deja claro que ahí solo hay una cosa, su
+# oferta. Es el mismo servidor: quien decide qué se sirve es la ruta.
+portal.costamallas.com, cotizacion.costamallas.com {
+	encode zstd gzip
+
+	reverse_proxy portal:3000 {
+		# Sin esto, `urlPortal()` arma los enlaces con el host interno
+		# del contenedor y los correos salen apuntando a `portal:3000`.
+		header_up X-Forwarded-Host {host}
+		header_up X-Forwarded-Proto {scheme}
+
+		# Subir una firma o un documento de SG-SST tarda más que una
+		# petición normal desde un teléfono con media barra de señal.
+		transport http {
+			read_timeout 120s
+			write_timeout 120s
+		}
+	}
+
+	# Las cabeceras de seguridad las pone Next (next.config.ts). Aquí
+	# solo se quita la que delata con qué está hecho el servidor.
+	header {
+		-Server
+	}
+
+	log {
+		output file /data/acceso.log {
+			roll_size 20mb
+			roll_keep 5
+		}
+	}
+}

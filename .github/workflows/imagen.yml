@@ -1,0 +1,102 @@
+# ============================================================
+# Compila el portal y publica la imagen. Aquí, nunca en el servidor.
+#
+# POR QUÉ EXISTE
+# --------------
+# El VPS lo paga el cliente y el software es de ESEK. Si el servidor
+# construyera desde el repositorio —que es lo que hacen Coolify, Dokku y
+# compañía en su modo normal— el código fuente acabaría clonado en una
+# máquina ajena. Con esto, al servidor solo llega el resultado
+# compilado: hace un `pull` de una imagen y ya.
+#
+# CÓMO SE PUBLICA UNA VERSIÓN
+# ---------------------------
+#   git tag v1 && git push origin v1
+#
+# Eso construye y publica `ghcr.io/<dueño>/costamallas-portal:v1`.
+# En el servidor se cambia la etiqueta en compose.yml y se hace
+# `docker compose up -d`. **Nunca `latest`**: con `latest` nadie sabe qué
+# está corriendo ni se puede volver a la versión anterior, que es lo
+# único que salva una noche mala.
+#
+# QUÉ HAY QUE CONFIGURAR
+# ----------------------
+# Nada. `GITHUB_TOKEN` lo pone GitHub solo y basta para publicar en el
+# GHCR de este repositorio. Lo único que se crea a mano es el token de
+# SOLO LECTURA que usa el servidor para bajar la imagen — eso va en
+# GitHub → Settings → Developer settings → Tokens, con el permiso
+# `read:packages` y nada más.
+# ============================================================
+
+name: Imagen del portal
+
+on:
+  push:
+    tags:
+      - "v*"
+  # Para construir una prueba sin poner etiqueta. Sale como `:manual`.
+  workflow_dispatch:
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # Sin esto el push a GHCR da 403 y el mensaje no dice por qué.
+      packages: write
+
+    steps:
+      - name: Traer el código
+        uses: actions/checkout@v4
+
+      - name: Preparar buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Entrar a GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Decidir las etiquetas
+        id: v
+        run: |
+          # El nombre del dueño en minúsculas: GHCR no admite mayúsculas
+          # y el error que da es un 403 que no lo explica.
+          duenno=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          imagen="ghcr.io/$duenno/costamallas-portal"
+
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            version="${{ github.ref_name }}"
+          else
+            version="manual-$(date +%Y%m%d-%H%M)"
+          fi
+
+          echo "imagen=$imagen"   >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          # La etiqueta con el sha es la que permite decir, dentro de un
+          # mes, exactamente de qué commit salió lo que está corriendo.
+          echo "etiquetas=$imagen:$version,$imagen:sha-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - name: Construir y publicar
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.v.outputs.etiquetas }}
+          build-args: |
+            VERSION=${{ steps.v.outputs.version }}
+          # La caché entre corridas: sin esto cada versión reinstala y
+          # recompila todo desde cero, y son 10 minutos cada vez.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Decir qué se publicó
+        run: |
+          echo "### Imagen publicada" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.v.outputs.imagen }}:${{ steps.v.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "En el servidor: cambia la etiqueta en compose.yml y \`docker compose up -d\`." >> "$GITHUB_STEP_SUMMARY"

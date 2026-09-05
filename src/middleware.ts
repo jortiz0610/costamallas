@@ -29,6 +29,11 @@ const PUBLIC_PATHS = [
   // debilite el doble factor— y por eso se nombra la ruta completa en vez
   // del prefijo `/api/auth/huella`.
   "/api/auth/huella/entrar",
+  // El latido. Lo consultan Docker y Caddy SIN cookie de sesión, así que
+  // detrás del middleware daría 401 y el contenedor se reiniciaría solo
+  // en un bucle. Solo responde `{status:"ok"}` o un 500: no dice quién
+  // hay dentro ni qué datos hay.
+  "/api/health",
 ];
 const API_RATE_LIMIT = 200;
 

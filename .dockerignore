@@ -1,0 +1,39 @@
+# Qué NO entra en la construcción de la imagen.
+#
+# No es solo por peso: todo lo que se copia acaba en una capa, y una
+# capa se puede abrir. Un .env que se cuele aquí queda dentro de la
+# imagen para siempre, aunque el Dockerfile no lo use.
+
+# Secretos. Lo primero de la lista a propósito.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencias y compilados: se instalan y se compilan dentro.
+node_modules
+.next
+out
+build
+tsconfig.tsbuildinfo
+
+# Git y CI: el historial no tiene por qué viajar al servidor del cliente.
+.git
+.gitignore
+.github
+
+# Documentación interna: explica cómo está hecho el portal por dentro.
+*.md
+docs
+
+# Pruebas y utilidades de desarrollo. Tocan producción y no pintan nada
+# en una imagen.
+scripts
+
+# Ruido del sistema y del editor.
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+npm-debug.log*

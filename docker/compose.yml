@@ -1,0 +1,97 @@
+# ============================================================
+# Lo que corre en el VPS. Va en /srv/portal/compose.yml.
+#
+# Tres piezas y ninguna más:
+#
+#   postgres · la base. Es DEL CLIENTE: su servidor, su clave, su
+#              respaldo. Es la línea que hace defendible todo lo demás —
+#              el día que pregunten "¿y si ESEK desaparece?", la
+#              respuesta es "tus datos están en tu máquina".
+#   portal   · la imagen ya compilada, bajada de GHCR. No construye
+#              nada: si construyera, el código fuente acabaría aquí.
+#   caddy    · el HTTPS. Saca y renueva los certificados solo.
+#
+# Ni postgres ni portal publican puertos. Lo único abierto al mundo es
+# Caddy en 80 y 443. Una base de datos con el 5432 asomado a internet se
+# encuentra sola en cuestión de horas.
+#
+#   docker compose up -d          levantar o actualizar
+#   docker compose logs -f portal ver qué pasa
+#   docker compose ps             qué está vivo
+#
+# Las variables salen de /srv/portal/.env, que crea ESEK con permisos
+# 600. Ese archivo no está en el repositorio ni puede estarlo.
+# ============================================================
+
+name: costamallas
+
+services:
+  postgres:
+    # Versión FIJA, no `latest`. Postgres no baja de versión: si un día
+    # arranca con una mayor y hay que volver atrás, no se puede.
+    #
+    # ⚠️ Antes de migrar hay que comprobar la versión que corre en
+    # Supabase. Un `pg_dump` de una base más nueva no restaura en una
+    # más vieja, y el error sale a mitad de la restauración.
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-costamallas}
+      POSTGRES_USER: ${POSTGRES_USER:-costamallas}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD en /srv/portal/.env}
+      # Para que las fechas de los registros se lean como las lee la
+      # empresa y no haya que restar cinco horas mentalmente.
+      TZ: America/Bogota
+    volumes:
+      # Fuera del contenedor a propósito: borrar el contenedor no puede
+      # llevarse la base por delante.
+      - /srv/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-costamallas} -d ${POSTGRES_DB:-costamallas}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks: [interna]
+
+  portal:
+    # La etiqueta se cambia A MANO al actualizar. Nada de `latest`: con
+    # `latest` no se sabe qué está corriendo ni se puede volver a la
+    # versión de ayer, que es lo único que salva una noche mala.
+    image: ghcr.io/jortiz0610/costamallas-portal:${VERSION:?falta VERSION en /srv/portal/.env}
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        # Que espere a que la base conteste, no a que el contenedor
+        # exista: arrancar contra una base que todavía no acepta
+        # conexiones hace fallar las migraciones del arranque.
+        condition: service_healthy
+    networks: [interna]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      # A dónde avisa Let's Encrypt si un certificado va a vencer sin
+      # renovarse. Sin esto no hay a quién avisar.
+      ACME_EMAIL: ${ACME_EMAIL:?falta ACME_EMAIL en /srv/portal/.env}
+    volumes:
+      - /srv/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Los certificados. Si esto no persiste, cada reinicio pide
+      # certificados nuevos y Let's Encrypt acaba bloqueando el dominio
+      # por límite de peticiones.
+      - /srv/caddy/datos:/data
+      - /srv/caddy/config:/config
+    depends_on:
+      - portal
+    networks: [interna]
+
+networks:
+  interna:
+    driver: bridge
