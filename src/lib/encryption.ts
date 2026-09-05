@@ -10,50 +10,42 @@ const IV_LENGTH = 16;
 const AUTH_TAG_LENGTH = 16;
 const KEY_LENGTH = 32; // 256 bits
 
-function getEncryptionKey(): Buffer {
-  const key = process.env.ENCRYPTION_KEY;
-  if (!key) throw new Error("ENCRYPTION_KEY no definida en variables de entorno");
-
-  const keyBuffer = Buffer.from(key, "hex");
+/**
+ * Convierte una llave en hexadecimal al buffer que espera AES.
+ *
+ * Existe aparte de `getEncryptionKey` porque el re-cifrado
+ * (lib/recifrado.ts) trabaja con DOS llaves a la vez: descifra con la
+ * vieja y vuelve a cifrar con la nueva. Sin esto habría que duplicar el
+ * cifrado en otro archivo, que es como acaban desviándose.
+ */
+function bufferDeLlave(hex: string, nombre = "ENCRYPTION_KEY"): Buffer {
+  const keyBuffer = Buffer.from(hex, "hex");
   if (keyBuffer.length !== KEY_LENGTH) {
-    throw new Error(`ENCRYPTION_KEY debe tener ${KEY_LENGTH * 2} caracteres hex (got ${key.length})`);
+    throw new Error(`${nombre} debe tener ${KEY_LENGTH * 2} caracteres hex (got ${hex.length})`);
   }
   return keyBuffer;
 }
 
-/**
- * Cifra texto con AES-256-GCM.
- * Retorna: iv:authTag:ciphertext en base64 separado por ":"
- */
-export function encrypt(plaintext: string): string {
-  const key = getEncryptionKey();
+function getEncryptionKey(): Buffer {
+  const key = process.env.ENCRYPTION_KEY;
+  if (!key) throw new Error("ENCRYPTION_KEY no definida en variables de entorno");
+  return bufferDeLlave(key);
+}
+
+function cifrarConBuffer(key: Buffer, plaintext: string): string {
   const iv = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(ALGORITHM, key, iv);
-
-  const encrypted = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
-    cipher.final(),
-  ]);
-
-  const authTag = cipher.getAuthTag();
-
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   return [
     iv.toString("base64"),
-    authTag.toString("base64"),
+    cipher.getAuthTag().toString("base64"),
     encrypted.toString("base64"),
   ].join(":");
 }
 
-/**
- * Descifra un string cifrado con encrypt().
- */
-export function decrypt(ciphertext: string): string {
-  const key = getEncryptionKey();
+function descifrarConBuffer(key: Buffer, ciphertext: string): string {
   const parts = ciphertext.split(":");
-
-  if (parts.length !== 3) {
-    throw new Error("Formato de texto cifrado inválido");
-  }
+  if (parts.length !== 3) throw new Error("Formato de texto cifrado inválido");
 
   const [ivB64, authTagB64, encryptedB64] = parts;
   const iv = Buffer.from(ivB64, "base64");
@@ -65,13 +57,37 @@ export function decrypt(ciphertext: string): string {
 
   const decipher = createDecipheriv(ALGORITHM, key, iv);
   decipher.setAuthTag(authTag);
+  return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
+}
 
-  const decrypted = Buffer.concat([
-    decipher.update(encrypted),
-    decipher.final(),
-  ]);
+/**
+ * Cifra con una llave concreta, no con la del entorno.
+ *
+ * Solo lo usa el re-cifrado. El resto del portal usa `encrypt`, que es
+ * lo correcto: nadie más tiene por qué elegir con qué llave cifra.
+ */
+export function cifrarCon(llaveHex: string, texto: string): string {
+  return cifrarConBuffer(bufferDeLlave(llaveHex, "la llave indicada"), texto);
+}
 
-  return decrypted.toString("utf8");
+/** Descifra con una llave concreta. Lanza si no es la que corresponde. */
+export function descifrarCon(llaveHex: string, texto: string): string {
+  return descifrarConBuffer(bufferDeLlave(llaveHex, "la llave indicada"), texto);
+}
+
+/**
+ * Cifra texto con AES-256-GCM.
+ * Retorna: iv:authTag:ciphertext en base64 separado por ":"
+ */
+export function encrypt(plaintext: string): string {
+  return cifrarConBuffer(getEncryptionKey(), plaintext);
+}
+
+/**
+ * Descifra un string cifrado con encrypt().
+ */
+export function decrypt(ciphertext: string): string {
+  return descifrarConBuffer(getEncryptionKey(), ciphertext);
 }
 
 /**
