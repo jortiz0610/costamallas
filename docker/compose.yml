@@ -49,7 +49,15 @@ services:
     volumes:
       # Fuera del contenedor a propósito: borrar el contenedor no puede
       # llevarse la base por delante.
-      - /srv/postgres:/var/lib/postgresql/data
+      #
+      # ⚠️ `/var/lib/postgresql` y NO `/var/lib/postgresql/data`, que es
+      # lo que se pone en todos los ejemplos de internet y lo que había
+      # aquí. La imagen 18 cambió el convenio: espera el montaje un
+      # nivel más arriba y guarda los datos en un subdirectorio con el
+      # número de versión, para que un día se pueda hacer `pg_upgrade`
+      # sin pelearse con el límite del montaje. Con la ruta vieja el
+      # contenedor arranca, se queja y se queda reiniciándose en bucle.
+      - /srv/postgres:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-costamallas} -d ${POSTGRES_DB:-costamallas}"]
       interval: 10s
@@ -85,6 +93,10 @@ services:
       # A dónde avisa Let's Encrypt si un certificado va a vencer sin
       # renovarse. Sin esto no hay a quién avisar.
       ACME_EMAIL: ${ACME_EMAIL:?falta ACME_EMAIL en /srv/portal/.env}
+      # Qué dominios sirve. Durante las pruebas es el host de Hostinger;
+      # el día del corte pasan a ser los de la empresa. Cambiar esta
+      # línea del .env y reiniciar Caddy es toda la maniobra.
+      DOMINIOS: ${DOMINIOS:?falta DOMINIOS en /srv/portal/.env}
     volumes:
       - /srv/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       # Los certificados. Si esto no persiste, cada reinicio pide

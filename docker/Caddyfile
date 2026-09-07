@@ -21,13 +21,19 @@
 	}
 }
 
-# Los dos dominios sirven la MISMA aplicación.
+# Los dominios salen de la variable DOMINIOS del .env, separados por
+# coma. Todos sirven la MISMA aplicación.
+#
+# Se hace así por la migración: primero se prueba en el host que da
+# Hostinger (srv1950440.hstgr.cloud), con HTTPS de verdad y SIN tocar el
+# DNS de la empresa. El día del corte se cambia esa línea del .env y se
+# reinicia Caddy; no hay dos configuraciones que mantener.
 #
 # `cotizacion.` existe para lo que se le manda al cliente por correo o
 # WhatsApp: un enlace a `portal.` invita a curiosear el portal interno,
 # y un subdominio dedicado deja claro que ahí solo hay una cosa, su
 # oferta. Es el mismo servidor: quien decide qué se sirve es la ruta.
-portal.costamallas.com, cotizacion.costamallas.com {
+{$DOMINIOS} {
 	encode zstd gzip
 
 	reverse_proxy portal:3000 {
