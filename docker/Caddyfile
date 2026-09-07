@@ -29,10 +29,19 @@
 # DNS de la empresa. El día del corte se cambia esa línea del .env y se
 # reinicia Caddy; no hay dos configuraciones que mantener.
 #
-# `cotizacion.` existe para lo que se le manda al cliente por correo o
-# WhatsApp: un enlace a `portal.` invita a curiosear el portal interno,
-# y un subdominio dedicado deja claro que ahí solo hay una cosa, su
-# oferta. Es el mismo servidor: quien decide qué se sirve es la ruta.
+# El reparto final, confirmado el 7-sep-2026:
+#
+#   portal.costamallas.com        el portal interno, para el equipo
+#   cotizaciones.costamallas.com  la oferta que recibe el CLIENTE
+#
+# Son el mismo servidor y la misma aplicación: quien decide qué se
+# sirve es la ruta. El segundo existe porque lo que se le manda a un
+# cliente por correo o WhatsApp es un enlace, y un enlace a `portal.`
+# invita a curiosear el portal interno; un subdominio dedicado deja
+# claro que ahí solo hay una cosa, su oferta.
+#
+# **En plural.** Es el registro que existe. En singular no hay nada, y
+# este nombre se queda escrito en cada enlace ya enviado.
 {$DOMINIOS} {
 	encode zstd gzip
 

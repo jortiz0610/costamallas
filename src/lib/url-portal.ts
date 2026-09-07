@@ -57,11 +57,17 @@ export function urlPortal(req?: { headers: Headers; url: string }): string {
 /**
  * La dirección desde la que se le sirve la COTIZACIÓN al cliente.
  *
- * Se decidió que las ofertas viven en `cotizacion.costamallas.com` y no
- * en el portal. El motivo no es estético: lo que se le manda a un
+ * Se decidió que las ofertas viven en `cotizaciones.costamallas.com` y
+ * no en el portal. El motivo no es estético: lo que se le manda a un
  * cliente por correo o WhatsApp es un enlace, y un enlace a
  * `portal.costamallas.com` invita a curiosear el portal interno. Un
  * subdominio dedicado deja claro que ahí solo hay una cosa: su oferta.
+ *
+ * El nombre es **en plural** y está confirmado: es el registro DNS que
+ * existe de verdad (creado el 7-sep-2026, apuntando al VPS). Antes aquí
+ * decía `cotizacion` en singular, que no existe. Importa más de lo que
+ * parece: este subdominio se queda escrito en cada enlace que ya se
+ * mandó, y esos no se pueden cambiar después.
  *
  * Hasta que el dominio esté conectado en Vercel esto devuelve el portal,
  * exactamente igual que hoy. En cuanto se cargue `COTIZACION_URL` en
