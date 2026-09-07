@@ -8,7 +8,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Check, FileText, Plus, Trash2, ExternalLink } from "lucide-react";
+import { Loader2, Check, FileText, Plus, Trash2, ExternalLink, ImageUp } from "lucide-react";
 import toast from "react-hot-toast";
 import type { ConfigCotizacion } from "@/lib/cotizacion-textos";
 
@@ -91,6 +91,46 @@ export function TabCotizacion() {
 
   const u = (k: keyof ConfigCotizacion, v: unknown) => setF(p => (p ? { ...p, [k]: v } as ConfigCotizacion : p));
 
+  /** Cuál de las cuatro imágenes se está subiendo ahora mismo. */
+  const [subiendo, setSubiendo] = useState<string | null>(null);
+
+  /**
+   * Sube el archivo y deja la URL puesta en el campo.
+   *
+   * Antes esto decía "súbela en el módulo de Imágenes y pega aquí la
+   * URL". Eso es pedirle a quien maneja la empresa que sepa lo que es
+   * una URL, la busque en otra pantalla y la copie sin equivocarse — y
+   * por eso las cuatro imágenes llevaban meses vacías y la propuesta
+   * salía con el patrón de malla de relleno.
+   *
+   * Va al MISMO sitio que las fotos de producto (/api/imagenes/upload):
+   * WordPress si está conectado, y si no el FTP del catálogo. No hay un
+   * segundo almacén que mantener.
+   */
+  const subirImagen = async (clave: keyof ConfigCotizacion, archivo: File) => {
+    setSubiendo(String(clave));
+    try {
+      const cuerpo = new FormData();
+      cuerpo.append("file", archivo);
+      const res = await fetch("/api/imagenes/upload", { method: "POST", body: cuerpo });
+      const j = await res.json();
+      if (!res.ok || !j.success) {
+        toast.error(j.error ?? "No se pudo subir la imagen");
+        return;
+      }
+      u(clave, j.data.url);
+      // El aviso llega cuando el archivo se subió pero la dirección no
+      // responde: el FTP no se queja y la imagen no se ve. Decirlo aquí
+      // evita el "la subí y no aparece".
+      if (j.aviso) toast(`Subida, pero ojo: ${j.aviso}`, { icon: "⚠️", duration: 8000 });
+      else toast.success("Imagen subida. Dale a Guardar para que salga en las ofertas.");
+    } catch {
+      toast.error("Sin conexión. Inténtalo otra vez.");
+    } finally {
+      setSubiendo(null);
+    }
+  };
+
   const guardar = async () => {
     if (!f) return;
     setGuardando(true);
@@ -164,7 +204,8 @@ export function TabCotizacion() {
       <div className="card p-5">
         <p className="text-xs font-bold uppercase tracking-widest text-muted mb-1">Imágenes de la propuesta</p>
         <p className="text-[11px] text-muted mb-4">
-          Súbelas en el módulo de Imágenes y pega aquí la URL. Si están vacías, la cotización usa un patrón de malla de
+          Elige el archivo y se sube sola. Si prefieres, también puedes pegar la dirección de una
+          imagen que ya esté publicada. Si están vacías, la cotización usa un patrón de malla de
           marca en vez de dejar el espacio en blanco.
         </p>
         <div className="space-y-5">
@@ -177,12 +218,36 @@ export function TabCotizacion() {
                   <label className="block text-xs font-semibold text-muted uppercase tracking-wider">{i.label}</label>
                   <span className="text-[10px] text-muted font-mono">{i.hueco}</span>
                 </div>
-                <input
-                  className="input font-mono text-xs"
-                  value={url}
-                  onChange={e => u(i.k, e.target.value)}
-                  placeholder="https://costamallas.com/wp-content/uploads/…"
-                />
+                <div className="flex gap-2">
+                  <input
+                    className="input font-mono text-xs flex-1 min-w-0"
+                    value={url}
+                    onChange={e => u(i.k, e.target.value)}
+                    placeholder="Elige un archivo, o pega una dirección…"
+                  />
+                  <label
+                    className={`btn-secondary btn-sm flex-shrink-0 cursor-pointer ${subiendo ? "opacity-50 pointer-events-none" : ""}`}
+                    title="Subir una imagen desde este equipo"
+                  >
+                    {subiendo === String(i.k)
+                      ? <Loader2 size={13} className="animate-spin" />
+                      : <ImageUp size={13} />}
+                    <span className="hidden sm:inline">Subir</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={e => {
+                        const archivo = e.target.files?.[0];
+                        // Se limpia el input para poder elegir DOS VECES el
+                        // mismo archivo: sin esto, el segundo intento no
+                        // dispara el evento y parece que el botón se rompió.
+                        e.target.value = "";
+                        if (archivo) subirImagen(i.k, archivo);
+                      }}
+                    />
+                  </label>
+                </div>
                 <p className="text-[11px] text-muted mt-1">{i.ayuda}</p>
 
                 <div className="flex gap-4 items-start mt-3">

@@ -20,6 +20,7 @@ import {
   CheckCircle2, AlertTriangle, XCircle, PowerOff, RefreshCw, Loader2, ArrowRight,
 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
+import { Medidores } from "@/components/sistema/Medidores";
 import type { Salud, Nivel, Comprobacion } from "@/lib/salud";
 
 const ESTILO: Record<Nivel, { Icon: React.ElementType; color: string; bg: string; l: string }> = {
@@ -125,6 +126,13 @@ function SaludContent() {
                   </p>
                 </div>
               </div>
+
+              {/* Los recursos van ARRIBA de las comprobaciones, y se
+                  refrescan solos. Es lo que uno mira cuando entra aquí
+                  porque "el portal va lento": si el procesador está en
+                  el suelo y la base tarda 400 ms, la respuesta está en
+                  el medidor y no en la lista de abajo. */}
+              <Medidores />
 
               {/* Lo roto primero: es lo que hay que mirar hoy. */}
               {(["problema", "aviso", "apagado", "ok"] as Nivel[]).map(nivel => {
