@@ -30,10 +30,14 @@ services:
     # Versión FIJA, no `latest`. Postgres no baja de versión: si un día
     # arranca con una mayor y hay que volver atrás, no se puede.
     #
-    # ⚠️ Antes de migrar hay que comprobar la versión que corre en
-    # Supabase. Un `pg_dump` de una base más nueva no restaura en una
-    # más vieja, y el error sale a mitad de la restauración.
-    image: postgres:16-alpine
+    # **18 y no 16**, que es lo que decía aquí antes y estaba mal.
+    # Comprobado contra el origen: Supabase corre **17.6**, y un volcado
+    # de una base más nueva NO restaura en una más vieja — el error sale
+    # a mitad de la restauración, con media base ya escrita. Se elige 18
+    # y no 17 porque las herramientas del servidor (pg_dump, psql) son
+    # 18.6: volcar con una versión más nueva que el origen está
+    # soportado, pero restaurar con una más nueva que el destino no.
+    image: postgres:18-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-costamallas}
