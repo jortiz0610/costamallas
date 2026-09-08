@@ -71,6 +71,9 @@ PATH=/usr/local/bin:/usr/bin:/bin
 0 6 * * *    root curl -sS -m 900 -H "Authorization: Bearer $CRON_SECRET" https://portal.costamallas.com/api/cron/sync-woo > /dev/null
 # El respaldo de la base, a las 2 de la mañana.
 0 2 * * *    root /srv/portal/respaldo.sh >> /srv/backups/respaldo.log 2>&1
+# Y media hora después, poner al día la copia de Vercel: sin esto, la
+# vuelta atrás existe pero con datos de la semana pasada.
+30 2 * * *   root /srv/portal/refrescar-respaldo-vercel.sh >> /srv/backups/copia-vercel.log 2>&1
 CRON
 chmod 644 /etc/cron.d/costamallas
 systemctl reload cron 2>/dev/null || service cron reload 2>/dev/null || true
