@@ -118,40 +118,22 @@ Cualquier duda, con gusto la resolvemos.`,
     boton: "Ver la cotización actualizada",
     marcadores: [...M_CLIENTE, ...M_OFERTA, ...M_ASESOR],
   },
-  {
-    clave: "cotizacion_recordatorio",
-    categoria: "cotizacion",
-    nombre: "Recordatorio (24 h)",
-    cuando: "24 horas después de enviar la oferta, si el cliente no ha contestado.",
-    asunto: "¿Le llegó bien nuestra cotización {{numero}}?",
-    cuerpo: `Cordial saludo {{contacto}},
-
-Queremos confirmar que le haya llegado la cotización {{numero}} que le compartimos ayer.
-
-Si tiene alguna duda sobre el alcance, los materiales o el plazo, escríbanos y con gusto se lo explicamos.`,
-    boton: "Ver la cotización",
-    marcadores: [...M_CLIENTE, ...M_OFERTA, ...M_ASESOR],
-  },
-  {
-    clave: "cotizacion_por_vencer",
-    categoria: "cotizacion",
-    nombre: "Por vencer (último aviso)",
-    cuando: "Un día antes de que la oferta caduque. Lleva el botón de aprobar.",
-    asunto: "Su cotización {{numero}} vence el {{vence}}",
-    cuerpo: `Cordial saludo {{contacto}},
-
-Le recordamos que la cotización {{numero}}, por {{total}}, está vigente hasta el {{vence}}.
-
-Los precios de los materiales se mueven, así que después de esa fecha tendríamos que revisarlos. Si desea que avancemos con estos valores, puede aprobarla desde el mismo enlace.
-
-Si necesita más tiempo, escríbanos y lo coordinamos sin problema.`,
-    boton: "Aprobar la cotización",
-    marcadores: [...M_CLIENTE, ...M_OFERTA, ...M_ASESOR],
-    nota:
-      "El botón de aprobar va discreto a propósito. Es el último correo " +
-      "de la secuencia y presionar de más en el último toque es lo que " +
-      "hace que el cliente deje de abrirlos.",
-  },
+  // ── Los dos recordatorios al cliente NO están aquí ──
+  //
+  // Aquí vivían "cotizacion_recordatorio" (24 h después de enviar) y
+  // "cotizacion_por_vencer" (un día antes de caducar). Se quitaron
+  // porque **esos dos correos ya se mandan**: son el toque 1 y el toque 3
+  // del seguimiento (lib/seguimiento.ts), que tiene su propio texto
+  // editable en Configuración → Seguimiento.
+  //
+  // Tenerlos también aquí era peor que inútil: esta pantalla decía que
+  // se podían editar, y editarlos no cambiaba nada de lo que recibía el
+  // cliente. Una pantalla que miente cuesta más que una que falta. Y si
+  // alguien los hubiera enganchado creyendo que faltaban, el cliente
+  // habría recibido el mismo recordatorio dos veces.
+  //
+  // Si algún día el seguimiento pasa a usar estas plantillas, se vuelven
+  // a poner AQUÍ y se quita el texto de allá — pero en un solo sitio.
 
   // ── OPERACIÓN ──
   {

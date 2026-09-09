@@ -21,6 +21,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { crearPedidoDeAprobacion } from "@/lib/aprobar-cotizacion";
+import { avisarCotizacionAprobada } from "@/lib/avisos-internos";
+import { urlPortal } from "@/lib/url-portal";
 
 const DIA = 86_400_000;
 
@@ -106,6 +108,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
         usuarioId: cotizacion.vendedorId,
       },
     }).catch(() => undefined);
+
+    // Y por correo, que es lo que llega cuando el asesor está en la
+    // calle. La notificación del portal solo la ve quien lo tiene
+    // abierto, y este es el aviso más urgente que existe: hay un cliente
+    // que acaba de decir que sí y está esperando que le confirmen.
+    //
+    // Se espera el envío en vez de dispararlo y olvidarlo: esto puede
+    // correr en una función sin servidor, donde cerrar la petición mata
+    // lo que quede pendiente. Y si falla, no se toca nada más — el
+    // pedido ya existe y el cliente ya vio su confirmación.
+    await avisarCotizacionAprobada(cotizacion.id, r.pedidoNumero ?? "", urlPortal(req))
+      .catch(() => undefined);
   }
 
   return NextResponse.json({

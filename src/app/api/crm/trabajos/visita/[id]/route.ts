@@ -17,6 +17,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { exigirPermiso } from "@/lib/permisos-server";
+import { avisarVisitaLista } from "@/lib/avisos-internos";
+import { urlPortal } from "@/lib/url-portal";
 
 const ESTADOS = new Set(["SOLICITADA", "AGENDADA", "REALIZADA", "CANCELADA"]);
 
@@ -89,6 +91,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         usuarioId: visita.cotizacion.vendedorId,
       },
     }).catch(() => undefined);
+
+    // Y por correo. La notificacion del portal solo la ve quien lo
+    // tiene abierto, y el asesor que pidio la visita puede llevar dias
+    // sin entrar: es justo la espera que hace que una visita se quede
+    // hecha y sin cotizar.
+    await avisarVisitaLista(visita.cotizacion.id, urlPortal(req)).catch(() => undefined);
 
     await prisma.log.create({
       data: {
