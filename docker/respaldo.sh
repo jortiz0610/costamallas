@@ -22,7 +22,7 @@
 # igual; lo que no sirve es no tener ninguno.
 #
 #   SUPABASE_URL          https://xxxx.supabase.co
-#   SUPABASE_SERVICE_KEY  la clave de servicio (NO la anon)
+#   SUPABASE_SECRET_KEY  la clave de servicio (NO la anon)
 #   SUPABASE_BUCKET       respaldos
 # ============================================================
 set -euo pipefail
@@ -31,14 +31,30 @@ DIRECTORIO=/srv/backups
 DIAS_QUE_SE_GUARDAN=14
 cd /srv/portal
 
-# Las variables salen del mismo .env que usa el portal.
-set -a
-# shellcheck disable=SC1091
-[ -f /srv/portal/.env ] && . /srv/portal/.env
-set +a
+# ── Leer el .env SIN ejecutarlo ──
+#
+# ⚠️ Aquí ponía `. /srv/portal/.env`, que parece lo natural y es una
+# trampa: el formato de Docker Compose admite valores con espacios y sin
+# comillas —`DOMINIOS=portal.costamallas.com, cotizaciones.costamallas.com`—
+# y el shell intenta EJECUTAR el segundo dominio como si fuera un
+# comando. El guion moría en esa línea, antes de volcar nada.
+#
+# Eso dejó al portal sin un solo respaldo su primera noche en
+# producción, y no se vio porque un cron que falla no se lo cuenta a
+# nadie: solo deja una línea en un archivo que nadie mira.
+#
+# Peor todavía: sourcing un archivo de configuración ejecuta lo que
+# haya dentro. Un valor con acentos graves o `$(...)` no es un error de
+# sintaxis, es código corriendo como root.
+leer() {
+  sed -n "s/^$1=//p" /srv/portal/.env 2>/dev/null | head -1 | sed 's/^"//; s/"$//'
+}
 
-USUARIO="${POSTGRES_USER:-costamallas}"
-BASE="${POSTGRES_DB:-costamallas}"
+USUARIO="$(leer POSTGRES_USER)"; USUARIO="${USUARIO:-costamallas}"
+BASE="$(leer POSTGRES_DB)";      BASE="${BASE:-costamallas}"
+SUPABASE_URL="$(leer SUPABASE_URL)"
+SUPABASE_SECRET_KEY="$(leer SUPABASE_SECRET_KEY)"
+SUPABASE_BUCKET="$(leer SUPABASE_BUCKET)"
 SELLO=$(date +%Y%m%d-%H%M)
 ARCHIVO="$DIRECTORIO/costamallas-$SELLO.sql.gz"
 
@@ -69,12 +85,12 @@ if [ "$(stat -c%s "$ARCHIVO")" -lt 51200 ]; then
 fi
 
 # ── La copia de fuera ──
-if [ -n "${SUPABASE_URL:-}" ] && [ -n "${SUPABASE_SERVICE_KEY:-}" ]; then
+if [ -n "${SUPABASE_URL:-}" ] && [ -n "${SUPABASE_SECRET_KEY:-}" ]; then
   BUCKET="${SUPABASE_BUCKET:-respaldos}"
   echo "  → Subiendo a Supabase Storage ($BUCKET)…"
   if curl -fsS -X POST \
       "${SUPABASE_URL%/}/storage/v1/object/$BUCKET/$(basename "$ARCHIVO")" \
-      -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
+      -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
       -H "Content-Type: application/gzip" \
       --data-binary "@$ARCHIVO" > /dev/null; then
     echo "  ✓ Copia fuera de la máquina lista."
@@ -83,7 +99,7 @@ if [ -n "${SUPABASE_URL:-}" ] && [ -n "${SUPABASE_SERVICE_KEY:-}" ]; then
     echo "  ✗ No se pudo subir. El respaldo local sí quedó."
   fi
 else
-  echo "  ⚠ Sin copia fuera de la máquina: faltan SUPABASE_URL y SUPABASE_SERVICE_KEY."
+  echo "  ⚠ Sin copia fuera de la máquina: faltan SUPABASE_URL y SUPABASE_SECRET_KEY."
   echo "    Un respaldo en el mismo disco que la base no salva de perder el disco."
 fi
 

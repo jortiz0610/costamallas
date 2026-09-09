@@ -44,7 +44,9 @@ echo ""
 
 # ── 2. Los dominios de verdad ──
 echo "▸ 2/4  Cambiando a los dominios de la empresa"
-sed -i 's|^DOMINIOS=.*|DOMINIOS=portal.costamallas.com, cotizaciones.costamallas.com|' .env
+# Entre comillas: el valor lleva un espacio tras la coma y sin comillas
+# rompe a cualquiera que lea el .env como shell. Compose las quita solo.
+sed -i 's|^DOMINIOS=.*|DOMINIOS="portal.costamallas.com, cotizaciones.costamallas.com"|' .env
 sed -i 's|^PORTAL_URL=.*|PORTAL_URL=https://portal.costamallas.com|' .env
 sed -i 's|^COTIZACION_URL=.*|COTIZACION_URL=https://cotizaciones.costamallas.com|' .env
 grep -E '^(DOMINIOS|PORTAL_URL|COTIZACION_URL)=' .env | sed 's/^/   /'
