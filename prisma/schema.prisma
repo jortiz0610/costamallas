@@ -947,6 +947,19 @@ model Instalacion {
   /// reaprobación de la cotización creaba otra igual.
   avisoPortalEn      DateTime?
 
+  /// Sello del correo que le confirma al CLIENTE la fecha y la hora.
+  ///
+  /// Se pone cuando el correo sale de verdad, y por eso reagendar lo
+  /// borra: si se cambia el día, el cliente tiene que enterarse otra
+  /// vez. Un sello que sobreviviera al cambio dejaría al cliente
+  /// esperando el día equivocado, que es peor que no avisar.
+  avisoAgendadaEn    DateTime?
+
+  /// Sello de la encuesta de satisfacción, que sale 24 h después de
+  /// firmar la entrega. Uno por obra: preguntarle dos veces lo mismo al
+  /// mismo cliente es la forma más rápida de que deje de contestar.
+  encuestaEnviadaEn  DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -959,6 +972,8 @@ model Instalacion {
   @@index([tipo])
   @@index([clienteId])
   @@index([fechaAgendada])
+  @@index([avisoAgendadaEn])
+  @@index([encuestaEnviadaEn])
   @@map("instalaciones")
 }
 

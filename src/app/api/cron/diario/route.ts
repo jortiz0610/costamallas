@@ -41,6 +41,7 @@ import { marcarVencidos } from "@/lib/vencimientos";
 import { alertarSinRespuesta } from "@/lib/nexus/alertas";
 import { recalcularEstados } from "@/lib/estados-cliente-server";
 import { limpiar } from "@/lib/mantenimiento";
+import { avisarAgendados, mandarEncuestasPendientes } from "@/lib/avisos-operacion";
 import {
   apuntarLatido, avisarBorradoresParados, repartirClientesSinAsesor,
   avisarClientesEnfriandose, resumenSemanal,
@@ -111,6 +112,16 @@ async function handle(req: NextRequest) {
     // se puede hacer algo.
     const enfriandose = await extra("enfriandose", () => avisarClientesEnfriandose({ dry }));
 
+    // Confirmarle al cliente la fecha de su visita o instalación.
+    // Antes de esto se enteraba por WhatsApp si el asesor se acordaba, y
+    // cuando no, el técnico llegaba a una casa donde no había nadie.
+    const agendados = await extra("agendados", () => avisarAgendados({ dry }));
+
+    // La encuesta, 24 h después de firmar la entrega. La plantilla y la
+    // pantalla de resultados llevaban meses escritas sin que nadie
+    // disparara el correo: se estaba midiendo el vacío.
+    const encuestas = await extra("encuestas", () => mandarEncuestasPendientes({ dry }));
+
     // Solo los lunes; los otros días se sale solo.
     const semanal = await extra("semanal", () => resumenSemanal({ dry }));
 
@@ -132,6 +143,8 @@ async function handle(req: NextRequest) {
         borradores,
         reparto,
         enfriandose,
+        agendados,
+        encuestas,
         semanal,
       },
     });

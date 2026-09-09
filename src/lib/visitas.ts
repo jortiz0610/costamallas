@@ -116,6 +116,11 @@ export async function agendar(id: string, fecha: Date, tecnicoId?: string | null
       fechaAgendada: fecha,
       estado: "AGENDADA",
       ...(tecnicoId !== undefined ? { tecnicoId } : {}),
+      // Cambiar la fecha borra el aviso que ya se mandó, para que la
+      // corrida vuelva a escribirle al cliente con la fecha NUEVA. Sin
+      // esto, reagendar dejaría al cliente esperando el día equivocado
+      // — que es peor que no haberle avisado nunca.
+      avisoAgendadaEn: null,
     },
     select: { id: true, tipo: true, estado: true, fechaAgendada: true },
   });
