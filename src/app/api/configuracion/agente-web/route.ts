@@ -69,7 +69,10 @@ export async function POST(req: NextRequest) {
   const topeDia = num(b.topeDiarioUSD, 0.1, 500);
   const topeConv = num(b.topeConversacionUSD, 0.01, 20);
   const maxMsj = num(b.maxMensajes, 4, 200);
-  if ([topeDia, topeConv, maxMsj].some(v => Number.isNaN(v))) {
+  // 0 = apagado. 720 h son 30 dias: mas alla, cerrar el chat y mandar la
+  // copia ya no le sirve a nadie.
+  const horasCerrar = b.horasParaCerrar === undefined ? undefined : num(b.horasParaCerrar, 0, 720);
+  if ([topeDia, topeConv, maxMsj, horasCerrar ?? 0].some(v => Number.isNaN(v))) {
     return NextResponse.json(
       { success: false, error: "Los topes están fuera de rango: revisa el gasto diario, el de la conversación y el máximo de mensajes." },
       { status: 400 },
@@ -92,6 +95,7 @@ export async function POST(req: NextRequest) {
     maxMensajes: maxMsj,
     whatsapp: b.whatsapp !== undefined ? String(b.whatsapp).slice(0, 30) : undefined,
     dominios,
+    horasParaCerrar: horasCerrar,
   });
 
   await prisma.log

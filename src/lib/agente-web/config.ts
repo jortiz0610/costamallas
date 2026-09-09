@@ -39,6 +39,20 @@ export interface ConfigAgenteWeb {
   whatsapp: string;
   /** Dominios desde los que se acepta el widget. Vacío = solo la tienda. */
   dominios: string[];
+  /**
+   * Horas sin actividad tras las que un chat de la web se cierra solo.
+   *
+   * No es una preferencia de limpieza: **al cerrar es cuando al cliente
+   * le llega la conversación completa por correo**. Gerencia decidió que
+   * la copia salga al cerrar y no mensaje a mensaje —durante la charla
+   * el cliente ya ve las respuestas en la ventana, y un correo por frase
+   * le llena el buzón— pero eso deja un agujero: un chat que nadie
+   * cierra NUNCA manda la copia, y el cliente se queda sin registro
+   * escrito de las medidas y los precios que le dieron.
+   *
+   * En 0 se apaga y vuelve a cerrarse solo a mano.
+   */
+  horasParaCerrar: number;
 }
 
 export const AGENTE_WEB_DEFAULTS: ConfigAgenteWeb = {
@@ -54,6 +68,11 @@ export const AGENTE_WEB_DEFAULTS: ConfigAgenteWeb = {
   maxMensajes: 40,
   whatsapp: "",
   dominios: ["https://costamallas.com", "https://www.costamallas.com"],
+  // 48 h: dos días hábiles de margen para que un asesor retome la
+  // conversación antes de darla por terminada. Gerencia puede subirlo o
+  // bajarlo desde el portal; la pregunta estaba abierta en
+  // PENDIENTES-GERENCIA §18.
+  horasParaCerrar: 48,
 };
 
 const CLAVES: Record<keyof ConfigAgenteWeb, string> = {
@@ -66,6 +85,7 @@ const CLAVES: Record<keyof ConfigAgenteWeb, string> = {
   maxMensajes: "agweb_max_mensajes",
   whatsapp: "agweb_whatsapp",
   dominios: "agweb_dominios",
+  horasParaCerrar: "agweb_horas_cerrar",
 };
 
 export async function getConfigAgenteWeb(): Promise<ConfigAgenteWeb> {
@@ -103,6 +123,9 @@ export async function getConfigAgenteWeb(): Promise<ConfigAgenteWeb> {
     maxMensajes: num(CLAVES.maxMensajes, AGENTE_WEB_DEFAULTS.maxMensajes, 4, 200),
     whatsapp: map[CLAVES.whatsapp] ?? "",
     dominios,
+    // 0 = apagado. El tope de 720 h son 30 días: más allá de eso, cerrar
+    // el chat y mandar la copia ya no le sirve a nadie.
+    horasParaCerrar: num(CLAVES.horasParaCerrar, AGENTE_WEB_DEFAULTS.horasParaCerrar, 0, 720),
   };
 }
 

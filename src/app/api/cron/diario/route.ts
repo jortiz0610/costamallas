@@ -42,6 +42,7 @@ import { alertarSinRespuesta } from "@/lib/nexus/alertas";
 import { recalcularEstados } from "@/lib/estados-cliente-server";
 import { limpiar } from "@/lib/mantenimiento";
 import { avisarAgendados, mandarEncuestasPendientes } from "@/lib/avisos-operacion";
+import { cerrarChatsDormidos } from "@/lib/nexus/cierre-automatico";
 import {
   apuntarLatido, avisarBorradoresParados, repartirClientesSinAsesor,
   avisarClientesEnfriandose, resumenSemanal,
@@ -122,6 +123,11 @@ async function handle(req: NextRequest) {
     // disparara el correo: se estaba midiendo el vacío.
     const encuestas = await extra("encuestas", () => mandarEncuestasPendientes({ dry }));
 
+    // Cerrar los chats de la web que quedaron abiertos. No es limpieza
+    // de bandeja: al cerrar es cuando al cliente le llega la copia de la
+    // conversación, así que uno que nadie cierra nunca se la manda.
+    const chatsWeb = await extra("chatsWeb", () => cerrarChatsDormidos({ dry }));
+
     // Solo los lunes; los otros días se sale solo.
     const semanal = await extra("semanal", () => resumenSemanal({ dry }));
 
@@ -145,6 +151,7 @@ async function handle(req: NextRequest) {
         enfriandose,
         agendados,
         encuestas,
+        chatsWeb,
         semanal,
       },
     });

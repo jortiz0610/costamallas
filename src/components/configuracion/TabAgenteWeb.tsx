@@ -18,7 +18,7 @@ import toast from "react-hot-toast";
 interface Cfg {
   activo: boolean; nombre: string; saludo: string; modelo: string;
   topeDiarioUSD: number; topeConversacionUSD: number; maxMensajes: number;
-  whatsapp: string; dominios: string[];
+  whatsapp: string; dominios: string[]; horasParaCerrar: number;
 }
 interface Estado {
   gastoHoyUSD: number; iaConfigurada: boolean; conversaciones: number; embed: string;
@@ -200,6 +200,26 @@ export function TabAgenteWeb() {
             <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">Máx. mensajes</label>
             <input type="number" min="4" max="200" className="input" value={f.maxMensajes} onChange={ev => u("maxMensajes", Number(ev.target.value))} />
           </div>
+        </div>
+
+        {/* No es limpieza de bandeja: al CERRAR es cuando al cliente le
+            llega la conversación por correo, así que un chat que nadie
+            cierra nunca se la manda. */}
+        <div>
+          <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">
+            Cerrar solo el chat tras (horas sin actividad)
+          </label>
+          <input
+            type="number" min="0" max="720" className="input max-w-[140px]"
+            value={f.horasParaCerrar}
+            onChange={ev => u("horasParaCerrar", Number(ev.target.value))}
+          />
+          <p className="text-[11px] text-muted mt-1 leading-relaxed">
+            Al cerrarse, al cliente le llega la conversación completa por correo — que es el registro
+            escrito de las medidas y los precios que le dieron. Un chat que nadie cierra nunca se la
+            manda. Solo se cierran los que ya respondió alguien del equipo: si nadie contestó, el
+            problema no es que esté abierto. <strong>En 0 se apaga</strong> y vuelve a cerrarse a mano.
+          </p>
         </div>
         <div>
           <label className="block text-[11px] font-semibold text-muted uppercase tracking-wider mb-1.5">Modelo</label>
