@@ -14,6 +14,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
+import { notificar } from "@/lib/notificar";
 import { prisma } from "@/lib/prisma";
 import { asignarConversacion } from "@/lib/nexus/asignacion";
 import { calificarMensaje, etiquetasDe, prioridadDe } from "@/lib/nexus/bot";
@@ -172,17 +173,28 @@ export async function POST(req: NextRequest, { params }: P) {
     },
   });
 
-  await prisma.notificacion.create({
-    data: {
-      tipo: "NEXUS_MENSAJE" as "SISTEMA",
-      titulo: `Nuevo mensaje de ${remitente}`,
-      mensaje: [
-        `Canal: ${canal}`,
-        calificacion?.resumen,
-        calificacion?.urgencia === "ALTA" ? "URGENTE" : null,
-      ].filter(Boolean).join(" · "),
-      data: { conversacionId: conversacion.id, canal, asignadoId: asignacion.usuarioId },
-    },
+  // Este es EL aviso que justifica el push: un cliente acaba de escribir
+  // y quien lo tiene asignado puede estar en la calle. Con la
+  // notificación sola se enteraba al volver a abrir el portal.
+  //
+  // Va a quien lo tiene asignado y no a todo el mundo: un mensaje que le
+  // suena a siete personas no es de nadie.
+  await notificar({
+    usuarioId: asignacion.usuarioId,
+    tipo: "NEXUS_MENSAJE",
+    titulo: `Nuevo mensaje de ${remitente}`,
+    mensaje: [
+      `Canal: ${canal}`,
+      calificacion?.resumen,
+      calificacion?.urgencia === "ALTA" ? "URGENTE" : null,
+    ].filter(Boolean).join(" · "),
+    data: { conversacionId: conversacion.id, canal, asignadoId: asignacion.usuarioId },
+    // A la conversación, no al inbox: abrir la bandeja y buscar cuál era
+    // pierde justo los segundos que hacen que se conteste o no.
+    url: `/nexus?conversacion=${conversacion.id}`,
+    // Diez mensajes seguidos de la misma persona son UN aviso que se
+    // actualiza, no diez avisos apilados.
+    etiqueta: `conv-${conversacion.id}`,
   }).catch(() => {});
 
   return NextResponse.json({
@@ -277,17 +289,28 @@ async function guardarEntrante(conexionId: string, canal: string, m: MensajeEntr
     select: { id: true },
   });
 
-  await prisma.notificacion.create({
-    data: {
-      tipo: "NEXUS_MENSAJE" as "SISTEMA",
-      titulo: `Nuevo mensaje de ${m.remitente}`,
-      mensaje: [
-        `Canal: ${canal}`,
-        calificacion?.resumen,
-        calificacion?.urgencia === "ALTA" ? "URGENTE" : null,
-      ].filter(Boolean).join(" · "),
-      data: { conversacionId: conversacion.id, canal, asignadoId: asignacion.usuarioId },
-    },
+  // Este es EL aviso que justifica el push: un cliente acaba de escribir
+  // y quien lo tiene asignado puede estar en la calle. Con la
+  // notificación sola se enteraba al volver a abrir el portal.
+  //
+  // Va a quien lo tiene asignado y no a todo el mundo: un mensaje que le
+  // suena a siete personas no es de nadie.
+  await notificar({
+    usuarioId: asignacion.usuarioId,
+    tipo: "NEXUS_MENSAJE",
+    titulo: `Nuevo mensaje de ${m.remitente}`,
+    mensaje: [
+      `Canal: ${canal}`,
+      calificacion?.resumen,
+      calificacion?.urgencia === "ALTA" ? "URGENTE" : null,
+    ].filter(Boolean).join(" · "),
+    data: { conversacionId: conversacion.id, canal, asignadoId: asignacion.usuarioId },
+    // A la conversación, no al inbox: abrir la bandeja y buscar cuál era
+    // pierde justo los segundos que hacen que se conteste o no.
+    url: `/nexus?conversacion=${conversacion.id}`,
+    // Diez mensajes seguidos de la misma persona son UN aviso que se
+    // actualiza, no diez avisos apilados.
+    etiqueta: `conv-${conversacion.id}`,
   }).catch(() => {});
 
   return conversacion.id;

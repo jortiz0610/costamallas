@@ -50,6 +50,9 @@ model Usuario {
   @@index([email])
   @@index([clienteId])
   credenciales CredencialWebauthn[]
+  /// Los navegadores donde esta persona quiere recibir avisos, incluso
+  /// con el portal cerrado. Uno por aparato.
+  suscripcionesPush SuscripcionPush[]
 
   ordenesComoOperario   OrdenProduccion[] @relation("OpOperario")
   ordenesComoSupervisor OrdenProduccion[] @relation("OpSupervisor")
@@ -1743,4 +1746,42 @@ model EvaluacionProveedor {
   @@index([aprobado])
   @@index([esPrueba])
   @@map("evaluaciones_proveedor")
+}
+
+/// Un navegador suscrito a los avisos del portal.
+///
+/// Es lo que permite que un aviso llegue con la app CERRADA. Sin esto,
+/// las notificaciones solo se ven con la pestaña abierta o en segundo
+/// plano — que es como estaba, y por eso el asesor se enteraba de que le
+/// aprobaron una oferta al día siguiente.
+///
+/// Una fila por NAVEGADOR, no por persona: la misma usuaria tiene el
+/// teléfono y el computador de la oficina, y quiere el aviso en los dos.
+model SuscripcionPush {
+  id        String  @id @default(cuid())
+  usuarioId String
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  /// La dirección que da el navegador para entregarle avisos. Es única
+  /// por dispositivo y es lo que identifica la suscripción.
+  endpoint String @unique @db.Text
+  /// Las dos claves con las que se cifra el aviso. Sin ellas el push
+  /// viaja vacío y el navegador no muestra nada.
+  p256dh   String
+  auth     String
+
+  /// Para poder decirle a alguien cuál de sus aparatos es cuál cuando
+  /// tenga tres y quiera quitar uno.
+  agente String? @db.Text
+
+  /// Entregas seguidas que fallaron. A la tercera se borra: un endpoint
+  /// muerto que nadie limpia hace que cada aviso tarde el tiempo de
+  /// espera de una petición que nunca va a contestar.
+  fallos     Int       @default(0)
+  ultimoUsoEn DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([usuarioId])
+  @@map("suscripciones_push")
 }

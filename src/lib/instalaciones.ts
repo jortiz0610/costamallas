@@ -18,6 +18,7 @@
 // ============================================================
 
 import { prisma } from "@/lib/prisma";
+import { notificar } from "@/lib/notificar";
 import { enviarCorreo, correoConfigurado } from "@/lib/correo";
 import { getMarca } from "@/lib/marca";
 import { formatCOP } from "@/lib/utils";
@@ -171,15 +172,29 @@ export async function avisarInstalacionNueva(pedidoId: string): Promise<Resultad
       }
 
       for (const usuarioId of paraQuien) {
-        await prisma.notificacion.create({
-          data: {
-            tipo: "SISTEMA",
+        // `paraQuien` puede traer null: es el aviso "para quien lo vea",
+        // que se queda en la campanita del portal. Solo empuja al
+        // teléfono el que tiene dueño — hacerle sonar un aviso sin
+        // destinatario a todo el equipo es como se dejan de mirar.
+        if (usuarioId) {
+          await notificar({
             usuarioId,
             titulo,
             mensaje: cuerpo,
             data: { pedidoId: pedido.id, instalacionId: instalacion.id, numero: pedido.numero },
-          },
-        }).catch(() => undefined);
+            url: "/crm/instalaciones",
+          }).catch(() => undefined);
+        } else {
+          await prisma.notificacion.create({
+            data: {
+              tipo: "SISTEMA",
+              usuarioId,
+              titulo,
+              mensaje: cuerpo,
+              data: { pedidoId: pedido.id, instalacionId: instalacion.id, numero: pedido.numero },
+            },
+          }).catch(() => undefined);
+        }
       }
 
       await prisma.instalacion

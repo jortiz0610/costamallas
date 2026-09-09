@@ -19,6 +19,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
+import { notificar } from "@/lib/notificar";
 import { prisma } from "@/lib/prisma";
 import { crearPedidoDeAprobacion } from "@/lib/aprobar-cotizacion";
 import { avisarCotizacionAprobada } from "@/lib/avisos-internos";
@@ -95,18 +96,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
   // Avisar al asesor. Si no hay a quién, no se cae: el pedido ya existe.
   if (cotizacion.vendedorId) {
-    await prisma.notificacion.create({
-      data: {
-        tipo: "SISTEMA",
-        titulo: `¡${cotizacion.numero} aprobada por el cliente!`,
-        mensaje: r.pedidoNumero
-          ? `Se creó el pedido ${r.pedidoNumero}. Revísalo y confírmale al cliente.`
-          : "Ya tenía pedido; no se creó otro.",
-        data: { cotizacionId: cotizacion.id, pedido: r.pedidoNumero },
-        // Va SOLO al asesor de la oferta. Contárselo a los siete usuarios
-        // no le sirve a nadie y entierra los avisos que sí importan.
-        usuarioId: cotizacion.vendedorId,
-      },
+    // Va SOLO al asesor de la oferta. Contárselo a los siete usuarios no
+    // le sirve a nadie y entierra los avisos que sí importan.
+    await notificar({
+      usuarioId: cotizacion.vendedorId,
+      titulo: `¡${cotizacion.numero} aprobada por el cliente!`,
+      mensaje: r.pedidoNumero
+        ? `Se creó el pedido ${r.pedidoNumero}. Revísalo y confírmale al cliente.`
+        : "Ya tenía pedido; no se creó otro.",
+      data: { cotizacionId: cotizacion.id, pedido: r.pedidoNumero },
+      url: "/crm/pedidos",
+      etiqueta: `aprobada-${cotizacion.id}`,
     }).catch(() => undefined);
 
     // Y por correo, que es lo que llega cuando el asesor está en la

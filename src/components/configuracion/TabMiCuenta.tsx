@@ -21,6 +21,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { GestionHuella } from "@/components/seguridad/Huella";
 import { estadoAvisos, pedirPermisoAvisos } from "@/lib/nexus-preferencias";
+import { suscribirEsteAparato, darDeBajaEsteAparato, yaSuscrito, pushSoportado } from "@/lib/push-navegador";
 
 const NOMBRE_ROL: Record<string, string> = {
   SUPERADMIN: "Superadministrador",
@@ -49,9 +50,15 @@ export function TabMiCuenta() {
   const { user, logout } = useAuth();
   const [permiso, setPermiso] = useState<string>("no-disponible");
   const [pidiendo, setPidiendo] = useState(false);
+  // Suscripcion push: es lo que hace que el aviso llegue con el portal
+  // CERRADO. El permiso de arriba solo cubre "pestana abierta o en
+  // segundo plano", y confundir las dos cosas es prometer de mas.
+  const [conPush, setConPush] = useState(false);
+  const [cambiandoPush, setCambiandoPush] = useState(false);
 
   // El estado del permiso solo existe en el navegador.
   useEffect(() => { setPermiso(estadoAvisos()); }, []);
+  useEffect(() => { yaSuscrito().then(setConPush); }, []);
 
   // Distinguir iPhone importa: allí no existe "instalar app", existe
   // "añadir a pantalla de inicio", y solo desde Safari. Decirle a alguien
@@ -70,7 +77,16 @@ export function TabMiCuenta() {
     setPidiendo(true);
     const r = await pedirPermisoAvisos();
     setPermiso(r);
-    if (r === "granted") toast.success("Listo: te avisamos cuando entre un mensaje");
+    if (r === "granted") {
+      // Con el permiso recien dado se suscribe el aparato en el mismo
+      // gesto: pedirle a alguien que pulse DOS botones seguidos para
+      // una sola cosa es como se queda a medias.
+      const p = await suscribirEsteAparato();
+      setConPush(p === "listo");
+      toast.success(p === "listo"
+        ? "Listo: te avisamos aunque tengas el portal cerrado"
+        : "Avisos activados en esta pestaña");
+    }
     else if (r === "denied") {
       toast.error("El navegador los bloqueó. Hay que permitirlos desde el candado de la barra de direcciones.", { duration: 9000 });
     }
@@ -109,9 +125,69 @@ export function TabMiCuenta() {
             Este navegador no admite avisos. En el teléfono, instala la app (abajo) y sí funcionan.
           </p>
         ) : permiso === "granted" ? (
-          <p className="flex items-center gap-2 text-[13px] font-semibold text-green-600">
-            <Check size={14} /> Activados. Te avisamos aunque estés en otra pestaña.
-          </p>
+          <>
+            <p className="flex items-center gap-2 text-[13px] font-semibold text-green-600">
+              <Check size={14} />
+              {conPush
+                ? "Activados. Te llegan aunque tengas el portal cerrado."
+                : "Activados, pero solo con el portal abierto."}
+            </p>
+
+            {/* La diferencia entre las dos cosas se dice, no se insinúa:
+                un aviso que la gente cree que le va a llegar y no llega
+                es peor que no tener avisos. */}
+            {conPush ? (
+              <>
+                <p className="text-[11.5px] text-muted mt-2 leading-relaxed">
+                  Este aparato está suscrito. Si usas también el computador de la oficina, actívalos
+                  allí por separado: la suscripción es de cada navegador, no de tu cuenta.
+                </p>
+                <button
+                  onClick={async () => {
+                    setCambiandoPush(true);
+                    const ok = await darDeBajaEsteAparato();
+                    if (ok) { setConPush(false); toast.success("Este aparato ya no recibe avisos"); }
+                    else toast.error("No se pudo dar de baja");
+                    setCambiandoPush(false);
+                  }}
+                  disabled={cambiandoPush}
+                  className="btn-secondary btn-sm mt-3"
+                >
+                  {cambiandoPush ? <Loader2 size={13} className="animate-spin" /> : <Bell size={13} />}
+                  No avisar en este aparato
+                </button>
+              </>
+            ) : pushSoportado() ? (
+              <>
+                <p className="text-[11.5px] text-muted mt-2 leading-relaxed">
+                  Ahora mismo solo te avisamos si tienes el portal abierto o en segundo plano. Para
+                  que te lleguen <strong>con el portal cerrado</strong> —como un WhatsApp— hay que
+                  suscribir este aparato.
+                </p>
+                <button
+                  onClick={async () => {
+                    setCambiandoPush(true);
+                    const r = await suscribirEsteAparato();
+                    setConPush(r === "listo");
+                    if (r === "listo") toast.success("Listo: te avisamos aunque cierres el portal");
+                    else if (r === "no-configurado") toast.error("Este servidor todavía no tiene los avisos configurados.", { duration: 8000 });
+                    else toast.error("No se pudo suscribir este aparato");
+                    setCambiandoPush(false);
+                  }}
+                  disabled={cambiandoPush}
+                  className="btn-primary btn-sm mt-3"
+                >
+                  {cambiandoPush ? <Loader2 size={13} className="animate-spin" /> : <Bell size={13} />}
+                  Avisarme con el portal cerrado
+                </button>
+              </>
+            ) : (
+              <p className="text-[11.5px] text-muted mt-2 leading-relaxed">
+                Este navegador no admite avisos con el portal cerrado. En iPhone hace falta
+                <strong> añadir la app a la pantalla de inicio</strong> (abajo) y abrirla desde ahí.
+              </p>
+            )}
+          </>
         ) : permiso === "denied" ? (
           <p className="text-[12.5px] text-muted leading-relaxed">
             Los bloqueaste. Para volver a activarlos hay que tocar el <strong>candado</strong> de la barra

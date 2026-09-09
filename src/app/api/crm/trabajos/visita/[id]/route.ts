@@ -14,6 +14,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
+import { notificar } from "@/lib/notificar";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { exigirPermiso } from "@/lib/permisos-server";
@@ -80,16 +81,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   // cuando falta. Sin esto, la visita se queda hecha en el portal y el
   // vendedor se entera cuando el cliente llama a preguntar.
   if (devolver && !visita.devueltaEn && visita.cotizacion.vendedorId) {
-    await prisma.notificacion.create({
-      data: {
-        tipo: "SISTEMA",
-        titulo: `Visita técnica lista: ${visita.cotizacion.numero}`,
-        mensaje:
-          "Producción ya entregó la visita con sus medidas y la requisición de materiales. " +
-          "La oportunidad volvió a pendiente de cotizar.",
-        data: { cotizacionId: visita.cotizacion.id, visitaId: id },
-        usuarioId: visita.cotizacion.vendedorId,
-      },
+    await notificar({
+      usuarioId: visita.cotizacion.vendedorId,
+      titulo: `Visita técnica lista: ${visita.cotizacion.numero}`,
+      mensaje:
+        "Producción ya entregó la visita con sus medidas y la requisición de materiales. " +
+        "La oportunidad volvió a pendiente de cotizar.",
+      data: { cotizacionId: visita.cotizacion.id, visitaId: id },
+      // Al cotizador de esa oferta, no al listado: quien recibe esto
+      // tiene que ponerse a cotizar, no a buscar cuál era.
+      url: `/crm/cotizaciones/${visita.cotizacion.id}/editar`,
+      etiqueta: `visita-${id}`,
     }).catch(() => undefined);
 
     // Y por correo. La notificacion del portal solo la ve quien lo

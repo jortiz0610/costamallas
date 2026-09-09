@@ -22,6 +22,7 @@
 // ============================================================
 
 import { prisma } from "@/lib/prisma";
+import { notificar } from "@/lib/notificar";
 import { enviarCorreo, correoConfigurado } from "@/lib/correo";
 import { armarCorreo } from "@/lib/correo-plantillas-server";
 import { formatCOP } from "@/lib/utils";
@@ -54,14 +55,16 @@ export async function avisarApertura(cotizacionId: string, urlPortal: string): P
   };
 
   // 1. La notificación del portal. Esta sí llega hoy.
-  await prisma.notificacion.create({
-    data: {
-      tipo: "SISTEMA",
-      titulo: `${datos.cliente} abrió ${cot.numero}`,
-      mensaje: `La tiene en la pantalla ahora mismo. Es el mejor momento para llamar. Vence el ${vence}.`,
-      data: { cotizacionId: cot.id },
-      usuarioId: cot.vendedor.id,
-    },
+  // El push importa MÁS aquí que en ningún otro aviso: "la tiene en la
+  // pantalla ahora mismo" caduca en minutos. Verlo mañana al abrir el
+  // portal es no haberlo recibido.
+  await notificar({
+    usuarioId: cot.vendedor.id,
+    titulo: `${datos.cliente} abrió ${cot.numero}`,
+    mensaje: `La tiene en la pantalla ahora mismo. Es el mejor momento para llamar. Vence el ${vence}.`,
+    data: { cotizacionId: cot.id },
+    url: `/crm/cotizaciones/${cot.id}`,
+    etiqueta: `abrio-${cot.id}`,
   }).catch(() => undefined);
 
   // 2. El correo. Si no hay SMTP, se anota y ya: la notificación salió.

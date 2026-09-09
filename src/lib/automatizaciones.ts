@@ -20,6 +20,7 @@
 // ============================================================
 
 import { prisma } from "@/lib/prisma";
+import { notificar } from "@/lib/notificar";
 import { enviarCorreo, correoConfigurado } from "@/lib/correo";
 import { urlPortal } from "@/lib/url-portal";
 import { getMarca } from "@/lib/marca";
@@ -134,14 +135,13 @@ export async function avisarBorradoresParados(
     });
 
     if (!dry) {
-      await prisma.notificacion.create({
-        data: {
-          tipo: "SISTEMA",
-          usuarioId: c.vendedor.id,
-          titulo: `Borrador parado · ${c.numero}`,
-          mensaje: `Lleva ${dias} días sin tocarse y el cliente no la ha visto: un borrador no se envía solo. Mándala o descártala.`,
-          data: { cotizacionId: c.id },
-        },
+      await notificar({
+        usuarioId: c.vendedor.id,
+        titulo: `Borrador parado · ${c.numero}`,
+        mensaje: `Lleva ${dias} días sin tocarse y el cliente no la ha visto: un borrador no se envía solo. Mándala o descártala.`,
+        data: { cotizacionId: c.id },
+        url: `/crm/cotizaciones/${c.id}`,
+        etiqueta: `borrador-${c.id}`,
       }).catch(() => undefined);
     }
   }
@@ -206,14 +206,12 @@ export async function repartirClientesSinAsesor(
 
     if (!dry) {
       await prisma.cliente.update({ where: { id: c.id }, data: { vendedorId: elegido.id } });
-      await prisma.notificacion.create({
-        data: {
-          tipo: "SISTEMA",
-          usuarioId: elegido.id,
-          titulo: `Cliente nuevo asignado · ${c.nombre}`,
-          mensaje: "Entró sin asesor y se te asignó por turno. Revísalo cuando puedas.",
-          data: { clienteId: c.id },
-        },
+      await notificar({
+        usuarioId: elegido.id,
+        titulo: `Cliente nuevo asignado · ${c.nombre}`,
+        mensaje: "Entró sin asesor y se te asignó por turno. Revísalo cuando puedas.",
+        data: { clienteId: c.id },
+        url: `/crm/clientes/${c.id}`,
       }).catch(() => undefined);
     }
   }
@@ -287,14 +285,12 @@ export async function avisarClientesEnfriandose(
     avisados.push({ cliente: c.empresa || c.nombre, asesor: c.vendedor.nombre, dias });
 
     if (!dry) {
-      await prisma.notificacion.create({
-        data: {
-          tipo: "SISTEMA",
-          usuarioId: c.vendedor.id,
-          titulo: `Se está enfriando · ${c.empresa || c.nombre}`,
-          mensaje: `Lleva ${dias} días sin ninguna señal. En un mes pasa a inactivo. Es más barato recuperarlo ahora que conseguir uno nuevo.`,
-          data: { clienteId: c.id },
-        },
+      await notificar({
+        usuarioId: c.vendedor.id,
+        titulo: `Se está enfriando · ${c.empresa || c.nombre}`,
+        mensaje: `Lleva ${dias} días sin ninguna señal. En un mes pasa a inactivo. Es más barato recuperarlo ahora que conseguir uno nuevo.`,
+        data: { clienteId: c.id },
+        url: `/crm/clientes/${c.id}`,
       }).catch(() => undefined);
     }
   }
