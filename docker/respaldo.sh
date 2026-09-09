@@ -62,6 +62,29 @@ mkdir -p "$DIRECTORIO"
 
 echo "[$(date '+%F %T')] Respaldando $BASE…"
 
+# ── Dejar rastro en la propia base ──
+#
+# Un cron que falla no se lo cuenta a nadie: deja una línea en un
+# archivo que nadie mira. Eso dejó a este portal sin respaldos su
+# primera noche, y se supo dos días después por casualidad.
+#
+# Así que el guion apunta CÓMO le fue en la tabla `configuracion`, y la
+# pantalla de Estado del sistema lo lee y lo pinta en rojo si hace falta
+# (ver src/lib/respaldo-estado.ts). Se escribe también cuando falla: un
+# intento fallido registrado es más útil que el silencio.
+apuntar() {
+  local ok="$1" bytes="${2:-0}" fuera="${3:-false}" motivo="${4:-}"
+  # El motivo se limpia de comillas: va dentro de un JSON dentro de SQL.
+  motivo=$(printf '%s' "$motivo" | tr -d "\"'\\\\" | cut -c1-160)
+  local json="{\"en\":\"$(date -Is)\",\"ok\":$ok,\"bytes\":$bytes,\"fuera\":$fuera,\"motivo\":\"$motivo\"}"
+  docker compose exec -T postgres psql -U "$USUARIO" -d "$BASE" -q -c \
+    "INSERT INTO configuracion (id, clave, valor, encrypted, descripcion, \"updatedAt\")
+     VALUES (md5('respaldo_ultimo'), 'respaldo_ultimo', '$json', false,
+             'Como le fue al ultimo respaldo. Lo escribe docker/respaldo.sh', now())
+     ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor, \"updatedAt\" = now();" \
+    >/dev/null 2>&1 || true
+}
+
 # `pg_dump` dentro del contenedor: así no hace falta instalar el cliente
 # de Postgres en el servidor ni preocuparse de que su versión coincida.
 # `-T` porque cron no tiene terminal y sin eso docker falla.
@@ -69,6 +92,7 @@ if ! docker compose exec -T postgres pg_dump -U "$USUARIO" -d "$BASE" --clean --
   | gzip -9 > "$ARCHIVO.parcial"; then
   echo "✗ El pg_dump falló. No se toca nada más."
   rm -f "$ARCHIVO.parcial"
+  apuntar false 0 false "el pg_dump fallo"
   exit 1
 fi
 
@@ -85,6 +109,7 @@ if [ "$(stat -c%s "$ARCHIVO")" -lt 51200 ]; then
 fi
 
 # ── La copia de fuera ──
+FUERA=false
 if [ -n "${SUPABASE_URL:-}" ] && [ -n "${SUPABASE_SECRET_KEY:-}" ]; then
   BUCKET="${SUPABASE_BUCKET:-respaldos}"
   echo "  → Subiendo a Supabase Storage ($BUCKET)…"
@@ -94,6 +119,7 @@ if [ -n "${SUPABASE_URL:-}" ] && [ -n "${SUPABASE_SECRET_KEY:-}" ]; then
       -H "Content-Type: application/gzip" \
       --data-binary "@$ARCHIVO" > /dev/null; then
     echo "  ✓ Copia fuera de la máquina lista."
+    FUERA=true
   else
     # No se corta el script: el respaldo local YA está hecho y sirve.
     echo "  ✗ No se pudo subir. El respaldo local sí quedó."
@@ -102,6 +128,10 @@ else
   echo "  ⚠ Sin copia fuera de la máquina: faltan SUPABASE_URL y SUPABASE_SECRET_KEY."
   echo "    Un respaldo en el mismo disco que la base no salva de perder el disco."
 fi
+
+# El rastro para la pantalla de Estado del sistema. Va después de la
+# copia de fuera para poder decir si salió o no.
+apuntar true "$(stat -c%s "$ARCHIVO")" "$FUERA" ""
 
 # ── Limpieza ──
 # Solo los locales. Los de fuera se limpian en su destino: precisamente

@@ -15,6 +15,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { estadoReloj, HORAS_SIN_LATIDO } from "@/lib/automatizaciones";
+import { estadoRespaldo, pesoLegible } from "@/lib/respaldo-estado";
 
 export type Nivel = "ok" | "aviso" | "problema" | "apagado";
 
@@ -141,6 +142,45 @@ export async function revisarSalud(): Promise<Salud> {
       arreglo: rapido ? undefined : "Falta el secreto CRON_SECRET en GitHub → Settings → Secrets → Actions.",
     });
   }
+
+  // ── El respaldo de la base ──
+  //
+  // Va aquí y no en una pantalla de sistemas porque la pregunta no es
+  // técnica: es "si mañana se pierde el servidor, ¿cuánto trabajo se
+  // pierde con él?". Se mide por el rastro que deja el propio guion, no
+  // por si hay una línea en el crontab — un cron declarado y roto se ve
+  // igual que uno que funciona, y así fue como este portal pasó su
+  // primera noche en producción sin un solo respaldo.
+  const resp = await estadoRespaldo();
+  const desde = resp.en
+    ? new Date(resp.en).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })
+    : null;
+
+  c.push({
+    clave: "respaldo",
+    titulo: "Respaldo de la base de datos",
+    nivel: !resp.hay || resp.viejo || !resp.ok
+      ? "problema"
+      : !resp.fuera ? "aviso" : "ok",
+    detalle: !resp.hay
+      ? "No hay rastro de ningún respaldo."
+      : !resp.ok
+        ? `El último intento (${desde}) FALLÓ${resp.motivo ? `: ${resp.motivo}` : "."}`
+        : resp.viejo
+          ? `El último es del ${desde}, hace ${Math.round(resp.horas ?? 0)} h.`
+          : `Hecho el ${desde}${resp.bytes ? ` (${pesoLegible(resp.bytes)})` : ""}.` +
+            (resp.fuera ? " Con copia fuera del servidor." : ""),
+    consecuencia: !resp.hay || !resp.ok || resp.viejo
+      ? "Si el servidor se pierde hoy, se pierde TODO: clientes, cotizaciones, pedidos e historial."
+      : !resp.fuera
+        ? "El respaldo está en el mismo disco que la base. Salva de un borrado, no de perder la máquina."
+        : undefined,
+    arreglo: !resp.hay || !resp.ok || resp.viejo
+      ? "Revisar el registro en /srv/backups/respaldo.log del servidor."
+      : !resp.fuera
+        ? "Falta la clave de Supabase para subir la copia fuera."
+        : undefined,
+  });
 
   // ── Recargos de instalación ──
   const recargos = await prisma.recargoCiudad.count();
