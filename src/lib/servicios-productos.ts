@@ -119,12 +119,24 @@ export async function sincronizarServiciosComoProductos(): Promise<ResultadoServ
         intEstado: EstadoProducto.LISTO,
       };
 
+      // Los arreglos de la ficha tecnica son obligatorios en el esquema y
+      // no tienen valor por defecto: sin esto, crear el producto falla con
+      // "Null constraint violation". Un servicio no tiene normas ni
+      // colores, asi que van vacios — que es distinto de nulo.
+      const arreglosVacios = {
+        etiquetas: [] as string[],
+        acfAplicaciones: [] as string[],
+        acfColores: [] as string[],
+        acfNormas: [] as string[],
+        acfCertificaciones: [] as string[],
+      };
+
       if (existente) {
         await prisma.producto.update({ where: { id: existente.id }, data: datos });
         r.actualizados.push(s.nombre);
       } else {
         await prisma.producto.create({
-          data: { ...datos, sku, slug: slugDe(s.nombre) || sku.toLowerCase() },
+          data: { ...datos, ...arreglosVacios, sku, slug: slugDe(s.nombre) || sku.toLowerCase() },
         });
         r.creados.push(s.nombre);
       }
