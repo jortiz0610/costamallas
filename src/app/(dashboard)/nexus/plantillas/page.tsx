@@ -225,7 +225,7 @@ function PlantillasContent() {
                 <div key={p.id} className="card card-hover p-4 flex flex-col group">
                   <div className="flex items-start justify-between mb-2">
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: cat.c + "20", color: cat.c }}>{cat.l}</span>
-                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1.5 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                       <button onClick={() => setEditando(p)} className="text-muted hover:text-[color:var(--brand-color)]" title="Editar"><Pencil size={13} /></button>
                       <button onClick={() => eliminar(p.id)} className="text-muted hover:text-red-500" title="Borrar"><Trash2 size={13} /></button>
                     </div>

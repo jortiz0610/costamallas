@@ -287,7 +287,7 @@ function CategoriasContent() {
                   ) : (
                     <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">{item.label}</span>
                   )}
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                     {tipo === "CATEGORIA" && esAdmin(user?.rol) && (
                       <button
                         onClick={() => setCamposModal({ categoria: item.valor, label: item.label })}

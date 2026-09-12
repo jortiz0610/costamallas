@@ -242,10 +242,28 @@ function CotizacionesContent() {
           {isLoading ? <div className="p-8 text-center text-sm text-gray-400">Cargando...</div>
           : cotizaciones.length === 0 ? <div className="p-10 text-center text-sm text-gray-400">Sin cotizaciones</div>
           : cotizaciones.map(c => (
-            <div key={c.id} className="flex items-center gap-4 px-5 py-3.5 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 group transition-colors last:border-b-0">
-              <div className="flex-shrink-0"><p className="text-xs font-mono font-bold text-gray-500">{c.numero}</p><p className="text-[10px] text-gray-400">{new Date(c.createdAt).toLocaleDateString("es-CO")}</p></div>
+            /* En el teléfono esta fila era ilegible: diez cosas en una
+               sola línea hacían que el nombre del cliente se estrujara
+               hasta partirse palabra por palabra —"OBRA / MAESTRA / DE /
+               COLOMBIA"— mientras los botones se salían por la derecha y
+               "Editar" quedaba cortado. Ahora se apila en ficha hasta
+               `lg`; de ahí en adelante es exactamente la fila de antes. */
+            <div key={c.id} className="flex flex-col gap-2 xl:flex-row xl:items-center xl:gap-4 px-4 xl:px-5 py-3.5 border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 group transition-colors last:border-b-0">
+              {/* Número y estado comparten la primera línea en el
+                  teléfono. En escritorio el estado vuelve a su sitio. */}
+              <div className="flex items-center justify-between gap-3 xl:block xl:flex-shrink-0">
+                <div>
+                  <p className="text-xs font-mono font-bold text-gray-500">{c.numero}</p>
+                  <p className="text-[10px] text-gray-400">{new Date(c.createdAt).toLocaleDateString("es-CO")}</p>
+                </div>
+                <span className="xl:hidden"><Badge estado={c.estado} /></span>
+              </div>
               <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{c.cliente.nombre}</p>{c.cliente.empresa && <p className="text-xs text-gray-400">{c.cliente.empresa}</p>}</div>
-              <Badge estado={c.estado} />
+              <span className="hidden xl:inline-flex"><Badge estado={c.estado} /></span>
+              {/* Los distintivos se envuelven en su propia línea en el
+                  teléfono. `lg:contents` hace desaparecer esta caja en
+                  escritorio: la fila de siempre no cambia ni un píxel. */}
+              <div className="flex flex-wrap items-center gap-1.5 xl:contents">
               {/* La marca de prueba va PEGADA al estado y en ámbar: si se
                   pudiera confundir con una oferta real, todo el mecanismo
                   de excluirlas de los informes sobraría. */}
@@ -288,9 +306,14 @@ function CotizacionesContent() {
                   Condiciones rechazadas
                 </span>
               )}
-              <p className="text-sm font-bold text-gray-900 dark:text-gray-100 w-32 text-right">{formatCOP(c.total)}</p>
-              <div className="flex items-center gap-1.5">
-                {c.estado === "BORRADOR" && <button onClick={() => cambiarEstado(c.id,"ENVIADA")} className="px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Enviar</button>}
+              </div>
+              {/* Última línea en el teléfono: el total a la izquierda y
+                  los botones a la derecha, que es donde llega el pulgar.
+                  En escritorio esta caja también desaparece. */}
+              <div className="flex items-center justify-between gap-2 xl:contents">
+              <p className="text-base xl:text-sm font-bold text-gray-900 dark:text-gray-100 xl:w-32 text-right">{formatCOP(c.total)}</p>
+              <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                {c.estado === "BORRADOR" && <button onClick={() => cambiarEstado(c.id,"ENVIADA")} className="px-2.5 py-1 rounded-lg bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 text-xs font-semibold xl:opacity-0 xl:group-hover:opacity-100 transition-opacity">Enviar</button>}
                 {/* Aplazar: el caso real de "el cliente pidió unos días
                     más". Antes la única salida era rehacer la oferta, lo
                     que quemaba un consecutivo y perdía el seguimiento. */}
@@ -301,8 +324,8 @@ function CotizacionesContent() {
                   </button>
                 )}
                 {c.estado === "ENVIADA" && <>
-                  <button onClick={() => cambiarEstado(c.id,"APROBADA")} className="px-2.5 py-1 rounded-lg bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Aprobar</button>
-                  <button onClick={() => cambiarEstado(c.id,"RECHAZADA")} className="px-2.5 py-1 rounded-lg bg-red-100 dark:bg-red-500/15 text-red-600 dark:text-red-300 text-xs font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Rechazar</button>
+                  <button onClick={() => cambiarEstado(c.id,"APROBADA")} className="px-2.5 py-1 rounded-lg bg-green-100 dark:bg-green-500/15 text-green-700 dark:text-green-300 text-xs font-semibold xl:opacity-0 xl:group-hover:opacity-100 transition-opacity">Aprobar</button>
+                  <button onClick={() => cambiarEstado(c.id,"RECHAZADA")} className="px-2.5 py-1 rounded-lg bg-red-100 dark:bg-red-500/15 text-red-600 dark:text-red-300 text-xs font-semibold xl:opacity-0 xl:group-hover:opacity-100 transition-opacity">Rechazar</button>
                 </>}
                 {/* Editar solo donde de verdad se puede: una oferta
                     aprobada ya generó pedido, y una rechazada o vencida
@@ -318,6 +341,7 @@ function CotizacionesContent() {
                 <Link href={`/crm/cotizaciones/${c.id}`} className="px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1" style={{ backgroundColor: CRM_COLOR + "18", color: CRM_COLOR }}>
                   <Eye size={12} /> Ver
                 </Link>
+              </div>
               </div>
             </div>
           ))}

@@ -221,7 +221,7 @@ function PanelProducto({ producto, onVolver }: { producto: ProductoConImagenes; 
                       <Star size={9} className="fill-white" /> Principal
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <div className="absolute inset-0 bg-black/55 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     {/* Estas dos las tiene todo el mundo: son las que hacen
                         útil la biblioteca para quien vende. */}
                     <button onClick={() => copiarUrl(img.urlImagen)} className="w-9 h-9 rounded-xl bg-white/90 text-gray-700 flex items-center justify-center" title="Copiar el enlace de la foto">

@@ -54,10 +54,16 @@ function av(n: string) { return AV_COLORS[n.charCodeAt(0) % AV_COLORS.length]; }
 function PedidoRow({ p, onAvanzar }: { p: Pedido; onAvanzar: (p: Pedido) => void }) {
   const eInfo = ESTADOS_FLUJO.find(e => e.v === p.estado);
   return (
-    <div className="flex items-center gap-3 px-4 py-3.5 border-b border-gray-50 dark:border-slate-700/50 hover:bg-gray-50 dark:hover:bg-slate-800/40 transition-colors group last:border-b-0">
+    /* Mismo arreglo que en Cotizaciones: en el teléfono, estado, total y
+       botones no caben en la misma línea que el nombre, y lo que se
+       estrujaba era justo el nombre del cliente. Se apilan hasta `xl`.
+       El avatar se queda a la izquierda de todo, que es lo que deja
+       recorrer la lista de un vistazo. */
+    <div className="flex items-start xl:items-center gap-3 px-4 py-3.5 border-b border-gray-50 dark:border-slate-700/50 hover:bg-gray-50 dark:hover:bg-slate-800/40 transition-colors group last:border-b-0">
       <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style={{ backgroundColor: av(p.cliente.nombre) }}>
         {p.cliente.nombre.charAt(0)}
       </div>
+      <div className="flex-1 min-w-0 flex flex-col gap-2 xl:flex-row xl:items-center xl:gap-3">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{p.cliente.nombre}</p>
@@ -85,9 +91,12 @@ function PedidoRow({ p, onAvanzar }: { p: Pedido; onAvanzar: (p: Pedido) => void
         {p.cliente.empresa && <p className="text-xs text-gray-400">{p.cliente.empresa}</p>}
       </div>
       <p className="text-[10px] font-mono text-gray-400 hidden md:block">{p.numero}</p>
+      {/* Estado, total y botones comparten una línea propia en el
+          teléfono. `xl:contents` disuelve esta caja en escritorio. */}
+      <div className="flex flex-wrap items-center justify-between gap-2 xl:contents">
       <Badge estado={p.estado} />
-      <p className="text-sm font-bold text-gray-900 dark:text-gray-100 w-28 text-right">{formatCOP(p.total)}</p>
-      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+      <p className="text-sm font-bold text-gray-900 dark:text-gray-100 xl:w-28 text-right">{formatCOP(p.total)}</p>
+      <div className="flex items-center gap-1.5 xl:opacity-0 xl:group-hover:opacity-100 transition-opacity">
         {eInfo?.next && (
           <button onClick={() => onAvanzar(p)} className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ backgroundColor: CRM_COLOR }}>
             Avanzar
@@ -96,6 +105,8 @@ function PedidoRow({ p, onAvanzar }: { p: Pedido; onAvanzar: (p: Pedido) => void
         <Link href={`/crm/pedidos/${p.id}`} className="px-2.5 py-1.5 rounded-lg bg-gray-100 dark:bg-slate-700 text-xs font-semibold text-gray-600 dark:text-gray-300 flex items-center gap-1">
           Ver <ChevronRight size={11} />
         </Link>
+      </div>
+      </div>
       </div>
     </div>
   );

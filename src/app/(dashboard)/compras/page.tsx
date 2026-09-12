@@ -277,7 +277,7 @@ function ComprasContent() {
                     <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{p.nombre}</p>
                     {p.contacto && <p className="text-xs text-muted">{p.contacto}</p>}
                   </div>
-                  <button onClick={() => eliminar(p.id)} className="text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
+                  <button onClick={() => eliminar(p.id)} className="text-muted hover:text-red-500 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
                   {p.email && <span className="text-xs text-muted flex items-center gap-1.5 truncate"><Mail size={11} />{p.email}</span>}

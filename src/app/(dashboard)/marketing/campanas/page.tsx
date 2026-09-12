@@ -159,7 +159,7 @@ function CampanasContent() {
                         <td className="text-right">{formatCOP(c.ingresos)}</td>
                         <td className="text-right font-bold" style={{ color: r.roas >= 1 ? "#16a34a" : "#dc2626" }}>{r.roas.toFixed(2)}x</td>
                         <td className="text-right">
-                          <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-1 justify-end lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                             <button onClick={() => setModal({ open: true, campana: c })} className="text-muted hover:text-blue-500"><Pencil size={13} /></button>
                             <button onClick={() => eliminar(c.id)} className="text-muted hover:text-red-500"><Trash2 size={13} /></button>
                           </div>

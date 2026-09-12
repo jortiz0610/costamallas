@@ -202,7 +202,7 @@ function ClientesContent() {
                 </div>
               </div>
               <LeadScore cot={c._count.cotizaciones} ped={c._count.pedidos} />
-              <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-1.5 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                 <Link href={`/crm/clientes/${c.id}`}
                   className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1"
                   style={{ backgroundColor: CRM_COLOR }}>
