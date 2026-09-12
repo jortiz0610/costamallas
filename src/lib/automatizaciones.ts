@@ -101,6 +101,8 @@ export async function avisarBorradoresParados(
 
   const borradores = await prisma.cotizacion.findMany({
     where: {
+      // Las borradas no existen para nadie salvo el administrador.
+      borradaEn: null,
       estado: "BORRADOR",
       esPrueba: false,
       updatedAt: { lt: corte },

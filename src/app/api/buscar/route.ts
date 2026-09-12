@@ -83,6 +83,8 @@ export async function GET(req: NextRequest) {
     tareas.push((async () => {
       const filas = await prisma.cotizacion.findMany({
         where: {
+          // Las borradas no existen para nadie salvo el administrador.
+          borradaEn: null,
           ...mio,
           OR: [{ numero: contiene }, { cliente: { is: { nombre: contiene } } }, { cliente: { is: { empresa: contiene } } }],
         },

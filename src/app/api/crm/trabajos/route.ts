@@ -30,6 +30,8 @@ export async function GET(req: NextRequest) {
   // marcadas.
   const cotizaciones = await prisma.cotizacion.findMany({
     where: {
+      // Las borradas no existen para nadie salvo el administrador.
+      borradaEn: null,
       OR: [{ requiereVisita: true }, { requiereSgsst: true }],
       // Una oferta rechazada o vencida ya no da trabajo a nadie.
       estado: { in: ["BORRADOR", "ENVIADA", "APROBADA"] },

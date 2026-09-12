@@ -53,6 +53,7 @@ model Usuario {
   /// Los navegadores donde esta persona quiere recibir avisos, incluso
   /// con el portal cerrado. Uno por aparato.
   suscripcionesPush SuscripcionPush[]
+  cotizacionesBorradas Cotizacion[] @relation("CotizacionesBorradas")
 
   ordenesComoOperario   OrdenProduccion[] @relation("OpOperario")
   ordenesComoSupervisor OrdenProduccion[] @relation("OpSupervisor")
@@ -475,7 +476,30 @@ model PlantillaNexus {
 
 model Cotizacion {
   id               String   @id @default(cuid())
+  /// El consecutivo. Al BORRAR una oferta se cambia por un centinela
+  /// —"BORRADA-<id>"— para liberar el número: si no, el consecutivo no
+  /// podría volver a usarlo nunca porque este índice es único.
   numero           String   @unique
+
+  // ── Borrado lógico ──
+  //
+  /// Cuándo se borró. Nulo = viva. Las ofertas NO se borran de verdad:
+  /// se marcan. Una cotización desaparecida deja pedidos, seguimientos y
+  /// cifras del embudo apuntando al vacío, y nadie puede reconstruir qué
+  /// pasó.
+  borradaEn        DateTime?
+  borradaPorId     String?
+  /// Quién la borró. Es la mitad de lo que hace útil la papelera: sin
+  /// esto, una oferta desaparecida no tiene responsable.
+  borradaPor       Usuario? @relation("CotizacionesBorradas", fields: [borradaPorId], references: [id], onDelete: SetNull)
+  /// Por qué se borró. Se pide al borrar: "se equivocó de cliente" y
+  /// "el cliente desistió" son cosas distintas y a los tres meses nadie
+  /// se acuerda.
+  borradaMotivo    String?
+  /// El número que TENÍA. Se guarda aparte porque `numero` se libera, y
+  /// es justo lo que el administrador necesita ver en la lista de
+  /// borradas: "COT-12076, borrada el 12 de septiembre".
+  numeroOriginal   String?
   clienteId        String
   cliente          Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   vendedorId       String?
@@ -605,6 +629,7 @@ model Cotizacion {
   /// La visita de la que nacio esta oferta, si hubo una.
   visitas Instalacion[]
 
+  @@index([borradaEn])
   @@map("cotizaciones")
 }
 

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { borrarCotizacion, restaurarCotizacion } from "@/lib/borrar-cotizacion";
 import { prisma } from "@/lib/prisma";
 import { calcularCotizacion, leerAIU } from "@/lib/cotizacion-calculo";
-import { getUserFromRequest } from "@/lib/auth";
+import { getUserFromRequest, isAdmin } from "@/lib/auth";
 import { siguienteNumeroSeguro } from "@/lib/consecutivos";
 import { recalcularCliente } from "@/lib/estados-cliente-server";
 import { conFotoDelCatalogo, type ItemGuardable } from "@/lib/cotizacion-imagenes";
@@ -269,4 +270,39 @@ export async function PUT(req: NextRequest, { params }: P) {
     aviso: avisoPolitica,
     avisoInstalacion,
   });
+}
+
+// ============================================================
+// DELETE — borrar una oferta (solo administración)
+//
+// No la borra de verdad: la marca. Ver lib/borrar-cotizacion.ts para
+// qué pasa con el número, que es la parte con miga.
+//
+// Solo ADMIN/SUPERADMIN. Un vendedor que se equivocó pide que se la
+// borren: dejar que cualquiera haga desaparecer una oferta del embudo
+// es dejar que las cifras del mes cambien sin que nadie se entere.
+// ============================================================
+
+export async function DELETE(req: NextRequest, { params }: P) {
+  const { id } = await params;
+  const user = await getUserFromRequest(req);
+  if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
+  if (!isAdmin(user)) {
+    return NextResponse.json(
+      { success: false, error: "Solo un administrador puede borrar cotizaciones." },
+      { status: 403 },
+    );
+  }
+
+  const body = await req.json().catch(() => ({}));
+
+  // ?restaurar=1 deshace el borrado. Va en la misma ruta porque es la
+  // misma decisión mirada al revés, y quien puede una puede la otra.
+  if (req.nextUrl.searchParams.get("restaurar") === "1") {
+    const r = await restaurarCotizacion(id, user.sub);
+    return NextResponse.json(r, { status: r.ok ? 200 : 400 });
+  }
+
+  const r = await borrarCotizacion(id, user.sub, body?.motivo);
+  return NextResponse.json(r, { status: r.ok ? 200 : 400 });
 }

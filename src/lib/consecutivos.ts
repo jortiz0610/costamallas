@@ -37,6 +37,15 @@ const CONFIG: Record<TipoDocumento, { clave: string; descripcion: string; digito
   OP:  { clave: "consecutivo_orden_produccion", descripcion: "Último número de orden de producción emitido", digitos: 5, etiqueta: "Órdenes de producción" },
 };
 
+/**
+ * La clave con la que se guarda el contador de un tipo.
+ *
+ * Se expone para que nadie la reescriba a mano: al borrar una
+ * cotizacion hay que devolver el numero al contador, y escribir
+ * "consecutivo_COT" -que no existe- fallaba en silencio.
+ */
+export const claveConsecutivo = (tipo: TipoDocumento) => CONFIG[tipo].clave;
+
 export const TIPOS = Object.keys(CONFIG) as TipoDocumento[];
 export const etiquetaDe = (tipo: TipoDocumento) => CONFIG[tipo].etiqueta;
 

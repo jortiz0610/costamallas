@@ -155,7 +155,9 @@ export async function borrarPruebas(opciones?: {
   const deEsosClientes = idsCliente.length ? [{ clienteId: { in: idsCliente } }] : [];
 
   const cotizaciones = await prisma.cotizacion.findMany({
-    where: { OR: [{ esPrueba: true, ...soloEste }, ...deEsosClientes] },
+    where: {
+      // Las borradas no existen para nadie salvo el administrador.
+      borradaEn: null, OR: [{ esPrueba: true, ...soloEste }, ...deEsosClientes] },
     select: { id: true, numero: true, pedidos: { select: { id: true } } },
   });
 

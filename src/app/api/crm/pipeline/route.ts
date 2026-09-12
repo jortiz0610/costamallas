@@ -29,6 +29,8 @@ export async function GET(req: NextRequest) {
 
   const cotizaciones = await prisma.cotizacion.findMany({
     where: {
+      // Las borradas no existen para nadie salvo el administrador.
+      borradaEn: null,
       ...suyas,
       // Sin esto, la cotización de capacitación se creaba, se enviaba…
       // y desaparecía del pipeline. No había dónde arrastrarla al

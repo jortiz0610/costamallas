@@ -1,14 +1,16 @@
 "use client";
 
 import { Suspense, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
 import {
-  ArrowLeft, Printer, Loader2, Save, CheckCircle2, Link2, Send, Eye, Mail, AlertTriangle, Pencil } from "lucide-react";
+  ArrowLeft, Printer, Loader2, Save, CheckCircle2, Link2, Send, Eye, Mail, AlertTriangle, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { useBrand } from "@/contexts/BrandContext";
+import { useAuth } from "@/hooks/useAuth";
 import { CotizacionDoc, type CotizacionDocData } from "@/components/crm/CotizacionDoc";
 import { PanelSeguimiento } from "@/components/crm/PanelSeguimiento";
 import { PanelPolitica } from "@/components/crm/PanelPolitica";
@@ -127,6 +129,44 @@ function DetalleContent() {
     } finally { setEnviando(false); }
   };
 
+  const router = useRouter();
+  const { user } = useAuth();
+  const esAdmin = user?.rol === "ADMIN" || user?.rol === "SUPERADMIN";
+  const [borrando, setBorrando] = useState(false);
+
+  const borrar = async () => {
+    // Se pide el motivo, y sirve de confirmación a la vez: escribir algo
+    // es un gesto deliberado, y un "¿seguro?" se contesta que sí sin
+    // leerlo.
+    const motivo = window.prompt(
+      "¿Por qué se borra esta cotización? Queda guardado junto a quién la borró. " +
+      "Solo un administrador podrá verla después.",
+    );
+    if (motivo === null) return;
+
+    setBorrando(true);
+    try {
+      const r = await fetch(`/api/crm/cotizaciones/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motivo }),
+      });
+      const j = await r.json();
+      if (!j.ok) { toast.error(j.error ?? "No se pudo borrar"); return; }
+      toast.success(
+        j.numeroDevuelto
+          ? `Borrada. El número ${j.numero} vuelve al contador: lo usará la próxima oferta.`
+          : `Borrada. El número ${j.numero} se pierde, porque ya hay ofertas posteriores.`,
+        { duration: 9000 },
+      );
+      router.push("/crm/cotizaciones");
+    } catch {
+      toast.error("Sin conexión.");
+    } finally {
+      setBorrando(false);
+    }
+  };
+
   if (isLoading) return <><Topbar title="Cotización" /><div className="flex-1 flex items-center justify-center page-bg"><Loader2 size={22} className="animate-spin" style={{ color: CRM_COLOR }} /></div></>;
   if (!data) return <><Topbar title="Cotización" /><div className="flex-1 flex items-center justify-center page-bg"><p className="text-sm text-muted">No se encontró la cotización</p></div></>;
 
@@ -188,6 +228,15 @@ function DetalleContent() {
           <button onClick={enviarCorreo} disabled={enviando} className="btn-secondary btn-sm">
             {enviando ? <Loader2 size={13} className="animate-spin" /> : <Mail size={13} />} Enviar
           </button>
+          {esAdmin && data.estado !== "APROBADA" && (
+            <button
+              onClick={borrar} disabled={borrando}
+              className="btn-secondary btn-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+              title="Borrar esta cotización"
+            >
+              {borrando ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />} Borrar
+            </button>
+          )}
           <button onClick={() => window.print()} className="btn-secondary btn-sm"><Printer size={13} /> Imprimir / PDF</button>
         </div>
       } />

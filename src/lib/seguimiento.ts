@@ -462,6 +462,8 @@ export async function correrSeguimientos(opts: { dry?: boolean; soloCotizacionId
 
   const candidatas = await prisma.cotizacion.findMany({
     where: {
+      // Las borradas no existen para nadie salvo el administrador.
+      borradaEn: null,
       ...(opts.soloCotizacionId ? { id: opts.soloCotizacionId } : {}),
       estado: "ENVIADA",
       seguimientoActivo: true,

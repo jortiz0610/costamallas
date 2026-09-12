@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { calcularCotizacion, leerAIU } from "@/lib/cotizacion-calculo";
-import { getUserFromRequest } from "@/lib/auth";
+import { getUserFromRequest, isAdmin } from "@/lib/auth";
 import { siguienteNumeroSeguro } from "@/lib/consecutivos";
 import { recalcularCliente } from "@/lib/estados-cliente-server";
 import { filtroPorVendedor } from "@/lib/alcance-crm";
@@ -25,8 +25,21 @@ export async function GET(req: NextRequest) {
   // Sin `crm.ver_todo`, cada vendedor ve solo sus propias ofertas.
   const suyas = await filtroPorVendedor(req);
 
+  // ?borradas=1 — la papelera. Solo administración: una oferta borrada
+  // salió del embudo y de las cifras del mes, así que quién puede verla
+  // es la misma pregunta que quién puede borrarla.
+  const verBorradas = req.nextUrl.searchParams.get("borradas") === "1";
+  if (verBorradas && !isAdmin(user)) {
+    return NextResponse.json(
+      { success: false, error: "Solo un administrador puede ver las cotizaciones borradas." },
+      { status: 403 },
+    );
+  }
+
   const cotizaciones = await prisma.cotizacion.findMany({
     where: {
+      // Las borradas no existen para nadie salvo el administrador.
+      borradaEn: verBorradas ? { not: null } : null,
       ...suyas,
       ...(clienteId ? { clienteId } : {}),
       ...(estado ? { estado } : {}),
@@ -35,6 +48,7 @@ export async function GET(req: NextRequest) {
       cliente: { select: { nombre: true, empresa: true } },
       vendedor: { select: { nombre: true } },
       _count: { select: { items: true } },
+      ...(verBorradas ? { borradaPor: { select: { nombre: true } } } : {}),
     },
     orderBy: { createdAt: "desc" },
     take: 100,
