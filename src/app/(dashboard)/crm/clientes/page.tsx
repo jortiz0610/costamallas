@@ -184,11 +184,15 @@ function ClientesContent() {
             </div>
           ) : filtrados.map(c => (
             <div key={c.id}
-              className="flex items-center gap-3 px-4 py-3.5 border-b border-gray-50 dark:border-slate-700/50 hover:bg-gray-50 dark:hover:bg-slate-800/40 transition-colors group last:border-b-0">
+              className="flex items-start xl:items-center gap-3 px-4 py-3.5 border-b border-gray-50 dark:border-slate-700/50 hover:bg-gray-50 dark:hover:bg-slate-800/40 transition-colors group last:border-b-0">
               <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
                 style={{ backgroundColor: avatarColor(c.nombre) }}>
                 {c.nombre.charAt(0).toUpperCase()}
               </div>
+              {/* Hasta `xl`, la puntuación y el botón bajan a su propia
+                  línea: en un teléfono le robaban el ancho al nombre, al
+                  correo y al teléfono, que es lo que se viene a leer. */}
+              <div className="flex-1 min-w-0 flex flex-col gap-2 xl:flex-row xl:items-center xl:gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">{c.nombre}</p>
@@ -201,13 +205,16 @@ function ClientesContent() {
                   {c.ciudad && <span className="text-xs text-gray-400 flex items-center gap-1"><MapPin size={9} />{c.ciudad}</span>}
                 </div>
               </div>
+              <div className="flex items-center justify-between gap-2 xl:contents">
               <LeadScore cot={c._count.cotizaciones} ped={c._count.pedidos} />
-              <div className="flex items-center gap-1.5 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-1.5 xl:opacity-0 xl:group-hover:opacity-100 transition-opacity">
                 <Link href={`/crm/clientes/${c.id}`}
                   className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1"
                   style={{ backgroundColor: CRM_COLOR }}>
                   Ver perfil <ChevronRight size={11} />
                 </Link>
+              </div>
+              </div>
               </div>
             </div>
           ))}
