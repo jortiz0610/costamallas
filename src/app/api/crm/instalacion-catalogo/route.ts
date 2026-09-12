@@ -13,6 +13,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
+import { sincronizarServiciosComoProductos } from "@/lib/servicios-productos";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest, canWrite } from "@/lib/auth";
 
@@ -110,6 +111,13 @@ export async function POST(req: NextRequest) {
     ? await prisma.servicioInstalacion.update({ where: { id: String(b.id) }, data: datos })
     : await prisma.servicioInstalacion.create({ data: datos });
 
+  // El servicio también existe como PRODUCTO, para que salga al buscar
+  // dentro del cotizador. Se regenera aquí para que el precio se cambie
+  // en un solo sitio: dos lugares donde editar el mismo precio es como
+  // quedan distintos. Si falla, el servicio ya está guardado —el
+  // catálogo de productos se pone al día en el siguiente guardado.
+  await sincronizarServiciosComoProductos().catch(() => undefined);
+
   return NextResponse.json({
     success: true,
     data: {
@@ -135,6 +143,9 @@ export async function DELETE(req: NextRequest) {
     await prisma.recargoCiudad.update({ where: { id }, data: { activo: false } }).catch(() => undefined);
   } else {
     await prisma.servicioInstalacion.update({ where: { id }, data: { activo: false } }).catch(() => undefined);
+    // Se ARCHIVA el producto, no se borra: borrarlo rompería las
+    // cotizaciones que ya lo llevan.
+    await sincronizarServiciosComoProductos().catch(() => undefined);
   }
 
   return NextResponse.json({ success: true });

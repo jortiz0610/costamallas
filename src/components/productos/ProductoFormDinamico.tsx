@@ -48,6 +48,10 @@ const CATS = [
   { v: "mallas-para-construccion", l: "Construcción / Anticaída", c: "bg-orange-600 text-white", dot: "#ea580c" },
   { v: "mallas-sombra",        l: "Mallas de Sombra",       c: "bg-amber-500 text-white",   dot: "#f59e0b" },
   { v: "mallas-agricolas",     l: "Mallas Agrícolas",       c: "bg-lime-600 text-white",    dot: "#65a30d" },
+  // Mano de obra: instalación y mantenimiento. Son productos de verdad
+  // —se cotizan, tienen precio y unidad— pero no se venden en la tienda,
+  // así que nacen sin publicar. Ver lib/servicios-productos.ts.
+  { v: "servicios",            l: "Servicios",              c: "bg-indigo-600 text-white",  dot: "#4f46e5" },
 ];
 const ACF_KEY: Record<string, string> = {
   "mallas-metalicas": "mm", "mallas-para-balcones": "bh",

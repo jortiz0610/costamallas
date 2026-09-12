@@ -43,6 +43,7 @@ import { recalcularEstados } from "@/lib/estados-cliente-server";
 import { limpiar } from "@/lib/mantenimiento";
 import { avisarAgendados, mandarEncuestasPendientes } from "@/lib/avisos-operacion";
 import { cerrarChatsDormidos } from "@/lib/nexus/cierre-automatico";
+import { sincronizarServiciosComoProductos } from "@/lib/servicios-productos";
 import {
   apuntarLatido, avisarBorradoresParados, repartirClientesSinAsesor,
   avisarClientesEnfriandose, resumenSemanal,
@@ -128,6 +129,12 @@ async function handle(req: NextRequest) {
     // conversación, así que uno que nadie cierra nunca se la manda.
     const chatsWeb = await extra("chatsWeb", () => cerrarChatsDormidos({ dry }));
 
+    // Los servicios de instalación, como productos buscables. Se
+    // regenera al guardar un servicio; esta pasada diaria es la red por
+    // si alguien tocó la tabla por fuera o un guardado falló. Son 14
+    // filas: cuesta menos que comprobar si hace falta.
+    const serviciosProducto = dry ? { omitido: "ensayo" } : await extra("servicios", () => sincronizarServiciosComoProductos());
+
     // Solo los lunes; los otros días se sale solo.
     const semanal = await extra("semanal", () => resumenSemanal({ dry }));
 
@@ -152,6 +159,7 @@ async function handle(req: NextRequest) {
         agendados,
         encuestas,
         chatsWeb,
+        serviciosProducto,
         semanal,
       },
     });
