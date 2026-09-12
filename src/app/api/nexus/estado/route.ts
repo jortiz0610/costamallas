@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import { canalPuedeEnviar } from "@/lib/nexus/canales";
 import { obtenerClaveAnthropic } from "@/lib/sembli/agente";
+import { ESTADOS_ACTIVOS } from "@/lib/nexus/alcance";
 
 export async function GET(req: NextRequest) {
   const user = await getUserFromRequest(req);
@@ -21,7 +22,9 @@ export async function GET(req: NextRequest) {
     prisma.nexusConexion.findMany({ orderBy: { createdAt: "asc" } }),
     prisma.configuracion.findUnique({ where: { clave: "nexus_flujos" } }),
     prisma.nexusConversacion.count(),
-    prisma.nexusConversacion.count({ where: { leida: false, estado: "ABIERTA" } }),
+    // Incluye EN_PROCESO: un mensaje nuevo en una conversación que
+    // alguien ya tomó sigue siendo alguien esperando respuesta.
+    prisma.nexusConversacion.count({ where: { leida: false, estado: { in: ESTADOS_ACTIVOS } } }),
   ]);
 
   const canales = await Promise.all(

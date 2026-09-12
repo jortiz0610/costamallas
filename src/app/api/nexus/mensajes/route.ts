@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest, canWrite } from "@/lib/auth";
 import { enviarPorCanal } from "@/lib/nexus/canales";
+import { puedeVerConversacion } from "@/lib/nexus/alcance";
 
 export async function GET(req: NextRequest) {
   const user = await getUserFromRequest(req);
@@ -22,6 +23,22 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const conversacionId = searchParams.get("conversacionId");
   if (!conversacionId) return NextResponse.json({ success: false, error: "conversacionId requerido" }, { status: 400 });
+
+  // Quién puede leer ESTE hilo. El listado ya filtraba, pero aquí no se
+  // comprobaba nada: con el id —que va en la URL— cualquiera con sesión
+  // se leía la conversación de otro asesor, y de paso se la marcaba como
+  // leída. Misma regla que el listado, escrita una sola vez.
+  const dueño = await prisma.nexusConversacion.findUnique({
+    where: { id: conversacionId },
+    select: { asignadoId: true },
+  });
+  if (!dueño) return NextResponse.json({ success: false, error: "La conversación no existe" }, { status: 404 });
+  if (!puedeVerConversacion(user, dueño)) {
+    return NextResponse.json(
+      { success: false, error: "Esta conversación la atiende otra persona." },
+      { status: 403 },
+    );
+  }
 
   const mensajes = await prisma.nexusMensaje.findMany({
     where: { conversacionId },
@@ -47,9 +64,18 @@ export async function POST(req: NextRequest) {
 
   const conv = await prisma.nexusConversacion.findUnique({
     where: { id: conversacionId },
-    select: { id: true, primeraRespuestaEn: true },
+    select: { id: true, primeraRespuestaEn: true, asignadoId: true },
   });
   if (!conv) return NextResponse.json({ success: false, error: "La conversación no existe" }, { status: 404 });
+
+  // Contestarle a un cliente que atiende otro asesor es peor que leerlo:
+  // le llega de verdad, por su canal, y ya no se puede recoger.
+  if (!puedeVerConversacion(user, conv)) {
+    return NextResponse.json(
+      { success: false, error: "Esta conversación la atiende otra persona." },
+      { status: 403 },
+    );
+  }
 
   // Una nota interna no se le manda al cliente: sirve para dejar contexto
   // al compañero que retome la conversación.

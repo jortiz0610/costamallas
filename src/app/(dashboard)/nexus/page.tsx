@@ -44,6 +44,21 @@ import { AccionesChat, ESTADOS_CHAT } from "@/components/nexus/AccionesChat";
  */
 const ETIQUETAS_DE_PROCESO = new Set(["escalada-por-agente", "sesion-web", "ya-es-cliente"]);
 
+/**
+ * Estados en los que TODAVÍA se le puede escribir al cliente.
+ *
+ * Antes la barra de escribir salía solo con ABIERTA, y eso convertía
+ * "Es tuya" en una trampa: asignarse una conversación la pasa a
+ * EN_PROCESO, y en cuanto lo hacía, el asesor se quedaba mirando un
+ * cartel de "solo lectura" sobre el chat que acababa de tomar. El único
+ * modo de volver a contestar era devolverla a "Abierta" a mano, sin que
+ * nada dijera que eso era lo que había que hacer.
+ *
+ * EN_PROCESO es, precisamente, el estado de lo que se está atendiendo:
+ * es cuando MÁS se escribe.
+ */
+const SE_PUEDE_CONTESTAR = new Set(["ABIERTA", "EN_PROCESO"]);
+
 // ── Tipos ────────────────────────────────────────────────────────
 
 interface NexusConexion {
@@ -592,7 +607,7 @@ function ChatView({ conv, onMarcarResuelta, onVolver, prefs }: {
       </div>
 
       {/* Input de respuesta */}
-      {conv.estado === "ABIERTA" ? (
+      {SE_PUEDE_CONTESTAR.has(conv.estado) ? (
         <div className="relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
           {comandosVisibles.length > 0 && (
             <MenuComandos
@@ -656,8 +671,25 @@ function ChatView({ conv, onMarcarResuelta, onVolver, prefs }: {
           )}
         </div>
       ) : (
-        <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 text-center text-xs text-slate-400 bg-white dark:bg-slate-900">
-          Conversación archivada · solo lectura
+        /* Cerrada, resuelta o archivada: no se escribe, pero se REABRE.
+           Antes aquí solo había un cartel que además mentía —decía
+           "archivada" para una resuelta y para una cerrada por el
+           cierre automático— y no ofrecía salida: para volver a
+           contestarle a alguien había que ir al menú de los tres puntos
+           y adivinar que "Abierta" era la forma de reabrirla. */
+        <div className="flex items-center justify-center gap-3 px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <span className="text-xs text-slate-400">
+            {ESTADOS_CHAT.find(e => e.v === conv.estado)?.l ?? "Cerrada"} · solo lectura
+          </span>
+          <button
+            onClick={() => cambiarEstado("ABIERTA")}
+            disabled={cambiandoEstado}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11.5px] font-bold transition-colors disabled:opacity-50"
+            style={{ backgroundColor: "var(--brand-color-10)", color: "var(--brand-color)" }}
+          >
+            {cambiandoEstado ? <Loader2 size={12} className="animate-spin" /> : <Inbox size={12} />}
+            Reabrir para contestar
+          </button>
         </div>
       )}
     </div>
@@ -748,12 +780,23 @@ function NexusContent() {
   useEffect(() => { setPrefs(leerPrefs()); }, []);
   const guardar = (p: PrefsNexus) => { guardarPrefs(p); setPrefs(p); };
 
+  // Lo escrito en el buscador, con un respiro antes de ir al servidor.
+  // Sin la espera se lanzaría una consulta por cada tecla.
+  const [busquedaServidor, setBusquedaServidor] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setBusquedaServidor(busqueda.trim()), 350);
+    return () => clearTimeout(t);
+  }, [busqueda]);
+
   const { data: result, isLoading, refetch } = useQuery({
-    queryKey: ["nexus-conversaciones", filtroEstado, filtroCanal],
+    queryKey: ["nexus-conversaciones", filtroEstado, filtroCanal, busquedaServidor],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (filtroEstado) params.set("estado", filtroEstado);
       if (filtroCanal) params.set("canal", filtroCanal);
+      // La búsqueda la hace el servidor: buscar solo dentro de las 100
+      // ya cargadas deja de encontrar cosas en cuanto la bandeja crece.
+      if (busquedaServidor) params.set("q", busquedaServidor);
       return (await (await fetch(`/api/nexus/conversaciones?${params}`)).json());
     },
     // Cada 5 s, no cada 15: una conversación de WhatsApp que tarda un
@@ -809,20 +852,14 @@ function NexusContent() {
     }
   }, [conversaciones]);
 
-  // La búsqueda incluye las etiquetas del bot: escribir "santa marta" o
-  // "balcones" encuentra la conversación aunque el cliente no lo haya
-  // escrito con esas palabras exactas.
-  const filtradas = conversaciones.filter(c => {
-    // El filtro rapido de la barra de abajo. Va antes que la busqueda:
-    // "sin leer" acota, no busca.
-    if (soloNoLeidas && c.leida) return false;
-    if (!busqueda) return true;
-    const q = busqueda.toLowerCase();
-    return c.remitente.toLowerCase().includes(q)
-      || (c.asunto ?? "").toLowerCase().includes(q)
-      || (c.etiquetas ?? []).some(e => e.toLowerCase().includes(q))
-      || (c.cliente?.empresa ?? "").toLowerCase().includes(q);
-  });
+  // El filtro rápido de la barra de abajo. "Sin leer" acota, no busca,
+  // y por eso sigue siendo del navegador: es instantáneo.
+  //
+  // El TEXTO ya no se filtra aquí. Lo hace el servidor, que además mira
+  // el teléfono, el correo y el nombre del cliente; volver a filtrar en
+  // el navegador por menos campos escondería justo lo que el servidor
+  // acaba de encontrar.
+  const filtradas = conversaciones.filter(c => !(soloNoLeidas && c.leida));
 
   const marcarResuelta = async () => {
     if (!convActiva) return;
@@ -976,10 +1013,16 @@ function NexusContent() {
               <div className="flex flex-col items-center justify-center h-full gap-3 p-8 text-center">
                 <Inbox size={28} className="text-muted" />
                 <p className="text-sm font-medium text-soft">
-                  {filtroEstado || filtroCanal ? "Nada con este filtro" : "Bandeja vacía"}
+                  {busquedaServidor
+                    ? `Nada que coincida con «${busquedaServidor}»`
+                    : filtroEstado || filtroCanal ? "Nada con este filtro" : "Bandeja vacía"}
                 </p>
                 <p className="text-xs text-muted">
-                  {filtroEstado || filtroCanal
+                  {busquedaServidor
+                    ? (filtroEstado
+                        ? "Se está buscando solo dentro de un estado. Prueba en «Todas»."
+                        : "Se busca por nombre, asunto, teléfono, correo y etiquetas.")
+                    : filtroEstado || filtroCanal
                     ? "Prueba a quitar el filtro para ver el resto."
                     : hayCanal
                       ? `${conectados.map(c => c.nombre).join(", ")} está conectado. Aquí van a caer los mensajes.`

@@ -49,9 +49,29 @@ function canalesDisponibles(conexiones: { canal: string; activo: boolean }[]): s
   return [...vistos];
 }
 
+/**
+ * Los estados por los que se filtra.
+ *
+ * Faltaban justo los dos que el portal pone SOLO, sin que nadie los
+ * elija a mano:
+ *
+ *   · EN_PROCESO lo pone «Es tuya» al tomar una conversación. Es el
+ *     estado del trabajo que se está haciendo ahora mismo, y no tenía
+ *     filtro: al asignarse un chat salía de «Abiertas» y no entraba en
+ *     ningún otro sitio.
+ *
+ *   · CERRADA la pone el cierre automático de los chats de la web, que
+ *     es donde acaba la mayoría de lo que entra por la página. Tampoco
+ *     tenía filtro.
+ *
+ * Las dos seguían estando dentro de «Todas», así que no se perdía nada;
+ * pero había que saber que estaban ahí para ir a buscarlas.
+ */
 const ESTADOS = [
   { v: "ABIERTA", l: "Abiertas" },
+  { v: "EN_PROCESO", l: "En proceso" },
   { v: "RESUELTA", l: "Resueltas" },
+  { v: "CERRADA", l: "Cerradas" },
   { v: "ARCHIVADA", l: "Archivadas" },
   { v: "", l: "Todas" },
 ];

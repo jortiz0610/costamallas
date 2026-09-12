@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { enviarCopiaConversacion } from "@/lib/nexus/copia-chat";
 import { getUserFromRequest } from "@/lib/auth";
 import { esAdmin } from "@/lib/permisos";
+import { filtroConversaciones, ESTADOS_ACTIVOS } from "@/lib/nexus/alcance";
 
 export async function GET(req: NextRequest) {
   const user = await getUserFromRequest(req);
@@ -34,8 +35,37 @@ export async function GET(req: NextRequest) {
   if (prioridad) where.prioridad = prioridad;
   if (soloNoLeidas) where.leida = false;
 
-  // Los no-admin solo ven las conversaciones asignadas a ellos
-  if (!esAdmin(user.rol)) where.asignadoId = user.sub;
+  // ── Buscar ──
+  // La búsqueda era del navegador: filtraba las 100 conversaciones que
+  // ya estaban cargadas. Con dos chats daba igual; en cuanto entre
+  // WhatsApp, buscar "Santa Marta" dejaría de encontrar al cliente de
+  // Santa Marta por el simple hecho de que su conversación es la 130.
+  //
+  // Se busca por lo que una persona recuerda: el nombre, el asunto, el
+  // teléfono, el correo, lo que dedujo el bot, y el nombre de la empresa
+  // si ya es cliente.
+  const q = (searchParams.get("q") ?? "").trim();
+  if (q) {
+    const contiene = { contains: q, mode: "insensitive" as const };
+    where.AND = [
+      {
+        OR: [
+          { remitente: contiene },
+          { asunto: contiene },
+          { emailRemit: contiene },
+          { telRemit: contiene },
+          { etiquetas: { has: q.toLowerCase() } },
+          { cliente: { is: { nombre: contiene } } },
+          { cliente: { is: { empresa: contiene } } },
+        ],
+      },
+    ];
+  }
+
+  // Los no-admin ven las suyas y las que no tienen dueño todavía. La
+  // regla vive en lib/nexus/alcance.ts porque el historial de mensajes
+  // tiene que aplicar exactamente la misma.
+  Object.assign(where, filtroConversaciones(user));
 
   const conversaciones = await prisma.nexusConversacion.findMany({
     where,
@@ -52,8 +82,14 @@ export async function GET(req: NextRequest) {
     take: 100,
   });
 
-  const noLeidasWhere: Record<string, unknown> = { leida: false, estado: "ABIERTA" };
-  if (!esAdmin(user.rol)) noLeidasWhere.asignadoId = user.sub;
+  // Sin leer = lo que está esperando respuesta. Incluye EN_PROCESO: un
+  // mensaje nuevo en un chat que alguien ya tomó es justamente el que no
+  // se puede dejar enfriar, y antes no contaba.
+  const noLeidasWhere: Record<string, unknown> = {
+    leida: false,
+    estado: { in: ESTADOS_ACTIVOS },
+    ...filtroConversaciones(user),
+  };
   const noLeidas = await prisma.nexusConversacion.count({ where: noLeidasWhere });
 
   return NextResponse.json({ success: true, data: conversaciones, noLeidas });
