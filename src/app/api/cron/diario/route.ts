@@ -48,6 +48,7 @@ import {
   apuntarLatido, avisarBorradoresParados, repartirClientesSinAsesor,
   avisarClientesEnfriandose, resumenSemanal,
 } from "@/lib/automatizaciones";
+import { vigilarSalud } from "@/lib/vigilancia-salud";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -138,6 +139,17 @@ async function handle(req: NextRequest) {
     // Solo los lunes; los otros días se sale solo.
     const semanal = await extra("semanal", () => resumenSemanal({ dry }));
 
+    // ── Que el portal se mire a sí mismo ──
+    //
+    // Esta corrida hacía catorce cosas y ninguna era comprobar que el
+    // propio portal estuviera bien. La pantalla de salud existía y
+    // acertaba, pero había que ir a abrirla: la copia del respaldo fuera
+    // de la máquina estuvo fallando CUATRO DÍAS sin que nadie lo supiera.
+    //
+    // Va al final y como "extra" a propósito: que la vigilancia falle no
+    // puede tumbar la corrida que hace el trabajo de verdad.
+    const vigilancia = await extra("vigilancia", () => vigilarSalud({ dry }));
+
     // El latido va AL FINAL y solo si no es una prueba en seco: es lo
     // que mira el vigilante para saber que la corrida llegó hasta aquí.
     // Sellarlo al principio diría "corrí bien" aunque se cayera a mitad.
@@ -161,6 +173,7 @@ async function handle(req: NextRequest) {
         chatsWeb,
         serviciosProducto,
         semanal,
+        vigilancia,
       },
     });
   } catch (err) {
