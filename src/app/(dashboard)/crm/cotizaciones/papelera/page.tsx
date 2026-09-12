@@ -26,6 +26,7 @@ import {
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { formatCOP } from "@/lib/utils";
+import { formatFechaCO } from "@/lib/timezone";
 import toast from "react-hot-toast";
 
 const CRM_COLOR = "#BA7517";
@@ -45,8 +46,10 @@ interface Borrada {
   _count: { items: number };
 }
 
-const fecha = (s?: string | null) =>
-  s ? new Date(s).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+// La fecha se pinta en hora de Colombia. Sin fijar la zona, una oferta
+// borrada a las 8 de la noche -que en UTC ya es el dia siguiente- se
+// mostraba con la fecha de mañana.
+const fecha = formatFechaCO;
 
 function PapeleraContent() {
   const { isAdmin, isLoading: cargandoSesion } = useAuth();
