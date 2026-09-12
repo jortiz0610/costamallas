@@ -169,7 +169,7 @@ function InstalacionesContent() {
           <button onClick={() => refetch()} className="btn-secondary btn-sm"><RefreshCw size={12} className={isLoading ? "animate-spin" : ""} /></button>
         </div>
       } />
-      <div className="flex-1 overflow-y-auto page-bg p-5 space-y-4">
+      <div className="flex-1 overflow-y-auto page-bg p-3 sm:p-5 space-y-4">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {STATS.map(s => {
             const count = s.key === "total" ? instalaciones.length : instalaciones.filter(i => i.estado === s.key).length;

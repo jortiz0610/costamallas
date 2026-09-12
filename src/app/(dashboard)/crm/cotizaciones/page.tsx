@@ -131,8 +131,16 @@ function NuevaCotizacion({ onClose, onSaved }: { onClose: () => void; onSaved: (
             </div>
           </div>
           {items.length > 0 && (
-            <div className="rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
-              <table className="w-full text-[12px]">
+            <div className="rounded-xl border border-gray-100 dark:border-gray-800">
+              {/* `table-wrapper` + `table` en vez de una tabla suelta dentro
+                  de `overflow-hidden`: esas clases traen el comportamiento
+                  móvil del portal —cada fila se convierte en ficha con sus
+                  rótulos— y en escritorio se desliza de lado si no cabe.
+                  Antes se RECORTABA, que es lo que se sentía como "se sale
+                  todo": en un teléfono de 375 px las seis columnas no caben
+                  ni de lejos y las últimas quedaban invisibles. */}
+              <div className="table-wrapper" style={{ border: "none" }}>
+              <table className="table text-[12px]">
                 <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
                   <tr><th className="text-left px-4 py-2 text-gray-500">Descripcion</th><th className="text-center px-3 py-2 text-gray-500 w-20">Cant.</th><th className="text-right px-3 py-2 text-gray-500 w-32">Precio</th><th className="text-center px-3 py-2 text-gray-500 w-20">Desc%</th><th className="text-right px-3 py-2 text-gray-500 w-32">Subtotal</th><th className="w-8"></th></tr>
                 </thead>
@@ -142,18 +150,19 @@ function NuevaCotizacion({ onClose, onSaved }: { onClose: () => void; onSaved: (
                     return (
                       <tr key={i} className="border-b border-gray-50 dark:border-gray-800">
                         <td className="px-4 py-2 font-medium text-gray-800 dark:text-gray-200">{it.descripcion}</td>
-                        <td className="px-3 py-2"><input type="number" min="0.01" step="0.01" value={it.cantidad} onChange={e => upd(i,"cantidad",parseFloat(e.target.value)||0)} className="w-full text-center border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 outline-none" /></td>
-                        <td className="px-3 py-2"><input type="number" min="0" value={it.precioUnitario} onChange={e => upd(i,"precioUnitario",parseFloat(e.target.value)||0)} className="w-full text-right border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 outline-none" /></td>
-                        <td className="px-3 py-2"><input type="number" min="0" max="100" value={it.descuento} onChange={e => upd(i,"descuento",parseFloat(e.target.value)||0)} className="w-full text-center border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 outline-none" /></td>
-                        <td className="px-3 py-2 text-right font-bold text-gray-900 dark:text-gray-100">{formatCOP(sub)}</td>
+                        <td data-label="Cantidad" className="px-3 py-2"><input type="number" min="0.01" step="0.01" value={it.cantidad} onChange={e => upd(i,"cantidad",parseFloat(e.target.value)||0)} className="w-full text-center border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 outline-none" /></td>
+                        <td data-label="Precio" className="px-3 py-2"><input type="number" min="0" value={it.precioUnitario} onChange={e => upd(i,"precioUnitario",parseFloat(e.target.value)||0)} className="w-full text-right border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 outline-none" /></td>
+                        <td data-label="Descuento %" className="px-3 py-2"><input type="number" min="0" max="100" value={it.descuento} onChange={e => upd(i,"descuento",parseFloat(e.target.value)||0)} className="w-full text-center border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 outline-none" /></td>
+                        <td data-label="Subtotal" className="px-3 py-2 text-right font-bold text-gray-900 dark:text-gray-100">{formatCOP(sub)}</td>
                         <td className="px-2"><button onClick={() => setItems(prev => prev.filter((_,j)=>j!==i))} className="text-gray-300 hover:text-red-500"><Trash2 size={12} /></button></td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
+              </div>
               <div className="p-4 flex justify-end">
-                <div className="w-56 space-y-1.5 text-sm">
+                <div className="w-full sm:w-56 space-y-1.5 text-sm">
                   <div className="flex justify-between text-gray-500 dark:text-gray-400"><span>Subtotal</span><span className="font-medium text-gray-800 dark:text-gray-200">{formatCOP(subtotal)}</span></div>
                   <div className="flex items-center justify-between text-gray-500 dark:text-gray-400"><span>Descuento %</span><input type="number" min="0" max="100" value={descuentoGlobal} onChange={e => setDescuentoGlobal(parseFloat(e.target.value)||0)} className="w-16 text-right border border-gray-200 dark:border-gray-700 rounded px-2 py-0.5 text-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 outline-none" /></div>
                   {dv > 0 && <div className="flex justify-between text-red-500"><span>- Descuento</span><span>-{formatCOP(dv)}</span></div>}
@@ -214,7 +223,7 @@ function CotizacionesContent() {
           </Link>
         </div>
       } />
-      <div className="flex-1 overflow-y-auto page-bg p-5 space-y-4">
+      <div className="flex-1 overflow-y-auto page-bg p-3 sm:p-5 space-y-4">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {ESTADOS.map(e => {
             const count = cotizaciones.filter(c => c.estado === e.v).length;

@@ -53,7 +53,7 @@ function EmbudoContent() {
         </select>
       } />
 
-      <div className="flex-1 overflow-y-auto page-bg p-6">
+      <div className="flex-1 overflow-y-auto page-bg p-3 sm:p-6">
         {isLoading || !data ? (
           <div className="card p-10 text-center"><Loader2 size={18} className="animate-spin mx-auto" style={{ color: CRM_COLOR }} /></div>
         ) : (

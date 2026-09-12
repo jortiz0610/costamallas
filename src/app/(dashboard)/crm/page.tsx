@@ -91,7 +91,7 @@ function CRMDashboardContent() {
         }
       />
 
-      <div className="flex-1 overflow-y-auto page-bg p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto page-bg p-3 sm:p-6 space-y-6">
 
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

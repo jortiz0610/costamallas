@@ -168,7 +168,7 @@ function PedidosContent() {
           </button>
         </div>
       } />
-      <div className="flex-1 overflow-y-auto page-bg p-5 space-y-4">
+      <div className="flex-1 overflow-y-auto page-bg p-3 sm:p-5 space-y-4">
 
         {/* Filtro por origen */}
         <div className="flex flex-wrap items-center gap-1.5">

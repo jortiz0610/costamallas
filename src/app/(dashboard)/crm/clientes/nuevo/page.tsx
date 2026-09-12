@@ -183,7 +183,7 @@ export default function NuevoClientePage() {
           title="Nuevo registro"
           actions={<Link href="/crm/clientes" className="btn-secondary btn-sm"><ArrowLeft size={13} /> Volver</Link>}
         />
-        <div className="flex-1 overflow-y-auto page-bg p-6">
+        <div className="flex-1 overflow-y-auto page-bg p-3 sm:p-6">
           <div className="max-w-2xl mx-auto pt-6">
             <h1 className="text-[17px] font-bold text-gray-800 dark:text-gray-100 text-center">
               ¿Qué vas a registrar?
@@ -246,7 +246,7 @@ export default function NuevoClientePage() {
         }
       />
 
-      <div className="flex-1 overflow-y-auto page-bg p-6">
+      <div className="flex-1 overflow-y-auto page-bg p-3 sm:p-6">
         <div className="max-w-3xl mx-auto space-y-4 pb-6">
 
           {esEmpresa ? (

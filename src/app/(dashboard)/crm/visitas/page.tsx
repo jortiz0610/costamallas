@@ -422,7 +422,7 @@ function Contenido() {
         }
       />
 
-      <div className="flex-1 overflow-y-auto page-bg p-5 space-y-4">
+      <div className="flex-1 overflow-y-auto page-bg p-3 sm:p-5 space-y-4">
         <p className="text-[12px] text-gray-500 dark:text-slate-400">
           Alguien va, mide y llena el formato en el sitio; con eso se arma la oferta.
           {sinCotizar > 0 && (

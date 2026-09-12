@@ -658,7 +658,7 @@ export function Cotizador({ cotizacionId, visitaId }: { cotizacionId?: string; v
         </div>
       } />
 
-      <div className="flex-1 overflow-y-auto page-bg p-6">
+      <div className="flex-1 overflow-y-auto page-bg p-3 sm:p-6">
         <div className="max-w-[1500px] mx-auto space-y-5">
 
           {cargando && (

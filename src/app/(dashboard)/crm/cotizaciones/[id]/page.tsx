@@ -191,7 +191,7 @@ function DetalleContent() {
           <button onClick={() => window.print()} className="btn-secondary btn-sm"><Printer size={13} /> Imprimir / PDF</button>
         </div>
       } />
-      <div className="flex-1 overflow-y-auto page-bg p-6">
+      <div className="flex-1 overflow-y-auto page-bg p-3 sm:p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto items-start">
 
           {/* Panel */}

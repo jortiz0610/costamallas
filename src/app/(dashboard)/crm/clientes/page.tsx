@@ -116,7 +116,7 @@ function ClientesContent() {
           </div>
         }
       />
-      <div className="flex-1 overflow-y-auto page-bg p-5 space-y-4">
+      <div className="flex-1 overflow-y-auto page-bg p-3 sm:p-5 space-y-4">
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[

@@ -47,7 +47,7 @@ function PedidoDetalleContent() {
       <Topbar title={`Pedido ${data.numero}`} actions={
         <Link href="/crm/pedidos" className="btn-secondary btn-sm"><ArrowLeft size={13} /> Volver</Link>
       } />
-      <div className="flex-1 overflow-y-auto page-bg p-6 space-y-6 max-w-4xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto page-bg p-3 sm:p-6 space-y-6 max-w-4xl mx-auto w-full">
 
         {/* Línea de estados */}
         <div className="card p-5">

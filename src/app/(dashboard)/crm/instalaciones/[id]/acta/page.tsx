@@ -126,7 +126,7 @@ function Contenido() {
         </div>
       } />
 
-      <div className="flex-1 overflow-y-auto page-bg p-6">
+      <div className="flex-1 overflow-y-auto page-bg p-3 sm:p-6">
         {/* Lo que se escribe en el portal (no se imprime): lo que ya se
             sabe de antemano sale impreso; lo demás se llena a mano. */}
         <div className="max-w-3xl mx-auto mb-5 card p-5 no-print">

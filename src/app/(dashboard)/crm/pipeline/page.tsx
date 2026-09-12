@@ -179,7 +179,7 @@ function PipelineContent() {
       } />
 
       {vistaActual === "comercial" ? (
-        <div className="flex-1 overflow-y-auto page-bg p-5">
+        <div className="flex-1 overflow-y-auto page-bg p-3 sm:p-5">
           <PipelineComercial />
         </div>
       ) : (

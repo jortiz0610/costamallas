@@ -442,7 +442,7 @@ function TrabajosContent() {
   return (
     <>
       <Topbar title="Trabajos de producción" />
-      <div className="flex-1 overflow-y-auto page-bg p-5 space-y-4">
+      <div className="flex-1 overflow-y-auto page-bg p-3 sm:p-5 space-y-4">
         <p className="text-[12px] text-gray-500 dark:text-slate-400">
           Lo que hay que resolver antes de que una oferta se pueda cerrar: visitas técnicas
           solicitadas por los vendedores y documentos de SG-SST.
