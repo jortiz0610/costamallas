@@ -38,7 +38,17 @@ export interface WCProduct {
   tax_class: string;
   reviews_allowed: boolean;
   purchase_note: string;
-  categories: { slug: string }[];
+  // ⚠️ `id`, NO `slug`.
+  //
+  // La API de WooCommerce devuelve las categorías con id, nombre y slug,
+  // pero al ESCRIBIR solo mira el `id`: el slug es de solo lectura y lo
+  // descarta en silencio. Aquí se mandaba `{ slug }`, así que en cada
+  // sincronización la tienda recibía una lista de categorías que no
+  // podía interpretar y **le borraba las categorías al producto**. Eso
+  // es lo que dejó 22 productos en "sin-categorizar" después de una
+  // tanda de ediciones, y por qué se vivió como "las categorías se
+  // borraron solas".
+  categories: { id: number }[];
   tags: { name: string }[];
   images: { src: string; name?: string; alt?: string }[];
   meta_data: { key: string; value: string | boolean | number | (string | number)[] }[];
@@ -203,7 +213,9 @@ export function productoToWC(producto: ProductoDetalle): WCProduct {
     tax_class: producto.claseImpuesto ?? "",
     reviews_allowed: producto.permiteResenas,
     purchase_note: producto.notaCompra ?? "",
-    categories: producto.categorias.map((slug) => ({ slug })),
+    // Se rellena fuera, en `resolverCategorias`: traducir slug → id
+    // necesita preguntarle a la tienda, y esta función no hace red.
+    categories: [],
     tags: producto.etiquetas.map((name) => ({ name })),
     // WooCommerce toma la primera imagen como destacada → la principal va primero
     images: [...producto.imagenes]
@@ -378,6 +390,10 @@ export async function syncProductosToWC(
 ): Promise<SyncResult> {
   const result: SyncResult = { total: productIds.length, created: 0, updated: 0, failed: 0, errors: [], avisos: [] };
 
+  // El mapa de categorías se pide UNA vez para toda la tanda: sin esto,
+  // sincronizar 60 productos serían 60 consultas idénticas a la tienda.
+  const catsTienda = await mapaCategorias(creds);
+
   for (let i = 0; i < productIds.length; i++) {
     const id = productIds[i];
     onProgress?.(i, productIds.length);
@@ -406,6 +422,32 @@ export async function syncProductosToWC(
       }
 
       const wcData = productoToWC(detalleProducto);
+
+      // ── Las categorías, con su id de verdad ──
+      //
+      // Va aquí y no dentro de `productoToWC` porque traducir slug → id
+      // exige preguntarle a la tienda, y esa función es pura.
+      //
+      // Si el producto no tiene categorías en el ERP se BORRA el campo
+      // en vez de mandar una lista vacía: vacío significa "quítaselas
+      // todas", y no es eso lo que queremos decir — es "no tengo nada
+      // que decir al respecto, deja lo que haya".
+      if (detalleProducto.categorias.length > 0) {
+        const { ids, creadas } = await resolverCategorias(creds, detalleProducto.categorias, catsTienda);
+        if (ids.length > 0) {
+          wcData.categories = ids;
+          if (creadas.length) {
+            result.avisos.push({
+              sku: producto.sku,
+              aviso: `Se crearon en la tienda las categorías que faltaban: ${creadas.join(", ")}.`,
+            });
+          }
+        } else {
+          delete (wcData as Partial<WCProduct>).categories;
+        }
+      } else {
+        delete (wcData as Partial<WCProduct>).categories;
+      }
 
       // Si todas las imágenes están rotas pero el producto SÍ tenía imágenes,
       // no enviamos el campo images para no borrar las que WC ya tenga.
@@ -779,3 +821,73 @@ export async function importarUnPedidoWC(
  * porque Next.js solo deja exportar los verbos HTTP desde una ruta.
  */
 export const CLAVE_SECRETO_WEBHOOK = "wc_webhook_secret";
+
+// ── Categorías: de slug (lo que guarda el ERP) a id (lo que quiere WC) ──
+
+/**
+ * Traduce los slugs del ERP a los ids que espera WooCommerce, y crea en
+ * la tienda las categorías que falten.
+ *
+ * Existe porque WooCommerce **ignora el slug al escribir**: solo mira el
+ * `id`. Mandarle `{slug}` no da error — simplemente deja el producto sin
+ * categoría, que es la peor forma de fallar porque parece que funcionó.
+ *
+ * Crea lo que falta en vez de saltárselo. Si el ERP dice que un producto
+ * es de `lonas-y-sombras` y esa categoría no está en la tienda, la
+ * respuesta correcta es crearla: el catálogo del ERP es el que manda, y
+ * dejar el producto sin categoría por una que falta es perder el dato
+ * bueno por un detalle de configuración.
+ *
+ * El mapa se pide UNA vez por tanda y se pasa entre productos: sin eso,
+ * sincronizar 60 productos serían 60 consultas idénticas a la tienda.
+ */
+export async function mapaCategorias(
+  creds: WCCredentials,
+): Promise<Map<string, number>> {
+  const mapa = new Map<string, number>();
+  try {
+    // 100 por página cubre de sobra un catálogo de este tamaño; si algún
+    // día no alcanza, lo que falte se crea en el paso siguiente.
+    const cats = await wcFetch<{ id: number; slug: string }[]>(
+      creds, "products/categories?per_page=100",
+    );
+    for (const c of cats) mapa.set(c.slug, c.id);
+  } catch {
+    // Sin mapa no se mandan categorías, y eso es MEJOR que mandar unas
+    // inventadas: un producto conserva las que ya tenía en la tienda.
+  }
+  return mapa;
+}
+
+export async function resolverCategorias(
+  creds: WCCredentials,
+  slugs: string[],
+  mapa: Map<string, number>,
+): Promise<{ ids: { id: number }[]; creadas: string[] }> {
+  const ids: { id: number }[] = [];
+  const creadas: string[] = [];
+
+  for (const slug of slugs) {
+    const existente = mapa.get(slug);
+    if (existente) { ids.push({ id: existente }); continue; }
+
+    try {
+      // El nombre sale del slug: "lonas-y-sombras" → "Lonas Y Sombras".
+      // Queda decente y quien administre la tienda puede renombrarlo sin
+      // romper nada, porque lo que enlaza es el slug.
+      const nombre = slug.split("-").map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
+      const nueva = await wcFetch<{ id: number }>(creds, "products/categories", {
+        method: "POST",
+        body: JSON.stringify({ name: nombre, slug }),
+      });
+      mapa.set(slug, nueva.id);
+      ids.push({ id: nueva.id });
+      creadas.push(slug);
+    } catch {
+      // Si no se pudo crear, se omite ESA categoría y se siguen mandando
+      // las demás. Perder una es mejor que perderlas todas.
+    }
+  }
+
+  return { ids, creadas };
+}
