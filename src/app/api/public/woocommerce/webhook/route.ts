@@ -52,6 +52,22 @@ export async function POST(req: NextRequest) {
   // sería byte a byte el mismo y la firma nunca cuadraría.
   const cuerpo = await req.text();
 
+  const topic = req.headers.get("x-wc-webhook-topic") ?? "";
+
+  // ── El "ping" del alta ──
+  //
+  // Al crear un webhook, WooCommerce manda una comprobación con el
+  // cuerpo `webhook_id=13` y **sin firmarla**. Se comprobó en vivo: los
+  // tres pings llegaron y se rechazaron con 401 por falta de firma.
+  //
+  // Contestarle 200 es seguro porque un ping no hace NADA: no trae
+  // pedido, no toca la base, solo confirma que la dirección existe. Y
+  // hay que contestarlo, o en el panel de la tienda el webhook aparece
+  // como fallido y alguien lo desactiva creyendo que está roto.
+  if (!topic && /^webhook_id=\d+$/.test(cuerpo.trim())) {
+    return NextResponse.json({ ok: true, ping: true });
+  }
+
   const fila = await prisma.configuracion.findUnique({ where: { clave: CLAVE_SECRETO_WEBHOOK } });
   const secreto = fila?.valor?.trim();
   if (!secreto) {
@@ -71,10 +87,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
-  // WooCommerce manda un "ping" al crear el webhook, sin cuerpo útil.
-  // Hay que contestarle 200 o deja el webhook en pausa.
-  const topic = req.headers.get("x-wc-webhook-topic") ?? "";
-  if (!cuerpo || cuerpo === "{}") return NextResponse.json({ ok: true, ping: true });
+  if (!cuerpo || cuerpo === "{}") return NextResponse.json({ ok: true, vacio: true });
 
   let datos: Record<string, unknown>;
   try {
