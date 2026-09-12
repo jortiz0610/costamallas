@@ -194,7 +194,7 @@ function NuevaCotizacion({ onClose, onSaved }: { onClose: () => void; onSaved: (
 function CotizacionesContent() {
   const [filtroEstado, setFiltroEstado] = useState("");
   const [aplazando, setAplazando] = useState<Cotizacion | null>(null);
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const esSuper = esSuperadmin(user?.rol);
   const qc = useQueryClient();
   const { data: cotizaciones = [], isLoading, refetch } = useQuery<Cotizacion[]>({
@@ -218,6 +218,14 @@ function CotizacionesContent() {
       <Topbar title="Cotizaciones" actions={
         <div className="flex items-center gap-2">
           {esSuper && <BorrarPruebas onBorrado={() => refetch()} />}
+          {/* La papelera solo se le enseña a administración, que es
+              quien puede borrar y quien puede restaurar. El servidor lo
+              vuelve a comprobar: esconder el enlace no protege nada. */}
+          {isAdmin && (
+            <Link href="/crm/cotizaciones/papelera" className="btn-secondary btn-sm" title="Cotizaciones borradas">
+              <Trash2 size={13} /> <span className="hidden sm:inline">Papelera</span>
+            </Link>
+          )}
           <Link href="/crm/cotizaciones/nueva" className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1.5" style={{ backgroundColor: CRM_COLOR }}>
             <Plus size={13} /> Nueva cotización
           </Link>
