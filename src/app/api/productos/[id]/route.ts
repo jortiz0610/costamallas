@@ -108,10 +108,27 @@ export async function PUT(req: NextRequest, { params }: Params) {
       },
     });
 
-    // Auto-sincronizar a WooCommerce si está publicado o ya existe en WC
+    // ── Subir el cambio a la tienda ──
+    //
+    // Solo sube lo que está publicado o lo que ya existe en la web, y esa
+    // regla es deliberada: un producto sin publicar NO debe aparecer en
+    // costamallas.com hasta que alguien lo decida.
+    //
+    // ⚠️ Lo que estaba mal no era la regla, era el SILENCIO. Cuando se
+    // saltaba, esta ruta devolvía `skip` sin motivo y la pantalla no
+    // decía nada: el usuario guardaba, no veía ningún mensaje y daba por
+    // hecho que había subido. Así se editaron durante días productos que
+    // nunca llegaron a la web —111 de 172 están sin publicar— y el
+    // problema se vivió como "la conexión no funciona" cuando la
+    // conexión estaba perfecta.
+    //
+    // Ahora el motivo viaja SIEMPRE, y la pantalla lo dice con todas las
+    // letras.
     let wcSync: "ok" | "error" | "skip" = "skip";
     let wcError: string | undefined;
     let wcAviso: string | undefined;
+    let wcMotivo: string | undefined;
+
     if (updated.publicado || updated.wcId) {
       try {
         const creds = await getWCCredentials();
@@ -121,6 +138,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
           if (r.failed > 0) wcError = r.errors[0]?.error;
           if (r.avisos.length > 0) wcAviso = r.avisos[0]?.aviso;
         } else {
+          wcSync = "error";
           wcError = "WooCommerce no está configurado (Configuración → WooCommerce).";
         }
       } catch (e) {
@@ -128,9 +146,24 @@ export async function PUT(req: NextRequest, { params }: Params) {
         wcSync = "error";
         wcError = e instanceof Error ? e.message : String(e);
       }
+    } else {
+      wcMotivo = "No está marcado «Publicado en tienda», así que el cambio se guardó "
+        + "solo en el ERP. Para que aparezca en costamallas.com, activa ese interruptor.";
     }
 
-    return NextResponse.json({ success: true, data: updated, wcSync, wcError, wcAviso });
+    // Que el registro diga lo que pasó con la tienda, no solo que se
+    // editó. Antes ponía OK pasara lo que pasara, así que mirar el log
+    // no servía para averiguar por qué un producto no estaba en la web.
+    await prisma.log.create({
+      data: {
+        usuarioId: user.sub,
+        accion: "PRODUCTO_SYNC_WEB",
+        detalle: `${updated.sku}: ${wcSync}${wcError ? ` — ${wcError.slice(0, 120)}` : ""}`,
+        resultado: wcSync === "error" ? "ERROR" : "OK",
+      },
+    }).catch(() => undefined);
+
+    return NextResponse.json({ success: true, data: updated, wcSync, wcError, wcAviso, wcMotivo });
   } catch (err) {
     console.error("[PUT /api/productos/id]", err);
     return NextResponse.json({ success: false, error: "Error al actualizar" }, { status: 500 });

@@ -424,17 +424,47 @@ export async function syncProductosToWC(
         });
         result.updated++;
       } else {
-        // Crear
-        const created = await wcFetch<{ id: number }>(creds, "products", {
-          method: "POST",
-          body: JSON.stringify(wcData),
-        });
+        // ── Antes de crear, mirar si ya está allá ──
+        //
+        // WooCommerce no admite dos productos con el mismo SKU: si existe,
+        // el POST falla con `product_invalid_sku` y falla SIEMPRE, en cada
+        // intento, para siempre. Pasa más de lo que parece — un producto
+        // importado a mano en la tienda, o creado antes de enlazar el
+        // ERP— y el síntoma es "ese producto nunca sube" sin más pistas.
+        //
+        // Así que primero se busca por SKU. Si aparece, se adopta su id y
+        // el producto queda enlazado: a partir de ahí se actualiza como
+        // cualquier otro en vez de intentar crear un duplicado.
+        const existentes = producto.sku
+          ? await wcFetch<{ id: number }[]>(
+              creds, `products?sku=${encodeURIComponent(producto.sku)}`,
+            ).catch(() => [])
+          : [];
 
-        await prisma.producto.update({
-          where: { id },
-          data: { wcId: created.id, intExportadoEn: new Date() },
-        });
-        result.created++;
+        if (existentes.length > 0) {
+          const wcId = existentes[0].id;
+          await wcFetch(creds, `products/${wcId}`, {
+            method: "PUT",
+            body: JSON.stringify(wcData),
+          });
+          await prisma.producto.update({ where: { id }, data: { wcId } });
+          result.updated++;
+          result.avisos.push({
+            sku: producto.sku,
+            aviso: `Ya existía en la tienda (id ${wcId}). Se enlazó y se actualizó en vez de crear un duplicado.`,
+          });
+        } else {
+          const created = await wcFetch<{ id: number }>(creds, "products", {
+            method: "POST",
+            body: JSON.stringify(wcData),
+          });
+
+          await prisma.producto.update({
+            where: { id },
+            data: { wcId: created.id, intExportadoEn: new Date() },
+          });
+          result.created++;
+        }
       }
 
       await prisma.producto.update({
@@ -627,10 +657,59 @@ export async function importarPedidosWC(creds: WCCredentials, perPage = 50): Pro
 
   for (const order of orders) {
     try {
-      const numero = `WC-${order.number}`;
-      const existe = await prisma.pedido.findUnique({ where: { numero } });
-      if (existe) { res.omitidos++; continue; }
+      const r = await importarUnPedidoWC(order);
+      if (r.estado === "omitido") res.omitidos++;
+      else res.importados++;
+      if (r.clienteCreado) res.clientesCreados++;
+    } catch (e) {
+      res.errores.push(`Pedido ${order.number}: ${(e as Error).message}`);
+    }
+  }
 
+  return res;
+}
+
+/**
+ * Mete UN pedido de la tienda en el ERP.
+ *
+ * Se separó del lote para que el webhook pueda usarlo: cuando alguien
+ * compra en costamallas.com, WooCommerce manda el pedido entero en el
+ * aviso y no hay que volver a pedírselo. Antes esto solo existía dentro
+ * de un bucle que consultaba los 50 últimos pedidos una vez al día, así
+ * que una compra de las 7 de la mañana entraba al ERP al día siguiente.
+ *
+ * `order.updated` también pasa por aquí: si el pedido ya existe, se le
+ * actualiza el estado en vez de omitirlo. Un pedido que pasa de
+ * "pendiente de pago" a "pagado" es justo lo que alguien está esperando
+ * ver.
+ */
+export async function importarUnPedidoWC(
+  order: WCOrder,
+): Promise<{ estado: "importado" | "actualizado" | "omitido"; clienteCreado: boolean; numero: string }> {
+  {
+    {
+      const numero = `WC-${order.number}`;
+      const existe = await prisma.pedido.findUnique({
+        where: { numero },
+        select: { id: true, estado: true },
+      });
+
+      if (existe) {
+        const nuevoEstado = WC_ESTADO_MAP[order.status] ?? "NUEVO";
+        // Solo se escribe si de verdad cambió: un `order.updated` por un
+        // detalle interno de la tienda no tiene por qué tocar la fila ni
+        // aparecer como movimiento en el ERP.
+        if (nuevoEstado !== existe.estado) {
+          await prisma.pedido.update({
+            where: { id: existe.id },
+            data: { estado: nuevoEstado, total: Number(order.total) },
+          });
+          return { estado: "actualizado", clienteCreado: false, numero };
+        }
+        return { estado: "omitido", clienteCreado: false, numero };
+      }
+
+      let clienteCreado = false;
       const email = order.billing?.email?.trim().toLowerCase() || null;
       const telefono = order.billing?.phone?.trim() || null;
       const nombre = [order.billing?.first_name, order.billing?.last_name].filter(Boolean).join(" ").trim() || order.billing?.company || "Cliente WooCommerce";
@@ -656,7 +735,7 @@ export async function importarPedidosWC(creds: WCCredentials, perPage = 50): Pro
           },
           select: { id: true },
         });
-        res.clientesCreados++;
+        clienteCreado = true;
       }
 
       // Mapear ítems (vincula a producto por SKU si existe)
@@ -689,11 +768,14 @@ export async function importarPedidosWC(creds: WCCredentials, perPage = 50): Pro
           items: { create: items },
         },
       });
-      res.importados++;
-    } catch (e) {
-      res.errores.push(`Pedido ${order.number}: ${(e as Error).message}`);
+      return { estado: "importado", clienteCreado, numero };
     }
   }
-
-  return res;
 }
+
+/**
+ * Donde vive el secreto que comparten la tienda y el portal para
+ * firmar los avisos (webhooks). Vive aqui y no en el archivo de la ruta
+ * porque Next.js solo deja exportar los verbos HTTP desde una ruta.
+ */
+export const CLAVE_SECRETO_WEBHOOK = "wc_webhook_secret";

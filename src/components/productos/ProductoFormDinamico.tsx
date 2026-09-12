@@ -1359,8 +1359,11 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
       const json = await res.json();
       if (!res.ok || !json.success) return toast.error(json.error ?? "Error al guardar");
       toast.success(modo === "crear" ? "Producto creado ✓" : "Producto actualizado ✓");
-      if (json.wcSync === "ok") toast.success("Sincronizado con WooCommerce ✓", { icon: "🛒" });
-      else if (json.wcSync === "error") toast(`Guardado, pero WooCommerce rechazó el cambio: ${json.wcError ?? "error desconocido"}`, { icon: "⚠️", duration: 9000 });
+      if (json.wcSync === "ok") toast.success("Sincronizado con la tienda ✓", { icon: "🛒" });
+      else if (json.wcSync === "error") toast(`Guardado, pero la tienda rechazó el cambio: ${json.wcError ?? "error desconocido"}`, { icon: "⚠️", duration: 9000 });
+      // El caso que faltaba, y el que causó todo el lío: guardado pero NO
+      // subido. Antes esto era silencio, y el silencio se lee como "listo".
+      else if (json.wcMotivo) toast(json.wcMotivo, { icon: "📭", duration: 10000 });
       if (json.wcAviso) toast(`Aviso del sync: ${json.wcAviso}`, { icon: "🖼️", duration: 12000 });
       if (modo === "crear") router.push(`/productos/${json.data.id}`);
     } catch { toast.error("Error de conexión"); }
