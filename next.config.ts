@@ -18,8 +18,14 @@ const nextConfig: NextConfig = {
   // igual que en el servidor solo haya JavaScript compilado.
   productionBrowserSourceMaps: false,
 
-  // pdf-parse usa fs/require nativo: no lo empaquetes, cárgalo como externo en el servidor
-  serverExternalPackages: ["pdf-parse"],
+  // pdf-parse usa fs/require nativo: no lo empaquetes, cárgalo como externo en el servidor.
+  //
+  // puppeteer-core, por lo mismo y por algo más: si se empaqueta, el
+  // rastreador de `standalone` puede dejarse fuera archivos que la
+  // librería carga a mano, y entonces el PDF falla SOLO en el contenedor
+  // —en desarrollo funciona— que es la peor forma de encontrarse un
+  // fallo.
+  serverExternalPackages: ["pdf-parse", "puppeteer-core"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "costamallas.com" },

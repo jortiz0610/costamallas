@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
 import {
-  ArrowLeft, Printer, Loader2, Save, CheckCircle2, Link2, Send, Eye, Mail, AlertTriangle, Pencil, Trash2 } from "lucide-react";
+  ArrowLeft, Printer, Download, Loader2, Save, CheckCircle2, Link2, Send, Eye, Mail, AlertTriangle, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { useBrand } from "@/contexts/BrandContext";
@@ -237,7 +237,27 @@ function DetalleContent() {
               {borrando ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />} Borrar
             </button>
           )}
-          <button onClick={() => window.print()} className="btn-secondary btn-sm"><Printer size={13} /> Imprimir / PDF</button>
+          {/* Descargar el archivo. Es lo único que sirve desde un
+              teléfono: `window.print()` allí no descarga nada, y además
+              imprimiría la pantalla del portal, no el documento.
+              Se descarga el MISMO papel que recibe el cliente.
+
+              Solo aparece si la oferta ya salió de borrador: un borrador
+              no tiene documento que enseñar —el enlace público también lo
+              bloquea— y un botón que devuelve "no disponible" es peor que
+              no tener botón. */}
+          {data?.publicId && data?.estado !== "BORRADOR" && (
+            <a
+              href={`/api/public/cotizacion/${data.publicId}/pdf`}
+              className="btn-secondary btn-sm"
+              title="Descargar el PDF de la cotización"
+            >
+              <Download size={13} /> Descargar PDF
+            </a>
+          )}
+          {/* Imprimir se queda para el escritorio, que es donde tiene
+              sentido: sale por la impresora de la oficina. */}
+          <button onClick={() => window.print()} className="btn-secondary btn-sm hidden sm:inline-flex"><Printer size={13} /> Imprimir</button>
         </div>
       } />
       <div className="flex-1 overflow-y-auto page-bg p-3 sm:p-6">

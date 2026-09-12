@@ -26,7 +26,7 @@
 // ============================================================
 
 import { useState } from "react";
-import { Printer, MessageCircle, FileText, Check, Loader2, X, ShieldCheck } from "lucide-react";
+import { Download, MessageCircle, FileText, Check, Loader2, X, ShieldCheck } from "lucide-react";
 
 const AMARILLO = "#ffdd00";
 const NEGRO = "#11110f";
@@ -131,14 +131,19 @@ export function BarraPublica({
             <FileText size={14} /> <span className="hidden sm:inline">Políticas</span>
           </a>
 
-          <button
-            onClick={() => window.print()}
-            title="Descargar en PDF"
+          {/* Un ENLACE a un archivo, no `window.print()`.
+              El enlace de la cotización llega por WhatsApp y se abre en
+              el navegador que WhatsApp trae por dentro, donde
+              `window.print()` no hace absolutamente nada: se pulsaba y
+              no pasaba nada. Una descarga sí la entienden todos. */}
+          <a
+            href={`/api/public/cotizacion/${token}/pdf`}
+            title="Descargar la cotización en PDF"
             className="px-3 py-2.5 text-[11px] font-bold uppercase tracking-wide flex items-center gap-1.5 flex-shrink-0"
             style={{ color: "rgba(255,255,255,.75)", border: "1px solid rgba(255,255,255,.25)" }}
           >
-            <Printer size={14} /> <span className="hidden sm:inline">PDF</span>
-          </button>
+            <Download size={14} /> <span className="hidden sm:inline">PDF</span>
+          </a>
 
           {waLink && (
             <a

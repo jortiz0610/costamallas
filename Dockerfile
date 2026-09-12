@@ -53,13 +53,33 @@ RUN npm run build
 
 # ── 3. Lo que corre ──
 FROM node:${NODE} AS runner
-RUN apk add --no-cache libc6-compat openssl
+
+# Chromium, para fabricar el PDF de las cotizaciones.
+#
+# Es lo único que engorda la imagen de verdad (~530 MB → ~700 MB), y se
+# acepta a cambio de algo concreto: el cliente recibe el enlace por
+# WhatsApp y lo abre en el navegador que WhatsApp trae por dentro, donde
+# `window.print()` NO HACE NADA. Sin un PDF de verdad, el botón de
+# descargar era un botón que no funcionaba justo donde más se usa.
+#
+# Se instala el Chromium de Alpine en vez del que se baja Puppeteer
+# (por eso `puppeteer-core` y no `puppeteer`): el de Puppeteer se compila
+# contra glibc y en Alpine no arranca.
+#
+# Las fuentes no son opcionales: sin ellas el PDF sale con cuadraditos
+# en vez de letras.
+RUN apk add --no-cache \
+      libc6-compat openssl \
+      chromium nss freetype harfbuzz ca-certificates ttf-freefont font-noto
+
 WORKDIR /app
 
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
-    HOSTNAME=0.0.0.0
+    HOSTNAME=0.0.0.0 \
+    CHROMIUM_PATH=/usr/bin/chromium-browser \
+    PUPPETEER_SKIP_DOWNLOAD=1
 
 # Usuario propio. El portal no necesita root dentro del contenedor, y
 # correr como root ahí es regalar la mitad del camino si alguna vez se
@@ -81,6 +101,13 @@ COPY --from=builder --chown=portal:portal /app/prisma ./prisma
 COPY --from=builder --chown=portal:portal /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder --chown=portal:portal /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder --chown=portal:portal /app/node_modules/.prisma ./node_modules/.prisma
+
+# puppeteer-core va aparte por la misma razón que Prisma: está declarado
+# como externo en next.config.ts, así que NO viaja dentro del paquete de
+# `standalone`. Si se confía solo en el rastreador y este se deja algo,
+# el fallo aparece únicamente aquí dentro —en desarrollo funciona— y
+# cuesta un despliegue entero descubrirlo.
+COPY --from=builder --chown=portal:portal /app/node_modules/puppeteer-core ./node_modules/puppeteer-core
 
 COPY --chown=portal:portal docker/arrancar.sh ./arrancar.sh
 RUN chmod +x ./arrancar.sh
