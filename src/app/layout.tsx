@@ -44,8 +44,24 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
+    /**
+     * `spellCheck` y `autoCapitalize` SE HEREDAN a todos los campos que
+     * haya dentro. Por eso se ponen aquí una vez y no campo por campo en
+     * las treinta y cinco cajas de texto del portal.
+     *
+     * Qué consiguen en un teléfono: el teclado enciende la barra de
+     * sugerencias y corrige mientras se escribe, y la primera letra de
+     * cada frase sale en mayúscula sola. Sin esto, escribirle a un
+     * cliente desde el móvil era teclear cada letra a pelo.
+     *
+     * Va en español porque `lang="es"` está justo al lado: el corrector
+     * usa el idioma del documento, y sin declararlo corregía en inglés.
+     *
+     * Donde NO conviene —claves de API, SKU, cajas de búsqueda— se apaga
+     * en el campo concreto, que manda sobre lo heredado.
+     */
     <html lang="es" className={inter.variable}>
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased" spellCheck autoCapitalize="sentences">
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -250,7 +250,7 @@ function ComprasContent() {
         {vista === "proveedores" && (<>
         {/* Búsqueda */}
         <div className="relative max-w-xs">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
           <input value={busqueda} onChange={e => setBusqueda(e.target.value)} className="input pl-9 py-1.5 text-xs" placeholder="Buscar proveedor..." />
         </div>
 

@@ -100,7 +100,7 @@ function NuevoChat({ companeros, onAbrir, onClose }: {
         </div>
         <div className="px-4 pt-3 flex-shrink-0">
           <div className="relative">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
               className="input pl-9 py-2 text-sm" placeholder="Buscar por nombre o rol…" autoFocus />
           </div>
@@ -312,6 +312,7 @@ function Conversacion({ chat, miId, onVolver, prefs }: {
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); }
           }}
           rows={1}
+          enterKeyHint="send"
           className="input resize-none py-2 text-sm max-h-28 flex-1 min-w-0"
           placeholder="Escribe un mensaje… (/ para atajos)"
         />
@@ -382,7 +383,7 @@ function InternoContent() {
         >
           <div className="px-3 py-3 flex-shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
             <div className="relative">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
               <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
                 className="input pl-9 py-1.5 text-xs" placeholder="Buscar un chat…" />
             </div>

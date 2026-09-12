@@ -144,7 +144,7 @@ function ClientesContent() {
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 max-w-xs">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
               className="input pl-9 py-1.5 text-xs" placeholder="Buscar cliente..." />
           </div>

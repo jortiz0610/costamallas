@@ -790,7 +790,7 @@ export function Cotizador({ cotizacionId, visitaId }: { cotizacionId?: string; v
               </div>
             ) : (
               <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
                 <input className="input pl-9" value={clienteBusq} onChange={e => setClienteBusq(e.target.value)} placeholder="Buscar cliente por nombre, empresa o teléfono…" />
                 {clientes.length > 0 && (
                   <div className="absolute z-10 left-0 right-0 mt-1 card p-1 max-h-56 overflow-y-auto">
@@ -823,7 +823,7 @@ export function Cotizador({ cotizacionId, visitaId }: { cotizacionId?: string; v
             <p className="text-xs font-bold uppercase tracking-widest text-muted mb-3">Productos y servicios</p>
 
             <div className="relative mb-4">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
               <input
                 ref={buscadorRef}
                 className="input pl-9"

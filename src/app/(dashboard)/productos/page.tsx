@@ -176,7 +176,7 @@ export default function ProductosPage() {
         <div className="card p-4 mb-5 space-y-3">
           <div className="flex flex-wrap gap-2.5">
             <div className="relative flex-1 min-w-[220px]">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
                 value={busqueda}
                 onChange={e => cambiar(() => setBusqueda(e.target.value))}

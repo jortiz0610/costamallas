@@ -109,7 +109,7 @@ function NuevaFacturaContent() {
                 </div>
               ) : (
                 <div className="relative">
-                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
                   <input className="input pl-9" value={clienteBusq} onChange={e => setClienteBusq(e.target.value)} placeholder="Buscar cliente…" />
                   {clientes.length > 0 && (
                     <div className="absolute top-full left-0 right-0 mt-1 card z-10 max-h-44 overflow-y-auto">

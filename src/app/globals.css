@@ -164,6 +164,32 @@ html.dark {
   .input:focus { border-color: var(--brand-color); }
   .input-error { border-color: #f87171 !important; }
 
+  /* ── 16 px en el teléfono. No es un capricho de tamaño ──
+   *
+   * Safari en iPhone AMPLÍA la página al enfocar un campo cuya letra
+   * mide menos de 16 px, y no la devuelve al salir. `.input` es `text-sm`
+   * —14 px—, así que le pasaba a TODOS los campos del portal: se tocaba
+   * para escribir, la pantalla se acercaba, el formulario se salía por
+   * los lados y había que alejarlo con los dedos. Es el motivo de que
+   * llenar cualquier cosa desde el móvil fuera una pelea.
+   *
+   * Estaba parcheado a mano en la barra de escribir del inbox
+   * (`text-[16px] sm:text-sm`). Aquí se arregla de una vez, para todos.
+   *
+   * Se incluyen los campos sueltos que no llevan `.input`: la regla vale
+   * para el que escribe, no para el que se acordó de poner la clase.
+   */
+  @media (max-width: 767px) {
+    .input,
+    input[type="text"], input[type="email"], input[type="tel"],
+    input[type="url"], input[type="password"], input[type="search"],
+    input[type="number"], input[type="date"], input[type="time"],
+    input[type="datetime-local"],
+    textarea, select {
+      font-size: 16px;
+    }
+  }
+
   select.input option { background-color: var(--surface); color: var(--text); }
 
   /* ── Cards ── */

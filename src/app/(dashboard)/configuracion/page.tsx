@@ -392,7 +392,7 @@ function TabMarketplace({ nombre, color, logoChar, descripcion, camposExtra }: {
           <div>
             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">API Key / Client ID</label>
             <div className="relative">
-              <input type={show ? "text" : "password"} className="input font-mono text-xs pr-10" value={apiKey}
+              <input type={show ? "text" : "password"} className="input font-mono text-xs pr-10" autoCapitalize="none" spellCheck={false} value={apiKey}
                 onChange={e => setApiKey(e.target.value)} placeholder="Ingresa tu API key..." />
               <button type="button" onClick={() => setShow(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
                 {show ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -579,7 +579,7 @@ function ChannelCard({ canal, conexiones, onConnect, onToggle, brandColor }: {
           {canal.campos.filter(c => c.k !== "webhook").map(c => (
             <div key={c.k}>
               <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">{c.l}</label>
-              <input className="input font-mono text-xs" type={(c as { secret?: boolean }).secret ? "password" : "text"} placeholder={c.ph} />
+              <input className="input font-mono text-xs" autoCapitalize="none" spellCheck={false} type={(c as { secret?: boolean }).secret ? "password" : "text"} placeholder={c.ph} />
             </div>
           ))}
           <div className="flex gap-2">
@@ -721,16 +721,16 @@ function PlataformaCard({ conn, onSaved }: { conn: ConexionAds; onSaved: () => v
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-semibold text-muted uppercase mb-1">Client / App ID</label>
-              <input className="input font-mono text-xs" value={clientId} onChange={e => setClientId(e.target.value)} placeholder="123456789..." />
+              <input className="input font-mono text-xs" autoCapitalize="none" spellCheck={false} value={clientId} onChange={e => setClientId(e.target.value)} placeholder="123456789..." />
             </div>
             <div>
               <label className="block text-[11px] font-semibold text-muted uppercase mb-1">Account ID (opcional)</label>
-              <input className="input font-mono text-xs" value={accountId} onChange={e => setAccountId(e.target.value)} placeholder="act_..." />
+              <input className="input font-mono text-xs" autoCapitalize="none" spellCheck={false} value={accountId} onChange={e => setAccountId(e.target.value)} placeholder="act_..." />
             </div>
           </div>
           <div>
             <label className="block text-[11px] font-semibold text-muted uppercase mb-1">Client Secret {conn.hasSecret && <span className="text-emerald-500 normal-case">(guardado — déjalo vacío para no cambiar)</span>}</label>
-            <input type="password" className="input font-mono text-xs" value={secret} onChange={e => setSecret(e.target.value)} placeholder="••••••••" />
+            <input type="password" className="input font-mono text-xs" autoCapitalize="none" spellCheck={false} value={secret} onChange={e => setSecret(e.target.value)} placeholder="••••••••" />
           </div>
           <div className="flex items-center justify-between">
             <a href={meta.docs} target="_blank" rel="noreferrer" className="text-[11px] font-semibold" style={{ color: meta.color }}>¿Cómo obtener mis credenciales? →</a>
@@ -826,11 +826,11 @@ function TabIA() {
         </div>
         <div>
           <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">API Key {configurada && <span className="text-emerald-500 normal-case">(guardada — déjala vacía para no cambiar)</span>}</label>
-          <input type="password" className="input font-mono text-xs" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder={proveedor === "anthropic" ? "sk-ant-..." : "sk-..."} />
+          <input type="password" className="input font-mono text-xs" autoCapitalize="none" spellCheck={false} value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder={proveedor === "anthropic" ? "sk-ant-..." : "sk-..."} />
         </div>
         <div>
           <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Modelo (opcional)</label>
-          <input className="input font-mono text-xs" value={modelo} onChange={e => setModelo(e.target.value)} placeholder={modeloDefault} />
+          <input className="input font-mono text-xs" autoCapitalize="none" spellCheck={false} value={modelo} onChange={e => setModelo(e.target.value)} placeholder={modeloDefault} />
           <p className="text-[11px] text-muted mt-1">Por defecto: <code className="surface-3 px-1 rounded">{modeloDefault}</code></p>
         </div>
         <div className="flex gap-2">
@@ -895,8 +895,8 @@ function TabFacturacion() {
         </div>
         {f.proveedor !== "manual" && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div><label className="block text-xs font-semibold text-muted uppercase mb-1.5">API URL</label><input className="input font-mono text-xs" value={f.apiUrl} onChange={e => u("apiUrl", e.target.value)} placeholder="https://api.proveedor.com" /></div>
-            <div><label className="block text-xs font-semibold text-muted uppercase mb-1.5">API Key {f.tieneApiKey && <span className="text-emerald-500 normal-case">(guardada)</span>}</label><input type="password" className="input font-mono text-xs" value={f.apiKey} onChange={e => u("apiKey", e.target.value)} placeholder="••••••••" /></div>
+            <div><label className="block text-xs font-semibold text-muted uppercase mb-1.5">API URL</label><input className="input font-mono text-xs" autoCapitalize="none" spellCheck={false} value={f.apiUrl} onChange={e => u("apiUrl", e.target.value)} placeholder="https://api.proveedor.com" /></div>
+            <div><label className="block text-xs font-semibold text-muted uppercase mb-1.5">API Key {f.tieneApiKey && <span className="text-emerald-500 normal-case">(guardada)</span>}</label><input type="password" className="input font-mono text-xs" autoCapitalize="none" spellCheck={false} value={f.apiKey} onChange={e => u("apiKey", e.target.value)} placeholder="••••••••" /></div>
           </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1010,7 +1010,7 @@ function TabCorreo() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="col-span-2">
             <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Servidor SMTP</label>
-            <input className="input font-mono text-xs" value={f.host} onChange={e => u("host", e.target.value)} placeholder="smtp.hostinger.com" />
+            <input className="input font-mono text-xs" autoCapitalize="none" spellCheck={false} value={f.host} onChange={e => u("host", e.target.value)} placeholder="smtp.hostinger.com" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Puerto</label>
@@ -1026,13 +1026,13 @@ function TabCorreo() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Usuario</label>
-            <input className="input font-mono text-xs" value={f.usuario} onChange={e => u("usuario", e.target.value)} placeholder="pedidos@costamallas.com" />
+            <input className="input font-mono text-xs" autoCapitalize="none" spellCheck={false} value={f.usuario} onChange={e => u("usuario", e.target.value)} placeholder="pedidos@costamallas.com" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">
               Contraseña {estado?.tienePassword && estado.descifra && <span className="text-emerald-500 normal-case">(guardada — déjala vacía para no cambiarla)</span>}
             </label>
-            <input type="password" className="input font-mono text-xs" value={f.password} onChange={e => u("password", e.target.value)} placeholder="••••••••" />
+            <input type="password" className="input font-mono text-xs" autoCapitalize="none" spellCheck={false} value={f.password} onChange={e => u("password", e.target.value)} placeholder="••••••••" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Remitente (nombre)</label>
@@ -1040,7 +1040,7 @@ function TabCorreo() {
           </div>
           <div>
             <label className="block text-xs font-semibold text-muted uppercase tracking-wider mb-1.5">Remitente (correo)</label>
-            <input type="email" className="input font-mono text-xs" value={f.remitenteEmail} onChange={e => u("remitenteEmail", e.target.value)} placeholder="pedidos@costamallas.com" />
+            <input type="email" className="input font-mono text-xs" autoCapitalize="none" spellCheck={false} value={f.remitenteEmail} onChange={e => u("remitenteEmail", e.target.value)} placeholder="pedidos@costamallas.com" />
           </div>
         </div>
 

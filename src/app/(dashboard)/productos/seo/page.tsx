@@ -273,7 +273,7 @@ function Contenido() {
               <div className="card p-5">
                 <div className="flex flex-wrap gap-2 items-center mb-3">
                   <div className="relative flex-1 min-w-[200px]">
-                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
                     <input
                       className="input pl-8 text-xs" placeholder="Buscar por SKU o nombre"
                       value={busqueda} onChange={e => setBusqueda(e.target.value)}

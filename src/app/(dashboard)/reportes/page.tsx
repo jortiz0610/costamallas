@@ -104,7 +104,7 @@ export default function ReportesPage() {
         {/* Filtros */}
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 max-w-xs">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input value={busqueda} onChange={e => { setBusqueda(e.target.value); setPage(1); }}
               className="input pl-9 py-1.5 text-xs" placeholder="Buscar usuario, acción, detalle…" />
           </div>

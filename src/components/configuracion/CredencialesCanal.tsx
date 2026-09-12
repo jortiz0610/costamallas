@@ -106,7 +106,7 @@ export function CredencialesCanal({ conexion }: { conexion: ConexionCanal }) {
         <div>
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">URL del webhook (entrada)</p>
           <div className="flex gap-2">
-            <input className="input py-1 text-[11px] font-mono flex-1" value={conexion.webhookUrl} readOnly />
+            <input className="input py-1 text-[11px] font-mono flex-1" autoCapitalize="none" spellCheck={false} value={conexion.webhookUrl} readOnly />
             <button onClick={copiarWebhook} className="btn-secondary btn-sm"><Copy size={12} /></button>
           </div>
           <p className="text-[11px] text-muted mt-1">Pégala en Meta (o en tu puente) para que los mensajes lleguen aquí.</p>

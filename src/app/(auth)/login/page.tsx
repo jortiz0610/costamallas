@@ -125,7 +125,7 @@ function LoginForm() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Correo electronico</label>
                 <div className="relative">
-                  <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                   <input type="email" value={email} onChange={e => setEmail(e.target.value)}
                     className="input pl-9" placeholder="correo@empresa.com"
                     required autoComplete="email" disabled={loading} />
@@ -134,7 +134,7 @@ function LoginForm() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Contrasena</label>
                 <div className="relative">
-                  <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                   <input type={showPass ? "text" : "password"} value={password}
                     onChange={e => setPassword(e.target.value)}
                     className="input pl-9 pr-10" placeholder="..." required autoComplete="current-password" disabled={loading} />

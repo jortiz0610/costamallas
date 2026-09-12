@@ -648,12 +648,17 @@ function ChatView({ conv, onMarcarResuelta, onVolver, prefs }: {
                   if (comandosVisibles.length > 0) return;
                   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
                 }}
-                // 16 px en el teléfono, 14 en escritorio. Por debajo de 16,
-                // Safari en iPhone hace zoom al enfocar el campo: la
-                // conversación se agranda, se sale por los lados y toca
-                // alejarla a mano. Es EL motivo de que el chat se "acerque"
-                // al ir a escribir.
-                className="input flex-1 min-w-0 py-2 text-[16px] sm:text-sm"
+                // Lo de los 16 px para que el iPhone no amplíe al enfocar
+                // ya no se parchea aquí: está en `globals.css` y vale para
+                // todos los campos del portal. Dejarlo además en la clase
+                // lo estropeaba entre 640 y 767 px, donde `sm:text-sm`
+                // volvía a bajarlo a 14 y el zoom reaparecía.
+                //
+                // La tecla de Intro del teléfono dice "enviar" en vez de
+                // "intro": es el campo donde se le contesta a un cliente,
+                // y ahí el salto de línea no es lo que se quiere.
+                enterKeyHint="send"
+                className="input flex-1 min-w-0 py-2"
                 placeholder={puedeIA ? "Escribe, / para atajos, @mallita para ayuda…" : "Escribe una respuesta… (/ para atajos)"}
               />
               {/* Nota interna: queda en el hilo para quien retome la
@@ -968,7 +973,7 @@ function NexusContent() {
               etiqueta de color. */}
           <div className="px-3 py-2.5 flex items-center gap-2" style={{ borderBottom: "1px solid var(--border)" }}>
             <div className="relative flex-1 min-w-0">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
               <input value={busqueda} onChange={e => setBusqueda(e.target.value)}
                 className="input pl-9 py-1.5 text-xs" placeholder="Buscar…" />
             </div>

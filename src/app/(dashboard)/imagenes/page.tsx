@@ -358,7 +358,7 @@ function ImagenesContent() {
         <div className={`w-full lg:w-80 flex-shrink-0 flex-col border-r divider surface ${seleccionado ? "hidden lg:flex" : "flex"}`}>
           <div className="p-3 space-y-2 border-b divider flex-shrink-0">
             <div className="relative">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
               <input value={busqueda} onChange={e => setBusqueda(e.target.value)} className="input pl-9 py-1.5 text-xs" placeholder="Buscar producto..." />
             </div>
             <div className="flex gap-1.5">
@@ -378,7 +378,7 @@ function ImagenesContent() {
               {categorias.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
             <div className="relative">
-              <Ruler size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+              <Ruler size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
               <input value={medida} onChange={e => setMedida(e.target.value)} className="input pl-9 py-1.5 text-xs"
                 placeholder="Medida: 2x1, 1.20…" />
             </div>

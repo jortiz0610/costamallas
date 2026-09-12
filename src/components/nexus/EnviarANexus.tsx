@@ -120,7 +120,7 @@ export function EnviarANexus({ contenido, tipo = "texto", titulo = "Enviar a un 
             </pre>
           )}
           <div className="relative mt-3">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <input
               value={busqueda}
               onChange={e => setBusqueda(e.target.value)}
