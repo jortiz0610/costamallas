@@ -1150,6 +1150,135 @@ type TabId = typeof TABS[number]["id"] | "ficha" | "cliente";
 
 interface AcfImagen { id: string; productoId: string; urlImagen: string; altText: string | null; esPrincipal: boolean; posicion: number; }
 
+// ============================================================
+// Las fotos de un producto que TODAVÍA NO EXISTE.
+//
+// Antes aquí había un cartel que decía "guarda el producto primero", y
+// eso dejaba al usuario encerrado: la lista de pasos marca «Imágenes»
+// como obligatorio, la pestaña se negaba a recibirlas hasta guardar, y
+// el resultado era alguien mirando un requisito que no podía cumplir y
+// concluyendo —con razón— que el portal no le dejaba crear el producto.
+//
+// Ahora las fotos se eligen antes: se quedan en el navegador, se ven, se
+// pueden quitar y reordenar, y se suben solas justo después de crear el
+// producto. Nada se sube hasta que hay un producto al que pegarlas, que
+// era el motivo real de la restricción; lo que se quita es el rodeo.
+// ============================================================
+
+function GaleriaPendiente({
+  fotos, onCambio,
+}: { fotos: File[]; onCambio: (f: File[]) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Las vistas previas son URLs de memoria. Hay que SOLTARLAS: si no, el
+  // navegador se queda con cada imagen cargada hasta recargar la página.
+  const [previas, setPrevias] = useState<string[]>([]);
+  useEffect(() => {
+    const urls = fotos.map(f => URL.createObjectURL(f));
+    setPrevias(urls);
+    return () => { urls.forEach(u => URL.revokeObjectURL(u)); };
+  }, [fotos]);
+
+  const agregar = (lista: FileList | null) => {
+    if (!lista) return;
+    const nuevas: File[] = [];
+    const rechazadas: string[] = [];
+    for (const f of Array.from(lista)) {
+      // Se comprueba aquí lo mismo que comprueba el servidor. Descubrir
+      // que una foto de 8 MB no vale DESPUÉS de crear el producto es la
+      // peor forma de enterarse.
+      if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(f.type)) {
+        rechazadas.push(`${f.name}: tipo no permitido`);
+      } else if (f.size > 5 * 1024 * 1024) {
+        rechazadas.push(`${f.name}: pesa más de 5 MB`);
+      } else {
+        nuevas.push(f);
+      }
+    }
+    rechazadas.forEach(r => toast.error(r, { duration: 6000 }));
+    if (nuevas.length) onCambio([...fotos, ...nuevas]);
+  };
+
+  const quitar = (i: number) => onCambio(fotos.filter((_, j) => j !== i));
+
+  const mover = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= fotos.length) return;
+    const copia = [...fotos];
+    [copia[i], copia[j]] = [copia[j], copia[i]];
+    onCambio(copia);
+  };
+
+  return (
+    <div className="space-y-5">
+      <div
+        onClick={() => fileRef.current?.click()}
+        className="border-2 border-dashed border-gray-200 rounded-2xl p-8 flex flex-col items-center gap-3 cursor-pointer hover:border-gray-300 hover:bg-gray-50 transition-all group"
+      >
+        <div className="w-14 h-14 rounded-2xl bg-gray-100 group-hover:bg-gray-200 flex items-center justify-center transition-colors">
+          <Upload size={22} className="text-gray-400" />
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-semibold text-gray-600">Haz clic para elegir imágenes</p>
+          <p className="text-xs text-gray-400 mt-0.5">JPG, PNG, WEBP · Máx 5MB por imagen</p>
+        </div>
+        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden"
+          onChange={e => { agregar(e.target.files); e.target.value = ""; }} />
+      </div>
+
+      {fotos.length === 0 ? (
+        <div className="text-center py-8">
+          <ImageIcon size={28} className="mx-auto mb-2 text-gray-200" />
+          <p className="text-sm text-gray-400">Sin imágenes todavía</p>
+          <p className="text-xs text-gray-400 mt-1">
+            Puedes elegirlas ahora: se suben solas al guardar el producto.
+          </p>
+        </div>
+      ) : (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+              {fotos.length} imagen{fotos.length !== 1 ? "es" : ""} por subir
+            </p>
+            <p className="text-[11px] text-gray-400">La 1ª será la principal en la tienda</p>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {fotos.map((f, i) => (
+              <div key={`${f.name}-${i}`} className="relative group rounded-xl overflow-hidden border border-gray-200">
+                {previas[i] && (
+                  // Imagen local: <img> a propósito. `next/image` exige
+                  // un dominio permitido y una URL de memoria no lo es.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={previas[i]} alt={f.name} className="w-full h-28 object-cover" />
+                )}
+                {i === 0 && (
+                  <span className="absolute top-1.5 left-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded text-white flex items-center gap-1"
+                    style={{ backgroundColor: "var(--brand-color)" }}>
+                    <Star size={9} /> Principal
+                  </span>
+                )}
+                <div className="absolute inset-x-0 bottom-0 flex items-center justify-between px-1.5 py-1 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1">
+                    <button type="button" onClick={() => mover(i, -1)} disabled={i === 0}
+                      title="Mover antes"
+                      className="text-white text-xs px-1.5 disabled:opacity-30">←</button>
+                    <button type="button" onClick={() => mover(i, 1)} disabled={i === fotos.length - 1}
+                      title="Mover después"
+                      className="text-white text-xs px-1.5 disabled:opacity-30">→</button>
+                  </div>
+                  <button type="button" onClick={() => quitar(i)} title="Quitar"
+                    className="text-white hover:text-red-300"><Trash2 size={12} /></button>
+                </div>
+                <p className="text-[10px] text-gray-400 truncate px-1.5 py-1">{f.name}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function GaleriaProducto({ productoId }: { productoId: string }) {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -1305,6 +1434,11 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
     queryFn: async () => (await (await fetch(`/api/imagenes?productoId=${productoId}`)).json()).data ?? [],
     enabled: Boolean(productoId),
   });
+
+  // Las fotos elegidas para un producto que todavía no existe. Viven
+  // aquí, y no dentro de la galería, porque quien las necesita es
+  // `save()`: se suben en cuanto el producto tiene id.
+  const [fotosPendientes, setFotosPendientes] = useState<File[]>([]);
   const [activeFichaKey, setActiveFichaKey] = useState<string | null>(null);
   const init = initialData ?? {};
 
@@ -1369,7 +1503,48 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
       // subido. Antes esto era silencio, y el silencio se lee como "listo".
       else if (json.wcMotivo) toast(json.wcMotivo, { icon: "📭", duration: 10000 });
       if (json.wcAviso) toast(`Aviso del sync: ${json.wcAviso}`, { icon: "🖼️", duration: 12000 });
-      if (modo === "crear") router.push(`/productos/${json.data.id}`);
+
+      if (modo === "crear") {
+        // Las fotos elegidas antes de que el producto existiera. Ahora ya
+        // hay id, así que se suben. Van DESPUÉS de crear y antes de
+        // navegar: si se navegara primero, el componente se desmonta y
+        // las subidas a medias se cancelan.
+        const nuevoId = json.data.id as string;
+        if (fotosPendientes.length) {
+          const aviso = toast.loading(`Subiendo ${fotosPendientes.length} imagen(es)…`);
+          let ok = 0;
+          const fallidas: string[] = [];
+          for (const [i, file] of fotosPendientes.entries()) {
+            const fd = new FormData();
+            fd.append("file", file);
+            fd.append("productoId", nuevoId);
+            // La primera es la principal: es el orden que eligió quien
+            // las subió, y es el que se ve en la tienda.
+            fd.append("esPrincipal", String(i === 0));
+            try {
+              const r = await fetch("/api/imagenes/upload", { method: "POST", body: fd });
+              const j = await r.json();
+              if (!r.ok || !j.success) fallidas.push(`${file.name}: ${j.error ?? "falló"}`);
+              else ok++;
+            } catch {
+              fallidas.push(`${file.name}: sin conexión`);
+            }
+          }
+          toast.dismiss(aviso);
+          if (ok) toast.success(`${ok} imagen(es) subidas ✓`);
+          // El producto YA está creado. Si alguna foto falla, se dice
+          // cuál y se deja claro que el producto no se perdió: lo
+          // contrario llevaría a crearlo otra vez y duplicar el SKU.
+          if (fallidas.length) {
+            toast.error(
+              `El producto quedó creado, pero ${fallidas.length} imagen(es) no subieron:\n${fallidas.join("\n")}\n\nPuedes reintentarlas desde la pestaña Imágenes.`,
+              { duration: 14000 },
+            );
+          }
+          setFotosPendientes([]);
+        }
+        router.push(`/productos/${nuevoId}`);
+      }
     } catch { toast.error("Error de conexión"); }
     finally { setSaving(false); }
   };
@@ -1415,7 +1590,16 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
             existe y tiene todo lo obligatorio. */}
         <div className="max-w-6xl mx-auto">
           <ProgresoProducto
-            pasos={calcularPasos(form as Record<string, unknown>, imagenesDelProducto.length)}
+            pasos={
+              // Las pendientes cuentan: si no, al crear un producto el
+              // paso «Imágenes» salía como obligatorio y sin manera de
+              // cumplirlo, que es lo que hacía pensar que el portal no
+              // dejaba crear el producto.
+              calcularPasos(
+                form as Record<string, unknown>,
+                imagenesDelProducto.length + fotosPendientes.length,
+              )
+            }
             onIrA={(t) => setTab(t as TabId)}
             esNuevo={!productoId}
           />
@@ -1604,11 +1788,7 @@ export default function ProductoFormDinamico({ initialData, productoId, modo }: 
             {productoId ? (
               <GaleriaProducto productoId={productoId} />
             ) : (
-              <div className="card p-12 text-center">
-                <ImageIcon size={28} className="mx-auto mb-3 text-gray-200" />
-                <p className="text-sm font-semibold text-gray-500">Guarda el producto primero</p>
-                <p className="text-xs text-gray-400 mt-1">Debes crear el producto antes de subir imágenes.</p>
-              </div>
+              <GaleriaPendiente fotos={fotosPendientes} onCambio={setFotosPendientes} />
             )}
           </div>
         )}

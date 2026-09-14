@@ -61,7 +61,14 @@ const nextConfig: NextConfig = {
             "default-src 'self'",
             "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
             "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data: https:",
+            // `blob:` hace falta para VER lo que uno acaba de elegir sin
+            // haberlo subido todavía: las vistas previas de las fotos de
+            // un producto nuevo son URLs de memoria. Sin esto el
+            // navegador las bloquea y se ven iconos rotos.
+            //
+            // No abre nada: un blob lo crea la propia página y vive solo
+            // en esta pestaña. No se puede apuntar a un servidor ajeno.
+            "img-src 'self' data: blob: https:",
             "font-src 'self'",
             "connect-src 'self' https:",
           ].join("; "),
