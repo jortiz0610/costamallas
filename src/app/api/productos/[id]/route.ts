@@ -4,6 +4,7 @@
 // DELETE /api/productos/[id]  — Eliminar (soft: archivar)
 // ============================================================
 
+import { mensajeDeValidacion } from "@/lib/validations/mensaje-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest, canWrite, isAdmin } from "@/lib/auth";
@@ -66,7 +67,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const parsed = productoSchema.partial().safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: parsed.error.errors[0]?.message ?? "Datos inválidos" },
+        { success: false, error: mensajeDeValidacion(parsed.error) },
         { status: 400 }
       );
     }

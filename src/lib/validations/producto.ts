@@ -42,7 +42,25 @@ export const productoSchema = z.object({
   acfAplicaciones: z.array(z.string()).default([]),
   acfColores: z.array(z.string()).default([]),
   acfNormas: z.array(z.string()).default([]),
-  acfFichaTecnicaPdf: z.string().url("URL inválida").optional().nullable(),
+  // ── La ficha técnica en PDF ──
+  //
+  // Un campo de texto vacío manda `""`, no `undefined`. Y `""` NO es una
+  // URL válida, así que `.url().optional().nullable()` la rechazaba:
+  // crear un producto sin ficha técnica —que son casi todos— fallaba con
+  // «URL inválida», un mensaje que además no decía de qué campo hablaba.
+  //
+  // Se traduce el vacío a `null` antes de validar, que es lo que
+  // significa de verdad: "no hay ficha". Se recorta también el espacio
+  // sobrante, porque una URL pegada desde el navegador suele traerlo y
+  // fallaría por un motivo invisible.
+  acfFichaTecnicaPdf: z.preprocess(
+    v => {
+      if (typeof v !== "string") return v;
+      const limpio = v.trim();
+      return limpio === "" ? null : limpio;
+    },
+    z.string().url("URL inválida").nullable().optional(),
+  ),
   acfCertificaciones: z.array(z.string()).default([]),
   acfExtra: z.record(z.unknown()).optional().default({}),
   intEstado: z.enum(["BORRADOR", "REVISION", "LISTO", "PUBLICADO", "ARCHIVADO"]).default("BORRADOR"),

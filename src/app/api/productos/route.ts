@@ -3,6 +3,7 @@
 // POST /api/productos — Crear nuevo producto
 // ============================================================
 
+import { mensajeDeValidacion } from "@/lib/validations/mensaje-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest, canWrite } from "@/lib/auth";
@@ -157,7 +158,7 @@ export async function POST(req: NextRequest) {
     const parsed = productoSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: parsed.error.errors[0]?.message ?? "Datos inválidos" },
+        { success: false, error: mensajeDeValidacion(parsed.error) },
         { status: 400 }
       );
     }
