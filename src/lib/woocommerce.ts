@@ -145,6 +145,62 @@ async function urlAccesible(url: string): Promise<boolean> {
 }
 
 // ── Convertir Producto a formato WooCommerce ──
+//
+// LA TRAMPA DE ESTA FUNCIÓN: el portal habla español por dentro y
+// WooCommerce no. Varios campos son listas CERRADAS de palabras en
+// inglés, y mandarle cualquier otra cosa no se ignora — la tienda
+// rechaza el producto ENTERO con «Parámetro(s) no válido(s)».
+//
+// Pasó de verdad: `visibilidad` vale "oculto" en 113 productos —viene de
+// la importación original— y se estaba enviando tal cual. Publicar
+// cualquiera de ellos fallaba con:
+//
+//   WooCommerce API error 400: Parámetro(s) no válido(s): catalog_visibility
+//
+// Por eso estas dos traducciones existen y por eso son TOLERANTES: ante
+// una palabra que no conocen no rompen la publicación, eligen el valor
+// por defecto de WooCommerce y lo dejan anotado en el registro.
+
+/** `catalog_visibility`: WooCommerce solo acepta estas cuatro. */
+const VISIBILIDAD_WC: Record<string, string> = {
+  visible: "visible",
+  oculto: "hidden",
+  hidden: "hidden",
+  catalogo: "catalog",
+  catálogo: "catalog",
+  catalog: "catalog",
+  busqueda: "search",
+  búsqueda: "search",
+  search: "search",
+};
+
+export function visibilidadWC(valor: string | null | undefined): string {
+  const clave = (valor ?? "").trim().toLowerCase();
+  if (!clave) return "visible";
+  const traducida = VISIBILIDAD_WC[clave];
+  if (traducida) return traducida;
+  console.warn(`[woocommerce] visibilidad desconocida "${valor}" → se envía "visible"`);
+  return "visible";
+}
+
+/** `type`: simple · grouped · external · variable. Nada más. */
+const TIPO_WC: Record<string, string> = {
+  simple: "simple",
+  variable: "variable",
+  agrupado: "grouped",
+  grouped: "grouped",
+  externo: "external",
+  external: "external",
+};
+
+export function tipoWC(valor: string | null | undefined): string {
+  const clave = (valor ?? "").trim().toLowerCase();
+  if (!clave) return "simple";
+  const traducida = TIPO_WC[clave];
+  if (traducida) return traducida;
+  console.warn(`[woocommerce] tipo desconocido "${valor}" → se envía "simple"`);
+  return "simple";
+}
 
 export function productoToWC(producto: ProductoDetalle): WCProduct {
   // La ficha técnica se sube desde la pestaña Calidad y su URL queda en
@@ -188,10 +244,10 @@ export function productoToWC(producto: ProductoDetalle): WCProduct {
   return {
     name: producto.nombre,
     slug: producto.slug,
-    type: producto.tipo.toLowerCase(),
+    type: tipoWC(producto.tipo),
     status: producto.publicado ? "publish" : "draft",
     featured: producto.destacado,
-    catalog_visibility: producto.visibilidad as string,
+    catalog_visibility: visibilidadWC(producto.visibilidad),
     description: producto.descripcion ?? "",
     short_description: producto.descCorta ?? "",
     sku: producto.sku,
