@@ -8,9 +8,12 @@ import { uploadImageFTP, verificarUrlPublica } from "@/lib/ftp";
 import { getWPCredentials, uploadToWordPressMedia } from "@/lib/wordpress";
 import { prisma } from "@/lib/prisma";
 import { sincronizarProducto } from "@/lib/sync-tienda";
+import { motivoRechazoImagen } from "@/lib/imagenes-limites";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-const MAX_SIZE_MB = 5;
+// El límite y los tipos viven en lib/imagenes-limites.ts: la galería que
+// elige el archivo usa exactamente los mismos. Tenerlos por duplicado
+// acabaría en el peor síntoma posible — el navegador acepta la foto, la
+// sube entera, y el servidor la rechaza al final.
 
 export async function POST(req: NextRequest) {
   const user = await getUserFromRequest(req);
@@ -24,11 +27,10 @@ export async function POST(req: NextRequest) {
     const esPrincipal = formData.get("esPrincipal") === "true";
 
     if (!file) return NextResponse.json({ success: false, error: "No se recibió archivo" }, { status: 400 });
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json({ success: false, error: "Tipo de archivo no permitido. Usa JPG, PNG o WebP." }, { status: 400 });
-    }
-    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      return NextResponse.json({ success: false, error: `El archivo supera ${MAX_SIZE_MB}MB` }, { status: 400 });
+
+    const rechazo = motivoRechazoImagen(file);
+    if (rechazo) {
+      return NextResponse.json({ success: false, error: rechazo }, { status: 400 });
     }
 
     // Generar nombre único

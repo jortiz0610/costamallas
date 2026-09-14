@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { ParaElCliente } from "@/components/productos/ParaElCliente";
+import { motivoRechazoImagen, MAX_IMAGEN_MB, TIPOS_IMAGEN_LEGIBLE } from "@/lib/imagenes-limites";
 
 type FD = Record<string, unknown>;
 interface Props { initialData?: FD; productoId?: string; modo: "crear" | "editar"; }
@@ -1184,16 +1185,12 @@ function GaleriaPendiente({
     const nuevas: File[] = [];
     const rechazadas: string[] = [];
     for (const f of Array.from(lista)) {
-      // Se comprueba aquí lo mismo que comprueba el servidor. Descubrir
-      // que una foto de 8 MB no vale DESPUÉS de crear el producto es la
-      // peor forma de enterarse.
-      if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(f.type)) {
-        rechazadas.push(`${f.name}: tipo no permitido`);
-      } else if (f.size > 5 * 1024 * 1024) {
-        rechazadas.push(`${f.name}: pesa más de 5 MB`);
-      } else {
-        nuevas.push(f);
-      }
+      // La MISMA comprobación que hace el servidor, traída de
+      // lib/imagenes-limites.ts. Descubrir que una foto no vale DESPUÉS
+      // de haberla subido entera es la peor forma de enterarse.
+      const rechazo = motivoRechazoImagen(f);
+      if (rechazo) rechazadas.push(rechazo);
+      else nuevas.push(f);
     }
     rechazadas.forEach(r => toast.error(r, { duration: 6000 }));
     if (nuevas.length) onCambio([...fotos, ...nuevas]);
@@ -1220,7 +1217,7 @@ function GaleriaPendiente({
         </div>
         <div className="text-center">
           <p className="text-sm font-semibold text-gray-600">Haz clic para elegir imágenes</p>
-          <p className="text-xs text-gray-400 mt-0.5">JPG, PNG, WEBP · Máx 5MB por imagen</p>
+          <p className="text-xs text-gray-400 mt-0.5">{TIPOS_IMAGEN_LEGIBLE} · Máx {MAX_IMAGEN_MB} MB por imagen</p>
         </div>
         <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden"
           onChange={e => { agregar(e.target.files); e.target.value = ""; }} />
@@ -1307,6 +1304,12 @@ function GaleriaProducto({ productoId }: { productoId: string }) {
     setUploading(true);
     let ok = 0;
     for (const file of Array.from(files)) {
+      // Se comprueba ANTES de mandarla. Subir 20 MB por la red para que
+      // el servidor conteste que no vale es tiempo perdido, y en un
+      // teléfono son además datos gastados.
+      const rechazo = motivoRechazoImagen(file);
+      if (rechazo) { toast.error(rechazo, { duration: 7000 }); continue; }
+
       const fd = new FormData();
       fd.append("file", file);
       fd.append("productoId", productoId);
@@ -1348,7 +1351,7 @@ function GaleriaProducto({ productoId }: { productoId: string }) {
         </div>
         <div className="text-center">
           <p className="text-sm font-semibold text-gray-600">{uploading ? "Subiendo imágenes…" : "Haz clic para subir imágenes"}</p>
-          <p className="text-xs text-gray-400 mt-0.5">JPG, PNG, WEBP · Máx 5MB por imagen</p>
+          <p className="text-xs text-gray-400 mt-0.5">{TIPOS_IMAGEN_LEGIBLE} · Máx {MAX_IMAGEN_MB} MB por imagen</p>
         </div>
         <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden"
           onChange={e => handleUpload(e.target.files)} />
