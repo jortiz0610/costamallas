@@ -20,6 +20,12 @@ import { rateLimit } from "@/lib/rate-limit";
 const PUBLIC_PATHS = [
   "/login", "/api/auth/login", "/cotizar", "/api/public",
   "/api/marketing/oauth", "/api/cron", "/api/mantenimiento", "/cotizacion", "/politicas",
+  // Las importaciones desde SIIGO se autorizan SOLAS, igual que el cron:
+  // exigen sesión de administrador o el `CRON_SECRET`, y devuelven 403 a
+  // cualquier otra cosa. Van aquí porque la primera importación se lanza
+  // desde el servidor, sin navegador, y porque traer miles de registros
+  // tarda más de lo que aguanta cómodamente una petición del navegador.
+  "/api/siigo",
   // La encuesta la contesta el cliente, que no tiene cuenta. Se llega
   // por un token largo del correo, no por un id adivinable.
   "/encuesta",
