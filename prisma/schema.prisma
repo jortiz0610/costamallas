@@ -261,6 +261,9 @@ model Factura {
   numero      String  @unique
   prefijo     String?
   consecutivo Int?
+  /// El id del documento en SIIGO. Marca las facturas traidas del
+  /// historico y hace la importacion repetible.
+  siigoId     String?  @unique
 
   clienteId    String
   cliente      Cliente @relation(fields: [clienteId], references: [id], onDelete: Restrict)
