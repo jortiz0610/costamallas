@@ -11,6 +11,7 @@ import { conFotoDelCatalogo, type ItemGuardable } from "@/lib/cotizacion-imagene
 import { siguienteNumeroPrueba } from "@/lib/cotizaciones-prueba";
 import { peticionPuede } from "@/lib/permisos-server";
 import { enlazarCotizacion } from "@/lib/visitas";
+import { ESTADO_HISTORICA } from "@/lib/siigo/importar-cotizaciones";
 import {
   getPoliticaComercial, descuentoEfectivoPct, evaluarPolitica,
 } from "@/lib/politica-comercial";
@@ -36,6 +37,20 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  // ── El archivo de SIIGO no entra en el embudo ──
+  //
+  // Son 6.323 ofertas de 2021 en adelante, traídas del histórico. En la
+  // lista de trabajo enterrarían las 65 vivas, y no son trabajo: son
+  // consulta. Se ven pidiéndolas: ?historicas=1 para verlas solas, o
+  // ?clienteId=… que SÍ las incluye, porque «qué le cotizamos antes a
+  // este cliente» es justo para lo que sirven.
+  const verHistoricas = req.nextUrl.searchParams.get("historicas") === "1";
+  const archivo = verHistoricas
+    ? { estado: ESTADO_HISTORICA }
+    : clienteId || estado
+      ? {}
+      : { estado: { not: ESTADO_HISTORICA } };
+
   const cotizaciones = await prisma.cotizacion.findMany({
     where: {
       // Las borradas no existen para nadie salvo el administrador.
@@ -43,6 +58,7 @@ export async function GET(req: NextRequest) {
       ...suyas,
       ...(clienteId ? { clienteId } : {}),
       ...(estado ? { estado } : {}),
+      ...archivo,
     },
     include: {
       cliente: { select: { nombre: true, empresa: true } },

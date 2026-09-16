@@ -504,6 +504,10 @@ model Cotizacion {
   /// es justo lo que el administrador necesita ver en la lista de
   /// borradas: "COT-12076, borrada el 12 de septiembre".
   numeroOriginal   String?
+  /// El id del documento en SIIGO. Marca las cotizaciones TRAIDAS del
+  /// historico y hace la importacion repetible: al volver a correrla,
+  /// cada una se reconoce por aqui en vez de duplicarse.
+  siigoId          String?  @unique
   clienteId        String
   cliente          Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   vendedorId       String?
