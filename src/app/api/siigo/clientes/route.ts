@@ -23,10 +23,26 @@ export const runtime = "nodejs";
 // se queda corto y la importación moriría a la mitad.
 export const maxDuration = 300;
 
-export async function POST(req: NextRequest) {
+/**
+ * Quién puede disparar esto: un administrador con sesión, o el servidor
+ * con el `CRON_SECRET`.
+ *
+ * Lo segundo es el mismo trato que `/api/cron/diario` y existe por una
+ * razón práctica: la primera importación se lanza desde el servidor,
+ * antes de que exista un botón en ninguna pantalla, y sin esto habría
+ * que inventarse una sesión para poder correrla.
+ */
+async function autorizado(req: NextRequest): Promise<{ ok: boolean; usuarioId?: string }> {
+  const secreto = process.env.CRON_SECRET;
+  if (secreto && req.headers.get("authorization") === `Bearer ${secreto}`) return { ok: true };
   const user = await getUserFromRequest(req);
-  if (!user) return NextResponse.json({ success: false, error: "No autenticado" }, { status: 401 });
-  if (!isAdmin(user)) {
+  if (user && isAdmin(user)) return { ok: true, usuarioId: user.sub };
+  return { ok: false };
+}
+
+export async function POST(req: NextRequest) {
+  const quien = await autorizado(req);
+  if (!quien.ok) {
     return NextResponse.json(
       { success: false, error: "Solo un administrador puede importar desde SIIGO." },
       { status: 403 },
@@ -51,7 +67,9 @@ export async function POST(req: NextRequest) {
     if (!ensayo) {
       await prisma.log.create({
         data: {
-          usuarioId: user.sub,
+          // Sin sesion -disparo desde el servidor- no hay usuario a quien
+          // atribuirlo, y el registro lo dice en vez de inventarse uno.
+          usuarioId: quien.usuarioId ?? null,
           accion: "SIIGO_IMPORTAR_CLIENTES",
           detalle: `${r.creados} creados, ${r.actualizados} completados, ${r.sinCambios} sin cambios, ${r.errores.length} con error`,
           resultado: r.errores.length ? "PARCIAL" : "OK",
