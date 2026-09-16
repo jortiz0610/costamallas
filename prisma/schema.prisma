@@ -201,6 +201,10 @@ model Cliente {
   ciudad       String?
   departamento String?
   direccion    String?
+  /// El id del cliente en SIIGO. Es lo que hace que la importacion se
+  /// pueda repetir sin duplicar: al volver a correr, cada cliente se
+  /// reconoce por aqui aunque le hayan corregido el nombre o el NIT.
+  siigoId      String?  @unique
   nit          String?
   /// Documento del cliente persona natural. `nit` es para empresas y
   /// solo se pedia en ese caso: una persona quedaba sin identificacion,
