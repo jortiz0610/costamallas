@@ -15,7 +15,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import Link from "next/link";
 import {
   Plus, Search, RefreshCw, Package, X, SlidersHorizontal, ArrowUpDown, ImageOff,
-  DollarSign, Globe, Ruler, FileWarning, CheckCircle2, Copy, Check, Send,
+  DollarSign, Globe, Ruler, FileWarning, CheckCircle2, Copy, Check, Send, PackageSearch,
 } from "lucide-react";
 import { fichaParaCliente } from "@/lib/ficha-cliente";
 import { EnviarANexus } from "@/components/nexus/EnviarANexus";
@@ -164,6 +164,12 @@ export default function ProductosPage() {
             <button onClick={refrescar} className="btn-secondary btn-sm">
               <RefreshCw size={12} className={isLoading || refrescando ? "animate-spin" : ""} />
             </button>
+            {/* Pantalla de PASO: revisar los 1.044 productos de SIIGO y
+                decidir cuáles entran. Cuando no queden pendientes, este
+                enlace y esa pantalla se pueden quitar. */}
+            <Link href="/productos/siigo" className="btn-secondary btn-sm" title="Revisar el catálogo de SIIGO">
+              <PackageSearch size={13} /> <span className="hidden sm:inline">Catálogo SIIGO</span>
+            </Link>
             <Link href="/productos/nuevo" className="btn-primary btn-sm">
               <Plus size={14} /> Nuevo producto
             </Link>

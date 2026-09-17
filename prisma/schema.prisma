@@ -1862,3 +1862,54 @@ model NotaCredito {
   @@index([facturaId])
   @@map("notas_credito")
 }
+
+/// ── El catálogo de SIIGO, en sala de espera ──
+///
+/// Son 1.044 productos y NO se meten al catálogo sin mirarlos: solo el
+/// 29% tiene precio, y una ficha sin precio no se puede publicar ni
+/// cotizar — llenaría el catálogo de cosas inservibles.
+///
+/// Así que primero aterrizan aquí, que es una copia de lo que hay en
+/// SIIGO más una decisión: traer o descartar. Al traer se crea el
+/// Producto de verdad; al descartar se queda anotado para que nadie lo
+/// vuelva a revisar.
+///
+/// Es una tabla de PASO. Cuando no queden pendientes deja de tener
+/// sentido, y la pantalla que la usa se puede quitar.
+model ProductoSiigo {
+  id      String @id @default(cuid())
+  siigoId String @unique
+
+  codigo      String
+  nombre      String
+  descripcion String? @db.Text
+  /// Precio de la lista 1. Nulo = SIIGO no le puso precio.
+  precio      Decimal? @db.Decimal(14, 2)
+  ivaPct      Decimal? @db.Decimal(5, 2)
+  unidad      String?
+  /// "Product" o "Service" en SIIGO.
+  tipo        String  @default("Product")
+  activoEnSiigo Boolean @default(true)
+  existencias Decimal @default(0) @db.Decimal(10, 2)
+  grupo       String?
+
+  /// PENDIENTE · TRAER · DESCARTAR
+  decision      String    @default("PENDIENTE")
+  decididoPorId String?
+  decididoEn    DateTime?
+  /// El producto del portal que se creó al traerlo.
+  productoId    String?
+  /// Por qué falló, si falló al crearlo.
+  errorAlTraer  String?   @db.Text
+
+  /// El SKU ya existe en el catálogo del portal. Se calcula al
+  /// sincronizar: es lo primero que hay que saber para decidir.
+  yaEnPortal Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([decision])
+  @@index([yaEnPortal])
+  @@map("productos_siigo")
+}
