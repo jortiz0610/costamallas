@@ -15,29 +15,55 @@ export async function GET(req: NextRequest) {
   // tienen asesor asignado.
   const suyos = await filtroClientes(req);
 
-  const clientes = await prisma.cliente.findMany({
-    where: {
-      ...suyos,
-      activo: soloActivos ? true : undefined,
-      ...(busqueda ? {
-        OR: [
-          { nombre: { contains: busqueda, mode: "insensitive" } },
-          { empresa: { contains: busqueda, mode: "insensitive" } },
-          { email: { contains: busqueda, mode: "insensitive" } },
-          { nit: { contains: busqueda, mode: "insensitive" } },
-          { cedula: { contains: busqueda, mode: "insensitive" } },
-        ],
-      } : {}),
-    },
-    include: {
-      vendedor: { select: { nombre: true } },
-      _count: { select: { cotizaciones: true, pedidos: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  // ── Paginación ──
+  //
+  // Esto devolvía `take: 100` y punto. Con 78 clientes nunca se notó;
+  // con 4.350 significa que 4.250 personas EXISTEN en la base y no hay
+  // forma de llegar a ellas desde la pantalla. Un CRM que solo enseña
+  // los primeros cien no es un CRM.
+  //
+  // Se devuelve también el total, porque "100 de 4.350" y "100" son
+  // mensajes muy distintos para quien está buscando a alguien.
+  const pagina = Math.max(1, Number(req.nextUrl.searchParams.get("pagina")) || 1);
+  const porPagina = Math.min(200, Math.max(1, Number(req.nextUrl.searchParams.get("porPagina")) || 100));
 
-  return NextResponse.json({ success: true, data: clientes });
+  const where = {
+    ...suyos,
+    activo: soloActivos ? true : undefined,
+    ...(busqueda ? {
+      OR: [
+        { nombre: { contains: busqueda, mode: "insensitive" as const } },
+        { empresa: { contains: busqueda, mode: "insensitive" as const } },
+        { email: { contains: busqueda, mode: "insensitive" as const } },
+        { telefono: { contains: busqueda, mode: "insensitive" as const } },
+        { nit: { contains: busqueda, mode: "insensitive" as const } },
+        { cedula: { contains: busqueda, mode: "insensitive" as const } },
+      ],
+    } : {}),
+  };
+
+  const [clientes, total] = await Promise.all([
+    prisma.cliente.findMany({
+      where,
+      include: {
+        vendedor: { select: { nombre: true } },
+        _count: { select: { cotizaciones: true, pedidos: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      skip: (pagina - 1) * porPagina,
+      take: porPagina,
+    }),
+    prisma.cliente.count({ where }),
+  ]);
+
+  return NextResponse.json({
+    success: true,
+    data: clientes,
+    total,
+    pagina,
+    porPagina,
+    paginas: Math.max(1, Math.ceil(total / porPagina)),
+  });
 }
 
 export async function POST(req: NextRequest) {

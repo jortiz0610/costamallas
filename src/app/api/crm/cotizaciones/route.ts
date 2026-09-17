@@ -51,26 +51,61 @@ export async function GET(req: NextRequest) {
       ? {}
       : { estado: { not: ESTADO_HISTORICA } };
 
-  const cotizaciones = await prisma.cotizacion.findMany({
-    where: {
-      // Las borradas no existen para nadie salvo el administrador.
-      borradaEn: verBorradas ? { not: null } : null,
-      ...suyas,
-      ...(clienteId ? { clienteId } : {}),
-      ...(estado ? { estado } : {}),
-      ...archivo,
-    },
-    include: {
-      cliente: { select: { nombre: true, empresa: true } },
-      vendedor: { select: { nombre: true } },
-      _count: { select: { items: true } },
-      ...(verBorradas ? { borradaPor: { select: { nombre: true } } } : {}),
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  // Paginación. Con 6.390 cotizaciones en la base, `take: 100` a secas
+  // significa que 6.290 no se pueden alcanzar desde ninguna pantalla.
+  const pagina = Math.max(1, Number(req.nextUrl.searchParams.get("pagina")) || 1);
+  const porPagina = Math.min(200, Math.max(1, Number(req.nextUrl.searchParams.get("porPagina")) || 100));
 
-  return NextResponse.json({ success: true, data: cotizaciones });
+  const where = {
+    // Las borradas no existen para nadie salvo el administrador.
+    borradaEn: verBorradas ? { not: null } : null,
+    ...suyas,
+    ...(clienteId ? { clienteId } : {}),
+    ...(estado ? { estado } : {}),
+    ...archivo,
+  };
+
+  // Los contadores del embudo se cuentan EN LA BASE, no sobre la página
+  // cargada: con paginación, contar lo que hay en pantalla daría "6
+  // borradores" cuando hay 16. Se cuentan sin el filtro de estado —si no,
+  // al pulsar "Aprobadas" los demás contadores se irían a cero.
+  const dondeSinEstado = {
+    borradaEn: verBorradas ? { not: null } : null,
+    ...suyas,
+    ...(clienteId ? { clienteId } : {}),
+    ...archivo,
+  };
+
+  const [cotizaciones, total, porEstado] = await Promise.all([
+    prisma.cotizacion.findMany({
+      where,
+      include: {
+        cliente: { select: { nombre: true, empresa: true } },
+        vendedor: { select: { nombre: true } },
+        _count: { select: { items: true } },
+        ...(verBorradas ? { borradaPor: { select: { nombre: true } } } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+      skip: (pagina - 1) * porPagina,
+      take: porPagina,
+    }),
+    prisma.cotizacion.count({ where }),
+    prisma.cotizacion.groupBy({
+      by: ["estado"],
+      where: dondeSinEstado,
+      _count: { _all: true },
+    }),
+  ]);
+
+  return NextResponse.json({
+    success: true,
+    data: cotizaciones,
+    total,
+    pagina,
+    porPagina,
+    paginas: Math.max(1, Math.ceil(total / porPagina)),
+    conteos: Object.fromEntries(porEstado.map(x => [x.estado, x._count._all])),
+  });
 }
 
 export async function POST(req: NextRequest) {

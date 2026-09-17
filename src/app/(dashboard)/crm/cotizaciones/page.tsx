@@ -1,5 +1,5 @@
 "use client";
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
 import { Plus, Search, X, Loader2, Trash2, FileText, ExternalLink, Eye, Pencil, FlaskConical, ClipboardCheck, HardHat, CalendarPlus } from "lucide-react";
@@ -197,13 +197,30 @@ function CotizacionesContent() {
   const { user, isAdmin } = useAuth();
   const esSuper = esSuperadmin(user?.rol);
   const qc = useQueryClient();
-  const { data: cotizaciones = [], isLoading, refetch } = useQuery<Cotizacion[]>({
-    queryKey: ["crm-cotizaciones", filtroEstado],
+  // El archivo traído de SIIGO: 6.323 ofertas de 2021 en adelante. Va
+  // detrás de su propio botón y NO se mezcla con el embudo — si se
+  // mezclara, las que se están trabajando hoy quedarían enterradas.
+  const [verArchivo, setVerArchivo] = useState(false);
+  const [pagina, setPagina] = useState(1);
+  useEffect(() => { setPagina(1); }, [filtroEstado, verArchivo]);
+
+  const { data: respuesta, isLoading, refetch } = useQuery<{
+    data: Cotizacion[]; total: number; paginas: number; conteos: Record<string, number>;
+  }>({
+    queryKey: ["crm-cotizaciones", filtroEstado, verArchivo, pagina],
     queryFn: async () => {
-      const qs = filtroEstado ? `?estado=${filtroEstado}` : "";
-      return (await (await fetch(`/api/crm/cotizaciones${qs}`)).json()).data ?? [];
+      const p = new URLSearchParams({ pagina: String(pagina) });
+      if (filtroEstado) p.set("estado", filtroEstado);
+      if (verArchivo) p.set("historicas", "1");
+      return await (await fetch(`/api/crm/cotizaciones?${p}`)).json();
     },
+    placeholderData: previa => previa,
   });
+
+  const cotizaciones = respuesta?.data ?? [];
+  const totalCotizaciones = respuesta?.total ?? 0;
+  const totalPaginas = respuesta?.paginas ?? 1;
+  const conteos = respuesta?.conteos ?? {};
   const cambiarEstado = async (id: string, estado: string) => {
     const res = await fetch(`/api/crm/cotizaciones/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estado }) });
     const json = await res.json();
@@ -221,6 +238,12 @@ function CotizacionesContent() {
           {/* La papelera solo se le enseña a administración, que es
               quien puede borrar y quien puede restaurar. El servidor lo
               vuelve a comprobar: esconder el enlace no protege nada. */}
+          <button onClick={() => setVerArchivo(v => !v)}
+            className="btn-secondary btn-sm"
+            title="Las 6.323 cotizaciones traidas de SIIGO (2021 en adelante)"
+            style={verArchivo ? { backgroundColor: CRM_COLOR, color: "white", borderColor: CRM_COLOR } : {}}>
+            <FileText size={13} /> <span className="hidden sm:inline">{verArchivo ? "Ver el embudo" : "Archivo SIIGO"}</span>
+          </button>
           {isAdmin && (
             <Link href="/crm/cotizaciones/papelera" className="btn-secondary btn-sm" title="Cotizaciones borradas">
               <Trash2 size={13} /> <span className="hidden sm:inline">Papelera</span>
@@ -234,7 +257,7 @@ function CotizacionesContent() {
       <div className="flex-1 overflow-y-auto page-bg p-3 sm:p-5 space-y-4">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {ESTADOS.map(e => {
-            const count = cotizaciones.filter(c => c.estado === e.v).length;
+            const count = conteos[e.v] ?? 0;
             const activo = filtroEstado === e.v;
             return (
               <button key={e.v} onClick={() => setFiltroEstado(activo ? "" : e.v)}
@@ -354,6 +377,24 @@ function CotizacionesContent() {
             </div>
           ))}
         </div>
+
+        {totalPaginas > 1 && (
+          <div className="card flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <p className="text-xs text-muted">
+              {verArchivo ? "Archivo de SIIGO · " : ""}
+              Mostrando <span className="font-semibold text-soft">{cotizaciones.length}</span> de{" "}
+              <span className="font-semibold text-soft">{totalCotizaciones.toLocaleString("es-CO")}</span>{" "}
+              · página {pagina} de {totalPaginas}
+            </p>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina <= 1}
+                className="btn-secondary btn-sm disabled:opacity-40">Anterior</button>
+              <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina >= totalPaginas}
+                className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-40"
+                style={{ backgroundColor: CRM_COLOR }}>Siguiente</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {aplazando && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Topbar } from "@/components/layout/Topbar";
 import {
@@ -58,13 +58,28 @@ function ClientesContent() {
   const { brand } = useBrand();
   const { isAdmin } = useAuth();
 
-  const { data: clientes = [], isLoading } = useQuery<Cliente[]>({
-    queryKey: ["crm-clientes", busqueda],
+  // La lista se pide por páginas. Con 4.350 clientes, traerlos todos de
+  // golpe son varios megas por cada vez que alguien abre la pantalla.
+  const [pagina, setPagina] = useState(1);
+  // Al buscar o filtrar se vuelve a la primera: quedarse en la página 12
+  // de un resultado que ahora tiene 3 muestra una lista vacía.
+  useEffect(() => { setPagina(1); }, [busqueda, filtroEstado]);
+
+  const { data: respuesta, isLoading } = useQuery<{
+    data: Cliente[]; total: number; paginas: number;
+  }>({
+    queryKey: ["crm-clientes", busqueda, pagina],
     queryFn: async () => {
-      const qs = busqueda ? `?busqueda=${encodeURIComponent(busqueda)}` : "";
-      return (await (await fetch(`/api/crm/clientes${qs}`)).json()).data ?? [];
+      const p = new URLSearchParams({ pagina: String(pagina) });
+      if (busqueda) p.set("busqueda", busqueda);
+      return await (await fetch(`/api/crm/clientes?${p}`)).json();
     },
+    placeholderData: previa => previa,
   });
+
+  const clientes = respuesta?.data ?? [];
+  const totalClientes = respuesta?.total ?? 0;
+  const totalPaginas = respuesta?.paginas ?? 1;
 
   const filtrados = filtroEstado
     ? clientes.filter(c => c.estado === filtroEstado)
@@ -120,7 +135,7 @@ function ClientesContent() {
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
-            { label: "Total clientes",  val: clientes.length, color: CRM_COLOR,   Icon: Users },
+            { label: "Total clientes",  val: totalClientes, color: CRM_COLOR,   Icon: Users },
             { label: "Empresas",        val: clientes.filter(c => c.tipo === "empresa").length, color: "#185FA5", Icon: Building2 },
             { label: "Clientes activos",val: activos, color: "#059669", Icon: TrendingUp },
             { label: "VIP",             val: vips, color: "#eab308", Icon: Star },
@@ -219,6 +234,37 @@ function ClientesContent() {
             </div>
           ))}
         </div>
+
+        {/* Páginas. Solo cuando hay más de una: con 78 clientes esto no
+            tenía razón de existir, y sigue sin tenerla si la búsqueda
+            deja tres resultados. */}
+        {totalPaginas > 1 && (
+          <div className="card flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <p className="text-xs text-muted">
+              Mostrando{" "}
+              <span className="font-semibold text-soft">{clientes.length}</span> de{" "}
+              <span className="font-semibold text-soft">{totalClientes.toLocaleString("es-CO")}</span>
+              {busqueda ? " que coinciden" : " clientes"} · página {pagina} de {totalPaginas}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPagina(p => Math.max(1, p - 1))}
+                disabled={pagina <= 1}
+                className="btn-secondary btn-sm disabled:opacity-40"
+              >
+                Anterior
+              </button>
+              <button
+                onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+                disabled={pagina >= totalPaginas}
+                className="btn-sm px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-40"
+                style={{ backgroundColor: CRM_COLOR }}
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
