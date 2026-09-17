@@ -152,6 +152,8 @@ export async function recorrerSiigo<T>(
 // ── La forma de un cliente en SIIGO ──
 export interface ClienteSiigo {
   id: string;
+  /** Customer, Supplier u Other: este listado devuelve TERCEROS, no solo clientes. */
+  type?: string;
   person_type?: "Company" | "Person";
   id_type?: { code?: string; name?: string };
   identification?: string;

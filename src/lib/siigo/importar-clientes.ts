@@ -39,6 +39,22 @@ export interface ResultadoImportacion {
 /** Solo los dígitos: "900.882.270-1" y "9008822701" son el mismo documento. */
 const soloDigitos = (v: string | null | undefined) => String(v ?? "").replace(/[^0-9]/g, "");
 
+/**
+ * `/v1/customers` de SIIGO NO devuelve solo clientes: devuelve TERCEROS.
+ *
+ * De los 4.284 hay 4.045 marcados `Customer`, 89 `Supplier` y 150
+ * `Other`. Los 239 que no son clientes entraron al CRM en la primera
+ * importación y ahí se vio el problema: son proveedores y terceros
+ * contables, tienen cero cotizaciones y cero facturas, y lo único que
+ * hacen en una lista de clientes es estorbar cuando alguien busca.
+ *
+ * Ojo con el matiz: un proveedor PUEDE ser cliente a la vez —267 de los
+ * 335 proveedores están marcados `Customer`— y esos sí entran. Lo que
+ * se descarta es lo que SIIGO dice que no es cliente, no "todo el que
+ * aparezca en una compra".
+ */
+const TIPOS_QUE_SON_CLIENTE = new Set(["Customer"]);
+
 /** Los códigos de documento que SIIGO usa para EMPRESA. El resto es persona. */
 const DOCS_EMPRESA = new Set(["31", "50"]);
 
@@ -168,6 +184,12 @@ export async function importarClientesSiigo(
     async lote => {
       for (const crudo of lote) {
         r.leidos++;
+        // Los terceros que SIIGO no marca como cliente no entran al CRM.
+        if (!TIPOS_QUE_SON_CLIENTE.has(String(crudo.type ?? "Customer"))) {
+          r.omitidos.push({ identificacion: String(crudo.identification ?? "?"), motivo: `no es cliente en SIIGO (${crudo.type})` });
+          continue;
+        }
+
         const c = mapearCliente(crudo);
         if (!c) {
           r.omitidos.push({

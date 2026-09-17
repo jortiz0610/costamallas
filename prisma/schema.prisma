@@ -235,6 +235,7 @@ model Cliente {
   logins         Usuario[]           @relation("LoginDelCliente")
   conversaciones NexusConversacion[]
   encuestas      EncuestaSatisfaccion[]
+  notasCredito   NotaCredito[]
 
   @@index([vendedorId])
   @@index([activo])
@@ -293,6 +294,7 @@ model Factura {
   notas String?       @db.Text
   items ItemFactura[]
   pagos PagoFactura[]
+  notasCredito NotaCredito[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -373,6 +375,8 @@ model Proveedor {
   email        String?
   telefono     String?
   nit          String?
+  /// El id del tercero en SIIGO. Hace la importacion repetible.
+  siigoId      String?  @unique
   direccion    String?
   ciudad       String?
   categorias   String[] @default([])
@@ -438,6 +442,8 @@ model ProveedorProducto {
 model OrdenCompra {
   id            String    @id @default(cuid())
   numero        String    @unique
+  /// El id del documento de compra en SIIGO.
+  siigoId       String?   @unique
   proveedorId   String
   proveedor     Proveedor @relation(fields: [proveedorId], references: [id], onDelete: Cascade)
   estado        String    @default("BORRADOR") // BORRADOR, ENVIADA, RECIBIDA_PARCIAL, RECIBIDA, CANCELADA
@@ -1820,4 +1826,39 @@ model SuscripcionPush {
 
   @@index([usuarioId])
   @@map("suscripciones_push")
+}
+
+/// ── Notas crédito traídas de SIIGO ──
+///
+/// Una nota crédito ANULA o REBAJA una factura ya emitida: una
+/// devolución, un descuento acordado después, un error de facturación.
+/// Sin ellas, la cartera que muestra el portal está inflada — la factura
+/// dice que deben X y la nota dice que ya no.
+///
+/// Se guardan aparte y no restando del total de la factura, porque un
+/// documento contable emitido no se edita: se corrige con otro documento.
+model NotaCredito {
+  id      String  @id @default(cuid())
+  numero  String  @unique
+  siigoId String? @unique
+
+  clienteId String
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+  /// La factura que corrige, cuando se pudo enlazar.
+  facturaId String?
+  factura   Factura? @relation(fields: [facturaId], references: [id], onDelete: SetNull)
+
+  fecha   DateTime
+  motivo  String?
+  total   Decimal  @default(0) @db.Decimal(14, 2)
+  /// Estado ante la DIAN: ACEPTADA, RECHAZADA, PENDIENTE, NO_APLICA.
+  estadoDian String @default("NO_APLICA")
+  cufe       String?
+  notas      String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([clienteId])
+  @@index([facturaId])
+  @@map("notas_credito")
 }
