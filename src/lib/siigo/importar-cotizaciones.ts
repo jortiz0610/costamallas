@@ -19,25 +19,32 @@
 // el mismo texto que aparece en SIIGO, así que buscar por él lleva al
 // documento correcto en los dos sitios.
 //
-// ── EL ESTADO: no se inventa ──
+// ── EL ESTADO SALE DE LA FECHA, y no hay estado propio ──
 //
-// SIIGO NO guarda si la cotización se aprobó, se rechazó o se venció:
-// el campo sencillamente no existe en su API. Poner "VENCIDA" a las
-// 6.323 sería escribir en el CRM un dato que nadie sabe. Entran como
-// `HISTORICA`, que dice exactamente lo que se sabe de ellas: vienen del
-// archivo de SIIGO y su desenlace no consta.
+// Estas ofertas viven en el MISMO embudo que las del portal. No llevan
+// un estado inventado para ellas: lo que las distingue es `siigoId`, y
+// con eso basta —no se van a traer más, así que no hace falta un
+// compartimento aparte.
 //
-// Ese estado además las mantiene FUERA del embudo: las pantallas filtran
-// por los estados del proceso (BORRADOR, ENVIADA, APROBADA…) y el
-// vencimiento automático solo toca ENVIADA. Seis mil ofertas viejas no
-// pueden ensuciar las cifras del mes.
+// SIIGO no guarda el desenlace, pero sí guarda cuándo se emitió cada
+// una, y eso alcanza para el único estado que se puede afirmar sin
+// mentir: si ya pasó su validez, está VENCIDA; si no, quedó ENVIADA,
+// porque una cotización de SIIGO es un documento que SE LE ENTREGÓ a un
+// cliente, no un borrador a medias.
 // ============================================================
 
 import { prisma } from "@/lib/prisma";
 import { recorrerSiigo } from "./cliente-api";
 
-/** Lo que se sabe de una oferta del archivo: que existió. */
-export const ESTADO_HISTORICA = "HISTORICA";
+/**
+ * El estado de una oferta traída de SIIGO, deducido de su fecha.
+ *
+ * De las 6.323, 6.297 ya pasaron su validez y 26 siguen vigentes.
+ */
+export function estadoPorFecha(fecha: Date, validezDias = 30): string {
+  const vence = new Date(fecha.getTime() + validezDias * 86400000);
+  return vence.getTime() < Date.now() ? "VENCIDA" : "ENVIADA";
+}
 
 export interface CotizacionSiigo {
   id: string;
@@ -168,7 +175,7 @@ export async function importarCotizacionesSiigo(
                 siigoId: q.id,
                 numero,
                 clienteId,
-                estado: ESTADO_HISTORICA,
+                estado: estadoPorFecha(fecha),
                 subtotal,
                 descuento: 0,
                 iva,

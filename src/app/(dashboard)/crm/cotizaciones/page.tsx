@@ -21,6 +21,8 @@ interface Cotizacion {
   validezDias?: number;
   prorrogaDias?: number;
   aprobacionEstado?: string;
+  /** Viene del archivo de SIIGO. Es la unica marca que las distingue. */
+  siigoId?: string | null;
   cliente: { nombre: string; empresa?: string };
   vendedor?: { nombre: string };
   _count: { items: number };
@@ -197,21 +199,20 @@ function CotizacionesContent() {
   const { user, isAdmin } = useAuth();
   const esSuper = esSuperadmin(user?.rol);
   const qc = useQueryClient();
-  // El archivo traído de SIIGO: 6.323 ofertas de 2021 en adelante. Va
-  // detrás de su propio botón y NO se mezcla con el embudo — si se
-  // mezclara, las que se están trabajando hoy quedarían enterradas.
-  const [verArchivo, setVerArchivo] = useState(false);
+  // Las de SIIGO ya viven en el mismo embudo. Este filtro solo sirve
+  // para mirar el archivo solo, cuando alguien lo quiere.
+  const [soloSiigo, setSoloSiigo] = useState(false);
   const [pagina, setPagina] = useState(1);
-  useEffect(() => { setPagina(1); }, [filtroEstado, verArchivo]);
+  useEffect(() => { setPagina(1); }, [filtroEstado, soloSiigo]);
 
   const { data: respuesta, isLoading, refetch } = useQuery<{
     data: Cotizacion[]; total: number; paginas: number; conteos: Record<string, number>;
   }>({
-    queryKey: ["crm-cotizaciones", filtroEstado, verArchivo, pagina],
+    queryKey: ["crm-cotizaciones", filtroEstado, soloSiigo, pagina],
     queryFn: async () => {
       const p = new URLSearchParams({ pagina: String(pagina) });
       if (filtroEstado) p.set("estado", filtroEstado);
-      if (verArchivo) p.set("historicas", "1");
+      if (soloSiigo) p.set("soloSiigo", "1");
       return await (await fetch(`/api/crm/cotizaciones?${p}`)).json();
     },
     placeholderData: previa => previa,
@@ -238,11 +239,11 @@ function CotizacionesContent() {
           {/* La papelera solo se le enseña a administración, que es
               quien puede borrar y quien puede restaurar. El servidor lo
               vuelve a comprobar: esconder el enlace no protege nada. */}
-          <button onClick={() => setVerArchivo(v => !v)}
+          <button onClick={() => setSoloSiigo(v => !v)}
             className="btn-secondary btn-sm"
-            title="Las 6.323 cotizaciones traidas de SIIGO (2021 en adelante)"
-            style={verArchivo ? { backgroundColor: CRM_COLOR, color: "white", borderColor: CRM_COLOR } : {}}>
-            <FileText size={13} /> <span className="hidden sm:inline">{verArchivo ? "Ver el embudo" : "Archivo SIIGO"}</span>
+            title="Ver solo las cotizaciones traidas de SIIGO"
+            style={soloSiigo ? { backgroundColor: CRM_COLOR, color: "white", borderColor: CRM_COLOR } : {}}>
+            <FileText size={13} /> <span className="hidden sm:inline">{soloSiigo ? "Ver todas" : "Solo SIIGO"}</span>
           </button>
           {isAdmin && (
             <Link href="/crm/cotizaciones/papelera" className="btn-secondary btn-sm" title="Cotizaciones borradas">
@@ -298,6 +299,16 @@ function CotizacionesContent() {
               {/* La marca de prueba va PEGADA al estado y en ámbar: si se
                   pudiera confundir con una oferta real, todo el mecanismo
                   de excluirlas de los informes sobraría. */}
+              {/* La marca de origen. No es un estado: es de donde salio.
+                  Sin esto, una oferta de 2022 traida de SIIGO se ve igual
+                  que una que hizo un asesor esta semana. */}
+              {c.siigoId && (
+                <span title="Traida del archivo de SIIGO"
+                  className="text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap flex items-center gap-1"
+                  style={{ backgroundColor: "#ede9fe", color: "#6d28d9" }}>
+                  SIIGO
+                </span>
+              )}
               {c.esPrueba && (
                 <span className="text-[10px] font-bold px-2 py-1 rounded-full whitespace-nowrap flex items-center gap-1"
                   style={{ backgroundColor: "#fef3c7", color: "#b45309" }}>
@@ -381,7 +392,7 @@ function CotizacionesContent() {
         {totalPaginas > 1 && (
           <div className="card flex flex-wrap items-center justify-between gap-3 px-4 py-3">
             <p className="text-xs text-muted">
-              {verArchivo ? "Archivo de SIIGO · " : ""}
+              {soloSiigo ? "Solo SIIGO · " : ""}
               Mostrando <span className="font-semibold text-soft">{cotizaciones.length}</span> de{" "}
               <span className="font-semibold text-soft">{totalCotizaciones.toLocaleString("es-CO")}</span>{" "}
               · página {pagina} de {totalPaginas}

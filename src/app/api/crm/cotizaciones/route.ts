@@ -11,7 +11,6 @@ import { conFotoDelCatalogo, type ItemGuardable } from "@/lib/cotizacion-imagene
 import { siguienteNumeroPrueba } from "@/lib/cotizaciones-prueba";
 import { peticionPuede } from "@/lib/permisos-server";
 import { enlazarCotizacion } from "@/lib/visitas";
-import { ESTADO_HISTORICA } from "@/lib/siigo/importar-cotizaciones";
 import {
   getPoliticaComercial, descuentoEfectivoPct, evaluarPolitica,
 } from "@/lib/politica-comercial";
@@ -37,19 +36,17 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // ── El archivo de SIIGO no entra en el embudo ──
+  // ── Las de SIIGO van en el MISMO embudo ──
   //
-  // Son 6.323 ofertas de 2021 en adelante, traídas del histórico. En la
-  // lista de trabajo enterrarían las 65 vivas, y no son trabajo: son
-  // consulta. Se ven pidiéndolas: ?historicas=1 para verlas solas, o
-  // ?clienteId=… que SÍ las incluye, porque «qué le cotizamos antes a
-  // este cliente» es justo para lo que sirven.
-  const verHistoricas = req.nextUrl.searchParams.get("historicas") === "1";
-  const archivo = verHistoricas
-    ? { estado: ESTADO_HISTORICA }
-    : clienteId || estado
-      ? {}
-      : { estado: { not: ESTADO_HISTORICA } };
+  // Estuvieron un rato apartadas en un estado propio. Ya no: son 6.323
+  // ofertas reales de clientes reales, no se van a traer más, y tenerlas
+  // en otro sitio obligaba a mirar dos listas para responder la misma
+  // pregunta. Lo único que las distingue es que traen `siigoId`, y eso
+  // se marca en la pantalla.
+  //
+  // ?soloSiigo=1 las filtra, para quien quiera ver solo el archivo.
+  const soloSiigo = req.nextUrl.searchParams.get("soloSiigo") === "1";
+  const archivo = soloSiigo ? { siigoId: { not: null } } : {};
 
   // Paginación. Con 6.390 cotizaciones en la base, `take: 100` a secas
   // significa que 6.290 no se pueden alcanzar desde ninguna pantalla.
