@@ -26,11 +26,29 @@ export async function GET(req: NextRequest) {
       id: true, numero: true, estado: true, total: true, saldoPendiente: true,
       fechaEmision: true, fechaVence: true, createdAt: true,
       cliente: { select: { id: true, nombre: true, empresa: true, email: true, telefono: true } },
+      // ── Las notas crédito, y por qué cambian la cifra ──
+      //
+      // Una nota crédito anula o rebaja una factura ya emitida: una
+      // devolución, un descuento pactado después, un error de
+      // facturación. SIIGO NO la descuenta del saldo.
+      //
+      // Comprobado con datos reales: la factura FV-1-2187 tiene saldo
+      // $8.667.313 y una nota de EXACTAMENTE $8.667.313 — está anulada y
+      // el saldo sigue diciendo que deben. Hay nueve así.
+      //
+      // Sumando el saldo tal cual, la cartera daba $934 millones; el real
+      // son $843. Los $92 de diferencia son devoluciones ya hechas, y
+      // perseguirlas es llamar a un cliente a reclamarle algo que ya
+      // devolvió.
+      notasCredito: { select: { total: true } },
     },
     orderBy: { fechaVence: "asc" },
   });
 
   const hoy = Date.now();
+
+  let ajustePorNotas = 0;
+  let anuladasPorNota = 0;
 
   const conAntiguedad = facturas.map((f) => {
     // Sin fecha de vencimiento se usa la de emisión: es mejor estimar la
@@ -44,12 +62,23 @@ export async function GET(req: NextRequest) {
       : diasVencida <= 90 ? "d61_90"
       : "d90_mas";
 
+    const bruto = Number(f.saldoPendiente);
+    const nota = f.notasCredito.reduce((s, n) => s + Number(n.total), 0);
+    // Una nota no deja la deuda en negativo: como mucho la borra.
+    const saldo = Math.max(0, bruto - nota);
+
+    ajustePorNotas += bruto - saldo;
+    if (saldo === 0) anuladasPorNota++;
+
     return {
       id: f.id,
       numero: f.numero,
       estado: f.estado,
       total: Number(f.total),
-      saldoPendiente: Number(f.saldoPendiente),
+      saldoPendiente: saldo,
+      /** Lo que diría SIIGO sin descontar la nota. */
+      saldoBruto: bruto,
+      notaCredito: nota,
       fechaVence: f.fechaVence,
       diasVencida: Math.max(diasVencida, 0),
       vencida: diasVencida > 0,
@@ -57,7 +86,9 @@ export async function GET(req: NextRequest) {
       cliente: f.cliente,
       sinFechaVencimiento: !f.fechaVence,
     };
-  });
+  })
+  // Las que quedaron en cero salen de la cartera: ya no se deben.
+  .filter(f => f.saldoPendiente > 0);
 
   const sumar = (tramo: string) =>
     conAntiguedad.filter((f) => f.tramo === tramo).reduce((s, f) => s + f.saldoPendiente, 0);
@@ -111,6 +142,12 @@ export async function GET(req: NextRequest) {
           ? Math.round(conAntiguedad.reduce((s, f) => s + f.diasVencida * f.saldoPendiente, 0) / totalPorCobrar)
           : 0,
         sinFechaVencimiento: conAntiguedad.filter(f => f.sinFechaVencimiento).length,
+        // Lo que se descontó por notas crédito, para poder DECIRLO en la
+        // pantalla. Si el número baja sin explicación, el primero que
+        // compare con SIIGO va a pensar que la cartera está mal.
+        ajustePorNotas,
+        anuladasPorNota,
+        totalSegunSiigo: totalPorCobrar + ajustePorNotas,
       },
       tramos,
       clientes: [...porCliente.values()].sort((a, b) => b.saldo - a.saldo),

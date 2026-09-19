@@ -30,6 +30,7 @@ interface FacturaCartera {
   id: string; numero: string; estado: string; total: number; saldoPendiente: number;
   fechaVence: string | null; diasVencida: number; vencida: boolean; tramo: string;
   sinFechaVencimiento: boolean;
+  saldoBruto?: number; notaCredito?: number;
   cliente: { id: string; nombre: string; empresa: string | null; email: string | null; telefono: string | null };
 }
 
@@ -38,6 +39,7 @@ interface Cartera {
     totalPorCobrar: number; totalVencido: number; totalCorriente: number;
     facturasPendientes: number; facturasVencidas: number; clientesConDeuda: number;
     diasPromedioPonderado: number; sinFechaVencimiento: number;
+    ajustePorNotas: number; anuladasPorNota: number; totalSegunSiigo: number;
   };
   tramos: Record<string, { monto: number; facturas: number }>;
   clientes: ClienteDeuda[];
@@ -114,6 +116,27 @@ function CarteraContent() {
                 );
               })}
             </div>
+
+            {/* Las notas crédito. Esto hay que DECIRLO: si alguien compara
+                esta cifra con SIIGO y no cuadra, va a pensar que la
+                cartera está mal — y es al revés. */}
+            {resumen.ajustePorNotas > 0 && (
+              <div className="card p-4 text-xs" style={{ borderLeft: "4px solid #7c3aed" }}>
+                <p className="font-bold mb-0.5" style={{ color: "#6d28d9" }}>
+                  Se descontaron {formatCOP(resumen.ajustePorNotas)} en notas crédito
+                </p>
+                <p className="text-muted">
+                  SIIGO sumaría <strong>{formatCOP(resumen.totalSegunSiigo)}</strong>, porque no
+                  resta las notas crédito del saldo.
+                  {resumen.anuladasPorNota > 0 && (
+                    <> {resumen.anuladasPorNota} factura{resumen.anuladasPorNota === 1 ? "" : "s"} quedaron
+                    en cero y no aparecen aquí.</>
+                  )}{" "}
+                  Son devoluciones y anulaciones ya hechas: cobrarlas sería reclamarle al cliente
+                  algo que ya devolvió.
+                </p>
+              </div>
+            )}
 
             {resumen.sinFechaVencimiento > 0 && (
               <div className="card p-4 text-xs" style={{ borderLeft: "4px solid #f59e0b" }}>

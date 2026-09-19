@@ -8,7 +8,7 @@ import {
   MessageSquare, Truck, CheckSquare, MessageSquareText, Zap,
   Megaphone, Target, TrendingUp, Radio, Receipt, PieChart, Star, Timer,
   Sparkles, HardHat, PanelLeftClose, PanelLeftOpen, MessagesSquare, Activity, FlaskConical,
-  Ruler,
+  Ruler
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
